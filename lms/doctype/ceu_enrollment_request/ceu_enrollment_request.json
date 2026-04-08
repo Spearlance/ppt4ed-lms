@@ -1,0 +1,74 @@
+{
+    "actions": [],
+    "autoname": "hash",
+    "creation": "2026-04-08 00:00:00.000000",
+    "doctype": "DocType",
+    "engine": "InnoDB",
+    "field_order": [
+        "user", "course", "company", "status",
+        "reviewed_by", "reviewed_on"
+    ],
+    "fields": [
+        {
+            "fieldname": "user",
+            "fieldtype": "Link",
+            "in_list_view": 1,
+            "label": "User",
+            "options": "User",
+            "reqd": 1
+        },
+        {
+            "fieldname": "course",
+            "fieldtype": "Link",
+            "in_list_view": 1,
+            "label": "Course",
+            "options": "LMS Course"
+        },
+        {
+            "fieldname": "company",
+            "fieldtype": "Link",
+            "in_list_view": 1,
+            "label": "Company",
+            "options": "Company Account"
+        },
+        {
+            "default": "Pending",
+            "fieldname": "status",
+            "fieldtype": "Select",
+            "in_list_view": 1,
+            "in_standard_filter": 1,
+            "label": "Status",
+            "options": "\nPending\nApproved\nDenied"
+        },
+        {
+            "fieldname": "reviewed_by",
+            "fieldtype": "Link",
+            "label": "Reviewed By",
+            "options": "User"
+        },
+        {
+            "fieldname": "reviewed_on",
+            "fieldtype": "Datetime",
+            "label": "Reviewed On"
+        }
+    ],
+    "index_web_pages_for_search": 1,
+    "links": [],
+    "modified": "2026-04-08 00:00:00.000000",
+    "modified_by": "Administrator",
+    "module": "LMS",
+    "name": "CEU Enrollment Request",
+    "naming_rule": "Random",
+    "owner": "Administrator",
+    "permissions": [
+        {
+            "create": 1, "delete": 1, "read": 1, "write": 1,
+            "role": "System Manager"
+        }
+    ],
+    "row_format": "Dynamic",
+    "sort_field": "modified",
+    "sort_order": "DESC",
+    "states": [],
+    "track_changes": 1
+}
