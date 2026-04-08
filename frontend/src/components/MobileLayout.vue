@@ -153,7 +153,6 @@ watch(userResource, () => {
 		isInstructor.value = userResource.data.is_instructor
 		addPrograms()
 		if (isModerator.value || isInstructor.value) {
-			addProgrammingExercises()
 			addQuizzes()
 			addAssignments()
 		}
@@ -173,14 +172,6 @@ const addAssignments = () => {
 		label: 'Assignments',
 		icon: 'Pencil',
 		to: 'Assignments',
-	})
-}
-
-const addProgrammingExercises = () => {
-	otherLinks.value.push({
-		label: 'Programming Exercises',
-		icon: 'Code',
-		to: 'ProgrammingExercises',
 	})
 }
 

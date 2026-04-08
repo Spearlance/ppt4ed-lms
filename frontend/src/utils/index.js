@@ -548,19 +548,6 @@ const getSidebarItems = () => {
 						'AssignmentSubmission',
 					],
 				},
-				{
-					label: 'Programming Exercises',
-					icon: 'Code',
-					to: 'ProgrammingExercises',
-					condition: () => {
-						return isAdmin()
-					},
-					activeFor: [
-						'ProgrammingExercises',
-						'ProgrammingExerciseSubmissions',
-						'ProgrammingExerciseSubmission',
-					],
-				},
 			],
 		},
 	]
