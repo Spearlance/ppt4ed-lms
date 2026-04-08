@@ -142,7 +142,7 @@ scheduler_events = {
 		"lms.lms.doctype.lms_live_class.lms_live_class.update_attendance",
 	],
 	"daily": [
-		"lms.job.doctype.job_opportunity.job_opportunity.update_job_openings",
+		# "lms.job.doctype.job_opportunity.job_opportunity.update_job_openings",  # PPT4ed: hidden
 		"lms.lms.doctype.lms_payment.lms_payment.send_payment_reminder",
 		"lms.lms.doctype.lms_batch.lms_batch.send_batch_start_reminder",
 		"lms.lms.doctype.lms_live_class.lms_live_class.send_live_class_reminder",
@@ -198,12 +198,12 @@ website_redirects = [
 		"target": f"/{get_lms_path()}/batches",
 		"match_with_query_string": True,
 	},
-	{"source": "/job-openings", "target": f"/{get_lms_path()}/job-openings"},
-	{
-		"source": r"/job-openings/(.*)",
-		"target": f"/{get_lms_path()}/job-openings",
-		"match_with_query_string": True,
-	},
+	# {"source": "/job-openings", "target": f"/{get_lms_path()}/job-openings"},  # PPT4ed: hidden
+	# {  # PPT4ed: hidden
+	# 	"source": r"/job-openings/(.*)",
+	# 	"target": f"/{get_lms_path()}/job-openings",
+	# 	"match_with_query_string": True,
+	# },
 	{"source": "/statistics", "target": f"/{get_lms_path()}/statistics"},
 	{"source": "_lms", "target": f"/{get_lms_path()}"},
 ]

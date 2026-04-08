@@ -39,9 +39,10 @@ def get_grouped_results(result):
 		elif doctype == "LMS Batch" and can_access_batch(r, roles):
 			r["author_info"] = get_instructor_info(doctype, r)
 			groups.setdefault("Batches", []).append(r)
-		elif doctype == "Job Opportunity" and can_access_job(r, roles):
-			r["author_info"] = get_instructor_info(doctype, r)
-			groups.setdefault("Job Opportunities", []).append(r)
+		# PPT4ed: hidden — Job Opportunity search results
+		# elif doctype == "Job Opportunity" and can_access_job(r, roles):
+		# 	r["author_info"] = get_instructor_info(doctype, r)
+		# 	groups.setdefault("Job Opportunities", []).append(r)
 	return groups
 
 
@@ -71,10 +72,11 @@ def can_access_batch(batch, roles):
 	return False
 
 
-def can_access_job(job, roles):
-	if "Moderator" in roles:
-		return True
-	return job.get("status") == "Open"
+# PPT4ed: hidden — Job access check
+# def can_access_job(job, roles):
+# 	if "Moderator" in roles:
+# 		return True
+# 	return job.get("status") == "Open"
 
 
 def can_create_course(roles):

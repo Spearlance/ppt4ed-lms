@@ -48,20 +48,21 @@ class LearningSearch(SQLiteSearch):
 				{"modified": "start_date"},
 			],
 		},
-		"Job Opportunity": {
-			"fields": [
-				"name",
-				{"title": "job_title"},
-				{"content": "description"},
-				"owner",
-				"location",
-				"country",
-				"company_name",
-				"status",
-				"creation",
-				{"modified": "creation"},
-			],
-		},
+		# PPT4ed: hidden — Job Opportunity search index
+		# "Job Opportunity": {
+		# 	"fields": [
+		# 		"name",
+		# 		{"title": "job_title"},
+		# 		{"content": "description"},
+		# 		"owner",
+		# 		"location",
+		# 		"country",
+		# 		"company_name",
+		# 		"status",
+		# 		"creation",
+		# 		{"modified": "creation"},
+		# 	],
+		# },
 		"Course Instructor": {
 			"fields": [
 				"name",
@@ -100,15 +101,16 @@ class LearningSearch(SQLiteSearch):
 		"published",
 	]
 
-	JOB_FIELDS = [
-		"name",
-		"job_title",
-		"company_name",
-		"description",
-		"creation",
-		"modified",
-		"owner",
-	]
+	# PPT4ed: hidden — Job Opportunity fields
+	# JOB_FIELDS = [
+	# 	"name",
+	# 	"job_title",
+	# 	"company_name",
+	# 	"description",
+	# 	"creation",
+	# 	"modified",
+	# 	"owner",
+	# ]
 
 	INSTRUCTOR_FIELDS = [
 		"name",
@@ -120,7 +122,7 @@ class LearningSearch(SQLiteSearch):
 	DOCTYPE_FIELDS = {
 		"LMS Course": COURSE_FIELDS,
 		"LMS Batch": BATCH_FIELDS,
-		"Job Opportunity": JOB_FIELDS,
+		# "Job Opportunity": JOB_FIELDS,  # PPT4ed: hidden
 		"Course Instructor": INSTRUCTOR_FIELDS,
 	}
 
