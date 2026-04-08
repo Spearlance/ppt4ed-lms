@@ -1,0 +1,85 @@
+{
+    "actions": [],
+    "autoname": "autoincrement",
+    "creation": "2026-04-08 00:00:00.000000",
+    "doctype": "DocType",
+    "engine": "InnoDB",
+    "field_order": [
+        "membership", "user", "course",
+        "transaction_type", "hours", "balance_after", "timestamp"
+    ],
+    "fields": [
+        {
+            "fieldname": "membership",
+            "fieldtype": "Link",
+            "label": "Membership",
+            "options": "CEU Membership",
+            "search_index": 1
+        },
+        {
+            "fieldname": "user",
+            "fieldtype": "Link",
+            "in_list_view": 1,
+            "label": "User",
+            "options": "User",
+            "reqd": 1,
+            "search_index": 1
+        },
+        {
+            "fieldname": "course",
+            "fieldtype": "Link",
+            "label": "Course",
+            "options": "LMS Course"
+        },
+        {
+            "fieldname": "transaction_type",
+            "fieldtype": "Select",
+            "in_list_view": 1,
+            "in_standard_filter": 1,
+            "label": "Transaction Type",
+            "options": "\nAllocation\nEnrollment\nRefund\nExpiry\nTop-Up",
+            "reqd": 1
+        },
+        {
+            "fieldname": "hours",
+            "fieldtype": "Float",
+            "in_list_view": 1,
+            "label": "Hours",
+            "reqd": 1
+        },
+        {
+            "fieldname": "balance_after",
+            "fieldtype": "Float",
+            "in_list_view": 1,
+            "label": "Balance After",
+            "reqd": 1
+        },
+        {
+            "fieldname": "timestamp",
+            "fieldtype": "Datetime",
+            "in_list_view": 1,
+            "label": "Timestamp",
+            "reqd": 1
+        }
+    ],
+    "in_create": 1,
+    "index_web_pages_for_search": 1,
+    "links": [],
+    "modified": "2026-04-08 00:00:00.000000",
+    "modified_by": "Administrator",
+    "module": "LMS",
+    "name": "CEU Credit Ledger",
+    "naming_rule": "Autoincrement",
+    "owner": "Administrator",
+    "permissions": [
+        {
+            "read": 1, "report": 1,
+            "role": "System Manager"
+        }
+    ],
+    "row_format": "Dynamic",
+    "sort_field": "timestamp",
+    "sort_order": "DESC",
+    "states": [],
+    "track_changes": 0
+}
