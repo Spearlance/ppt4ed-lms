@@ -1,0 +1,122 @@
+{
+    "actions": [],
+    "autoname": "hash",
+    "creation": "2026-04-08 00:00:00.000000",
+    "doctype": "DocType",
+    "engine": "InnoDB",
+    "field_order": [
+        "member", "plan", "membership_type",
+        "stripe_section", "stripe_subscription_id", "stripe_customer_id",
+        "status_section", "status", "start_date", "end_date",
+        "credit_section", "credit_balance", "require_enrollment_approval"
+    ],
+    "fields": [
+        {
+            "fieldname": "member",
+            "fieldtype": "Link",
+            "in_list_view": 1,
+            "label": "Member",
+            "options": "User",
+            "reqd": 1,
+            "search_index": 1
+        },
+        {
+            "fieldname": "plan",
+            "fieldtype": "Link",
+            "in_list_view": 1,
+            "label": "Plan",
+            "options": "CEU Membership Plan",
+            "reqd": 1
+        },
+        {
+            "fieldname": "membership_type",
+            "fieldtype": "Select",
+            "in_list_view": 1,
+            "in_standard_filter": 1,
+            "label": "Membership Type",
+            "options": "\nProfessional\nCompany",
+            "reqd": 1
+        },
+        {
+            "fieldname": "stripe_section",
+            "fieldtype": "Section Break",
+            "label": "Stripe"
+        },
+        {
+            "fieldname": "stripe_subscription_id",
+            "fieldtype": "Data",
+            "label": "Stripe Subscription ID"
+        },
+        {
+            "fieldname": "stripe_customer_id",
+            "fieldtype": "Data",
+            "label": "Stripe Customer ID"
+        },
+        {
+            "fieldname": "status_section",
+            "fieldtype": "Section Break",
+            "label": "Status"
+        },
+        {
+            "default": "Active",
+            "fieldname": "status",
+            "fieldtype": "Select",
+            "in_list_view": 1,
+            "in_standard_filter": 1,
+            "label": "Status",
+            "options": "\nActive\nExpired\nCancelled\nPast Due",
+            "reqd": 1
+        },
+        {
+            "fieldname": "start_date",
+            "fieldtype": "Date",
+            "label": "Start Date",
+            "reqd": 1
+        },
+        {
+            "fieldname": "end_date",
+            "fieldtype": "Date",
+            "label": "End Date",
+            "reqd": 1
+        },
+        {
+            "fieldname": "credit_section",
+            "fieldtype": "Section Break",
+            "label": "Credits"
+        },
+        {
+            "default": "0",
+            "fieldname": "credit_balance",
+            "fieldtype": "Float",
+            "in_list_view": 1,
+            "label": "Credit Balance"
+        },
+        {
+            "default": "0",
+            "fieldname": "require_enrollment_approval",
+            "fieldtype": "Check",
+            "label": "Require Enrollment Approval",
+            "description": "Company only - admin must approve enrollments"
+        }
+    ],
+    "index_web_pages_for_search": 1,
+    "links": [],
+    "modified": "2026-04-08 00:00:00.000000",
+    "modified_by": "Administrator",
+    "module": "LMS",
+    "name": "CEU Membership",
+    "naming_rule": "Random",
+    "owner": "Administrator",
+    "permissions": [
+        {
+            "create": 1, "delete": 1, "email": 1, "export": 1,
+            "print": 1, "read": 1, "report": 1,
+            "role": "System Manager", "share": 1, "write": 1
+        }
+    ],
+    "row_format": "Dynamic",
+    "sort_field": "modified",
+    "sort_order": "DESC",
+    "states": [],
+    "track_changes": 1
+}
