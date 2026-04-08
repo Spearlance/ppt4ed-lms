@@ -495,12 +495,6 @@ const getSidebarItems = () => {
 					},
 				},
 				{
-					label: 'Jobs',
-					icon: 'Briefcase',
-					to: 'Jobs',
-					activeFor: ['Jobs', 'JobDetail'],
-				},
-				{
 					label: 'Statistics',
 					icon: 'TrendingUp',
 					to: 'Statistics',

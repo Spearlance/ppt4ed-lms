@@ -70,7 +70,6 @@ import { nextTick, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import {
 	BookOpen,
-	Briefcase,
 	CornerDownLeft,
 	FileSearch,
 	MoveUp,
@@ -249,14 +248,6 @@ const jumpToOptions = ref([
 				icon: Users,
 				route: {
 					name: 'Batches',
-				},
-				isActive: false,
-			},
-			{
-				title: 'Jobs',
-				icon: Briefcase,
-				route: {
-					name: 'Jobs',
 				},
 				isActive: false,
 			},

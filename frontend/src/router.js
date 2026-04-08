@@ -101,32 +101,9 @@ const routes = [
 		],
 	},
 	{
-		path: '/job-openings',
-		name: 'Jobs',
-		component: () => import('@/pages/Jobs.vue'),
-	},
-	{
-		path: '/job-openings/:job',
-		name: 'JobDetail',
-		component: () => import('@/pages/JobDetail.vue'),
-		props: true,
-	},
-	{
-		path: '/job-openings/:job/applications',
-		name: 'JobApplications',
-		component: () => import('@/pages/JobApplications.vue'),
-		props: true,
-	},
-	{
 		path: '/courses/:courseName/learn/:chapterNumber-:lessonNumber/edit',
 		name: 'LessonForm',
 		component: () => import('@/pages/LessonForm.vue'),
-		props: true,
-	},
-	{
-		path: '/job-opening/:jobName/edit',
-		name: 'JobForm',
-		component: () => import('@/pages/JobForm.vue'),
 		props: true,
 	},
 	{
