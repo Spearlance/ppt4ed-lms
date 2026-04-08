@@ -12,6 +12,15 @@ export default {
 	],
 	theme: {
 		extend: {
+			colors: {
+				'ppt4ed': {
+					'dark-blue': '#0b6685',
+					'light-blue': '#00a7c5',
+					'yellow': '#f6bd2e',
+					'charcoal': '#222222',
+					'gray': '#545454',
+				},
+			},
 			strokeWidth: {
 				1.5: '1.5',
 			},

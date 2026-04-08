@@ -184,7 +184,7 @@
 					</Tooltip>
 					<Tooltip
 						v-if="showAppointmentIcon"
-						:text="__('Book a free onboarding session with the Frappe team')"
+						:text="__('Book a session')"
 					>
 						<Phone
 							class="size-4 stroke-1.5 text-ink-gray-7 cursor-pointer"
@@ -202,7 +202,7 @@
 							"
 						/>
 					</Tooltip>
-					<Tooltip :text="__('Powered by Frappe Learning')">
+					<Tooltip :text="__('Powered by PPT4ed')">
 						<Zap
 							class="size-4 stroke-1.5 text-ink-gray-7 cursor-pointer"
 							@click="redirectToWebsite()"
@@ -229,13 +229,13 @@
 			v-model="showHelpModal"
 			v-model:articles="articles"
 			appName="learning"
-			title="Frappe Learning"
+			title="PPT4ed Learning"
 			:logo="LMSLogo"
 			:afterSkip="(step) => capture('onboarding_step_skipped_' + step)"
 			:afterSkipAll="() => capture('onboarding_steps_skipped')"
 			:afterReset="(step) => capture('onboarding_step_reset_' + step)"
 			:afterResetAll="() => capture('onboarding_steps_reset')"
-			docsLink="https://docs.frappe.io/learning"
+			docsLink="https://www.ppt4ed.org"
 		/>
 		<IntermediateStepModal
 			v-model="showIntermediateModal"
@@ -673,7 +673,7 @@ const updateSidebarLinks = () => {
 }
 
 const redirectToWebsite = () => {
-	window.open('https://frappe.io/learning', '_blank')
+	window.open('https://www.ppt4ed.org', '_blank')
 }
 
 const isStudent = computed(() => {

@@ -1744,13 +1744,13 @@ def get_progress_distribution(progressList: list):
 
 @frappe.whitelist(allow_guest=True)
 def get_pwa_manifest():
-	title = frappe.db.get_single_value("Website Settings", "app_name") or "Frappe Learning"
+	title = frappe.db.get_single_value("Website Settings", "app_name") or "PPT4ed Learning"
 	banner_image = frappe.db.get_single_value("Website Settings", "banner_image")
 
 	manifest = {
 		"name": title,
 		"short_name": title,
-		"description": "Easy to use, 100% open source Learning Management System",
+		"description": "PPT4ed Learning Management System for pediatric therapy education",
 		"start_url": get_lms_route(),
 		"icons": [
 			{

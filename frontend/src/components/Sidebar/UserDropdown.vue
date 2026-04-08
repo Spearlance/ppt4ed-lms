@@ -29,12 +29,12 @@
 						<div class="text-base font-medium text-ink-gray-9 leading-none">
 							<span
 								v-if="
-									branding.data?.app_name && branding.data?.app_name != 'Frappe'
+									branding.data?.app_name && branding.data?.app_name != 'PPT4ed'
 								"
 							>
 								{{ branding.data?.app_name }}
 							</span>
-							<span v-else> Learning </span>
+							<span v-else> PPT4ed Learning </span>
 						</div>
 						<div
 							v-if="userResource.data"
@@ -74,7 +74,6 @@ import { markRaw, watch, ref, onMounted, computed } from 'vue'
 import { createDialog } from '@/utils/dialogs'
 import Apps from '@/components/Sidebar/Apps.vue'
 import Configuration from '@/components/Sidebar/Configuration.vue'
-import FrappeCloudIcon from '@/components/Icons/FrappeCloudIcon.vue'
 import LMSLogo from '@/components/Icons/LMSLogo.vue'
 import SettingsModal from '@/components/Settings/Settings.vue'
 import {
@@ -95,7 +94,6 @@ const settingsStore = useSettings()
 let { isLoggedIn } = sessionStore()
 const showSettingsModal = ref(false)
 const theme = ref('light')
-const frappeCloudBaseEndpoint = 'https://frappecloud.com'
 const $dialog = createDialog
 
 const props = defineProps({
@@ -188,35 +186,7 @@ const userDropdownOptions = computed(() => {
 						)
 					},
 				},
-				{
-					icon: FrappeCloudIcon,
-					label: 'Login to Frappe Cloud',
-					onClick: () => {
-						$dialog({
-							title: __('Login to Frappe Cloud?'),
-							message: __(
-								'Are you sure you want to login to your Frappe Cloud dashboard?'
-							),
-							actions: [
-								{
-									label: __('Confirm'),
-									variant: 'solid',
-									onClick(close) {
-										loginToFrappeCloud()
-										close()
-									},
-								},
-							],
-						})
-					},
-					condition: () => {
-						return (
-							userResource.data?.is_system_manager &&
-							userResource.data?.is_fc_site
-						)
-					},
-				},
-				{
+{
 					icon: LogOut,
 					label: 'Log out',
 					onClick: () => {
@@ -243,16 +213,11 @@ const userDropdownOptions = computed(() => {
 	]
 })
 
-const loginToFrappeCloud = () => {
-	let redirect_to = '/dashboard/sites/' + userResource.data.sitename
-	window.open(`${frappeCloudBaseEndpoint}${redirect_to}`, '_blank')
-}
-
 const clearDemoDataConfirmation = () => {
 	$dialog({
 		title: __('Confirm clearing demo data?'),
 		message: __(
-			'Are you sure you want to clear the demo data? This would delete the course "A guide  to Frappe Learning" along with all its associated data. This action cannot be undone.'
+			'Are you sure you want to clear the demo data? This would delete the demo course along with all its associated data. This action cannot be undone.'
 		),
 		actions: [
 			{
