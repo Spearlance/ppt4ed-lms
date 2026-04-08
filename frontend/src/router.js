@@ -173,11 +173,6 @@ const routes = [
 		component: () => import('@/pages/AssignmentSubmissionList.vue'),
 	},
 	{
-		path: '/persona',
-		name: 'PersonaForm',
-		component: () => import('@/pages/PersonaForm.vue'),
-	},
-	{
 		path: '/search',
 		name: 'Search',
 		component: () => import('@/pages/Search/Search.vue'),

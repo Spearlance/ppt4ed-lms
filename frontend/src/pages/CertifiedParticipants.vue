@@ -40,20 +40,6 @@
 						/>
 					</div>
 				</div>
-				<div class="flex items-center space-x-4">
-					<Switch
-						size="sm"
-						v-model="openToWork"
-						:label="__('Open to Work')"
-						@change="updateParticipants()"
-					/>
-					<Switch
-						size="sm"
-						v-model="hiring"
-						:label="__('Hiring')"
-						@change="updateParticipants()"
-					/>
-				</div>
 			</div>
 		</div>
 		<div v-if="participants.data?.length" class="">
@@ -129,7 +115,6 @@ import {
 	createListResource,
 	FormControl,
 	Select,
-	Switch,
 	usePageMeta,
 } from 'frappe-ui'
 import { computed, inject, onMounted, ref } from 'vue'
@@ -142,8 +127,6 @@ import UserAvatar from '@/components/UserAvatar.vue'
 const filters = ref({})
 const currentCategory = ref('')
 const nameFilter = ref('')
-const openToWork = ref(false)
-const hiring = ref(false)
 const { brand } = sessionStore()
 const memberCount = ref(0)
 const dayjs = inject('$dayjs')
@@ -205,12 +188,6 @@ const updateFilters = () => {
 		...(nameFilter.value && {
 			member_name: ['like', `%${nameFilter.value}%`],
 		}),
-		...(openToWork.value && {
-			open_to_work: true,
-		}),
-		...(hiring.value && {
-			hiring: true,
-		}),
 	}
 }
 
@@ -219,8 +196,6 @@ const setQueryParams = () => {
 	let filterKeys = {
 		category: currentCategory.value,
 		name: nameFilter.value,
-		'open-to-work': openToWork.value,
-		hiring: hiring.value,
 	}
 
 	Object.keys(filterKeys).forEach((key) => {
@@ -248,8 +223,6 @@ const setFiltersFromQuery = () => {
 	let queries = new URLSearchParams(location.search)
 	nameFilter.value = queries.get('name') || ''
 	currentCategory.value = queries.get('category') || ''
-	openToWork.value = queries.get('open-to-opportunities') === 'true'
-	hiring.value = queries.get('hiring') === 'true'
 }
 
 const breadcrumbs = computed(() => [

@@ -62,30 +62,6 @@
 						>
 							{{ profile.data.full_name.charAt(0).toUpperCase() }}
 						</div>
-						<Tooltip
-							v-if="profile.data.open_to"
-							:text="
-								profile.data.open_to === 'Work'
-									? __('Open to Work')
-									: __('Hiring')
-							"
-							placement="right"
-						>
-							<div
-								class="absolute bottom-3 right-1 p-0.5 bg-surface-white rounded-full"
-							>
-								<div
-									class="rounded-full w-fit"
-									:class="
-										profile.data.open_to === 'Work'
-											? 'bg-surface-green-3'
-											: 'bg-purple-500'
-									"
-								>
-									<BadgeCheckIcon class="text-ink-white size-5" />
-								</div>
-							</div>
-						</Tooltip>
 					</div>
 				</div>
 				<div class="ml-6 mt-5">
@@ -148,14 +124,12 @@ import {
 	call,
 	createResource,
 	TabButtons,
-	Tooltip,
 	toast,
 	usePageMeta,
 } from 'frappe-ui'
 import { computed, inject, watch, ref, onMounted, watchEffect } from 'vue'
 import { sessionStore } from '@/stores/session'
 import {
-	BadgeCheckIcon,
 	Edit,
 	Github,
 	Linkedin,

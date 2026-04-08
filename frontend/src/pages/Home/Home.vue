@@ -73,32 +73,7 @@ const isAdmin = computed(() => {
 	)
 })
 
-const isPersonaCaptured = async () => {
-	let persona = await call('frappe.client.get_single_value', {
-		doctype: 'LMS Settings',
-		field: 'persona_captured',
-	})
-	return persona
-}
-
-const identifyUserPersona = async () => {
-	if (user.data?.is_system_manager && !user.data?.developer_mode) {
-		let personaCaptured = await isPersonaCaptured()
-		if (personaCaptured) return
-		let courseCount = await call('frappe.client.get_count', {
-			doctype: 'LMS Course',
-			filters: {
-				title: ['not like', '%A guide to PPT4ed Learning%'],
-			},
-		})
-		if (!courseCount) {
-			router.push({ name: 'PersonaForm' })
-		}
-	}
-}
-
 onMounted(() => {
-	identifyUserPersona()
 	if (isAdmin.value) {
 		currentTab.value = 'instructor'
 	} else {

@@ -58,13 +58,6 @@
 						</div>
 					</div>
 					<div class="space-y-4">
-						<FormControl
-							v-model="profile.open_to"
-							type="select"
-							:options="[' ', 'Work', 'Hiring']"
-							:label="__('Open to')"
-							:placeholder="__('Looking for new work or hiring talent?')"
-						/>
 						<Link
 							:label="__('Language')"
 							v-model="profile.language"
@@ -120,7 +113,6 @@ const profile = reactive({
 	headline: '',
 	bio: '',
 	image: '',
-	open_to: '',
 	linkedin: '',
 	github: '',
 	twitter: '',
@@ -211,7 +203,6 @@ watch(
 			profile.headline = newVal.headline
 			profile.language = newVal.language
 			profile.bio = newVal.bio
-			profile.open_to = newVal.open_to
 			profile.linkedin = newVal.linkedin
 			profile.github = newVal.github
 			profile.twitter = newVal.twitter
