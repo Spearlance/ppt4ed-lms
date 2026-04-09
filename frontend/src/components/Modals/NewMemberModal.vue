@@ -40,6 +40,17 @@
 						class="w-full"
 					/>
 				</div>
+				<div>
+					<Link
+						doctype="Company Account"
+						:value="member.company"
+						@change="(val) => member.company = val"
+						:label="__('Company (optional)')"
+					/>
+					<p v-if="member.company" class="mt-1 text-xs text-ink-gray-5">
+						{{ __('Member will be added to this company. Company handles billing.') }}
+					</p>
+				</div>
 				<div class="flex flex-col gap-2">
 					<div class="text-sm text-ink-gray-5">
 						{{ __('Roles') }}
@@ -76,6 +87,7 @@
 import { call, Dialog, FormControl, toast, Switch } from 'frappe-ui'
 import { reactive, ref, watch } from 'vue'
 import { cleanError } from '@/utils'
+import Link from '@/components/Controls/Link.vue'
 
 const show = defineModel<boolean>({ default: false })
 const submitting = ref(false)
@@ -99,6 +111,7 @@ const member = reactive({
 	email: '',
 	first_name: '',
 	last_name: '',
+	company: '',
 })
 
 const roles = reactive({
@@ -112,6 +125,7 @@ const resetForm = () => {
 	member.email = ''
 	member.first_name = ''
 	member.last_name = ''
+	member.company = ''
 	applyDefaultRoles()
 }
 
@@ -159,6 +173,13 @@ const addMember = async (close?: () => void) => {
 		})
 
 		await assignRoles(user.name)
+
+		if (member.company) {
+			await call('lms.lms.api.add_member_to_company', {
+				user_email: user.name,
+				company_name: member.company,
+			})
+		}
 
 		toast.success(__('Member added successfully'))
 		emit('created', user)
