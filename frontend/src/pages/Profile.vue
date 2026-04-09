@@ -206,6 +206,7 @@ watchEffect(() => {
 			Roles: { name: 'ProfileRoles' },
 			Slots: { name: 'ProfileEvaluator' },
 			Schedule: { name: 'ProfileEvaluationSchedule' },
+			Membership: { name: 'ProfileMembership' },
 		}[activeTab.value]
 		router.push(route)
 	}
@@ -244,6 +245,7 @@ const getTabButtons = () => {
 	]
 	if ($user.data?.is_moderator) {
 		buttons.push({ label: __('Roles'), value: 'Roles' })
+		buttons.push({ label: __('Membership'), value: 'Membership' })
 	}
 
 	if (currentUserHasHigherAccess() && isEvaluatorOrModerator()) {

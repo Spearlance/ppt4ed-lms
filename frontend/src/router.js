@@ -98,6 +98,11 @@ const routes = [
 				component: () =>
 					import('@/pages/ProfileEvaluationSchedule.vue'),
 			},
+			{
+				name: 'ProfileMembership',
+				path: 'membership',
+				component: () => import('@/pages/ProfileMembership.vue'),
+			},
 		],
 	},
 	{
