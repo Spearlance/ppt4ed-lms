@@ -25,7 +25,7 @@
 			</div>
 		</div>
 		<div v-else class="text-ink-gray-7 leading-5">
-			{{ __('No announcements have been made yet for this batch') }}
+			{{ __('No announcements have been made yet for this event') }}
 		</div>
 	</div>
 </template>
@@ -44,7 +44,7 @@ const communications = createResource({
 	url: 'lms.lms.api.get_announcements',
 	makeParams(value) {
 		return {
-			batch: props.batch.data?.name,
+			event: props.event.data?.name,
 		}
 	},
 	auto: true,

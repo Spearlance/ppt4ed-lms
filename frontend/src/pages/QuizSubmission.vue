@@ -91,7 +91,7 @@ const router = useRouter()
 const user = inject('$user')
 
 onMounted(() => {
-	if (!user.data?.is_instructor && !user.data?.is_moderator)
+	if (!user.data?.is_moderator)
 		router.push({ name: 'Courses' })
 
 	window.addEventListener('keydown', keyboardShortcut)

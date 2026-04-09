@@ -124,7 +124,7 @@
 					class="border rounded-lg p-3 min-h-[300px]"
 					:config="{
 						data: filteredChartData,
-						title: __('Batch Summary'),
+						title: __('Event Summary'),
 						subtitle: __('Progress of students in courses and assessments'),
 						xAxis: {
 							key: 'task',
@@ -152,7 +152,7 @@
 	<StudentModal
 		v-if="showEnrollmentModal"
 		v-model="showEnrollmentModal"
-		:batch="batch"
+		:event="event"
 		:students="students"
 	/>
 </template>
@@ -186,26 +186,26 @@ const props = defineProps<{
 }>()
 
 const chartData = createResource({
-	url: 'lms.lms.utils.get_batch_chart_data',
-	cache: ['batch_chart_data', props.batch?.data?.name],
-	params: { batch: props.batch?.data?.name },
+	url: 'lms.lms.utils.get_event_chart_data',
+	cache: ['event_chart_data', props.batch?.data?.name],
+	params: { event: props.event?.data?.name },
 	auto: true,
 })
 
 const certificationCount = createResource({
 	url: 'frappe.client.get_count',
-	cache: ['batch_certificate_count', props.batch?.data?.name],
+	cache: ['event_certificate_count', props.batch?.data?.name],
 	params: {
 		doctype: 'LMS Certificate',
-		filters: { batch_name: props.batch?.data?.name },
+		filters: { event_name: props.batch?.data?.name },
 	},
 	auto: true,
 })
 
 const students = createListResource({
-	doctype: 'LMS Batch Enrollment',
+	doctype: 'LMS Event Registration',
 	filters: {
-		batch: props.batch?.data?.name,
+		event: props.event?.data?.name,
 	},
 	fields: [
 		'name',
@@ -225,7 +225,7 @@ const filteredChartData = computed(() =>
 
 watch(searchFilter, () => {
 	let filters: Record<string, any> = {
-		batch: props.batch?.data?.name,
+		event: props.event?.data?.name,
 	}
 
 	if (searchFilter.value) {

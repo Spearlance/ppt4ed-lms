@@ -8,12 +8,12 @@
 				<Badge v-if="childRef?.isDirty" theme="orange">
 					{{ __('Not Saved') }}
 				</Badge>
-				<Button @click="childRef.deleteBatch()">
+				<Button @click="childRef.deleteEvent()">
 					<template #icon>
 						<Trash2 class="w-4 h-4 stroke-1.5" />
 					</template>
 				</Button>
-				<Button variant="solid" @click="childRef.submitBatch()">
+				<Button variant="solid" @click="childRef.submitEvent()">
 					{{ __('Save') }}
 				</Button>
 			</div>
@@ -33,7 +33,7 @@
 			</Dropdown>
 		</header>
 		<div>
-			<BatchOverview v-if="!isAdmin && !isStudent" :batch="batch" />
+			<BatchOverview v-if="!isAdmin && !isStudent" :event="event" />
 			<div v-else>
 				<Tabs :tabs="tabs" v-model="tabIndex">
 					<template #tab-panel="{ tab }">
@@ -42,7 +42,7 @@
 							class="w-[90%] lg:w-[75%] mx-auto mt-5"
 						>
 							<Discussions
-								doctype="LMS Batch"
+								doctype="LMS Event"
 								:docname="batch.data.name"
 								:title="__('Discussions')"
 								:key="batch.data.name"
@@ -54,7 +54,7 @@
 						<component
 							v-else
 							:is="tab.component"
-							:batch="batch"
+							:event="event"
 							ref="childRef"
 						/>
 					</template>
@@ -99,14 +99,14 @@ import {
 	usePageMeta,
 } from 'frappe-ui'
 import { sessionStore } from '@/stores/session'
-import AdminBatchDashboard from '@/pages/Batches/components/AdminBatchDashboard.vue'
-import StudentBatchDashboard from '@/pages/Batches/components/BatchDashboard.vue'
-import BatchOverview from '@/pages/Batches/BatchOverview.vue'
-import LiveClass from '@/pages/Batches/components/LiveClass.vue'
-import Announcements from '@/pages/Batches/components/Announcements.vue'
-import AnnouncementModal from '@/pages/Batches/components/AnnouncementModal.vue'
-import BatchForm from '@/pages/Batches/BatchForm.vue'
-import BulkCertificates from '@/pages/Batches/components/BulkCertificates.vue'
+import AdminEventDashboard from '@/pages/Events/components/AdminEventDashboard.vue'
+import StudentEventDashboard from '@/pages/Events/components/EventDashboard.vue'
+import EventOverview from '@/pages/Events/EventOverview.vue'
+import LiveClass from '@/pages/Events/components/LiveClass.vue'
+import Announcements from '@/pages/Events/components/Announcements.vue'
+import AnnouncementModal from '@/pages/Events/components/AnnouncementModal.vue'
+import EventForm from '@/pages/Events/EventForm.vue'
+import BulkCertificates from '@/pages/Events/components/BulkCertificates.vue'
 import Discussions from '@/components/Discussions.vue'
 
 const router = useRouter()
@@ -121,7 +121,7 @@ const showAnnouncementModal = ref(false)
 const readOnlyMode = window.read_only_mode
 
 const props = defineProps({
-	batchName: {
+	eventName: {
 		type: String,
 		required: true,
 	},
@@ -146,15 +146,15 @@ watch(tabIndex, () => {
 })
 
 const batch = createResource({
-	url: 'lms.lms.utils.get_batch_details',
-	cache: ['batch', props.batchName],
+	url: 'lms.lms.utils.get_event_details',
+	cache: ['event', props.eventName],
 	params: {
-		batch: props.batchName,
+		batch: props.eventName,
 	},
 	auto: true,
 	onSuccess: (data) => {
 		if (!data) {
-			router.push({ name: 'Batches' })
+			router.push({ name: 'Events' })
 		}
 	},
 })
@@ -165,18 +165,18 @@ watch(batch, () => {
 })
 
 const updateTabs = () => {
-	addToTabs('Overview', markRaw(BatchOverview), List)
+	addToTabs('Overview', markRaw(EventOverview), List)
 	if (!user.data) return
 	if (isAdmin.value) {
-		addToTabs('Dashboard', markRaw(AdminBatchDashboard), TrendingUp)
+		addToTabs('Dashboard', markRaw(AdminEventDashboard), TrendingUp)
 	} else if (isStudent.value) {
-		addToTabs('Dashboard', markRaw(StudentBatchDashboard), ClipboardPen)
+		addToTabs('Dashboard', markRaw(StudentEventDashboard), ClipboardPen)
 	}
 	addToTabs('Classes', markRaw(LiveClass), Laptop)
 	addToTabs('Announcements', markRaw(Announcements), Mail)
 	addToTabs('Discussions', markRaw(Discussions), MessageCircle)
 	if (isAdmin.value) {
-		addToTabs('Settings', markRaw(BatchForm), Settings2)
+		addToTabs('Settings', markRaw(EventForm), Settings2)
 	}
 }
 
@@ -191,7 +191,7 @@ const addToTabs = (label, component, icon) => {
 }
 
 const isAdmin = computed(() => {
-	return user.data?.is_moderator || user.data?.is_evaluator
+	return user.data?.is_moderator
 })
 
 const isStudent = computed(() => {
@@ -205,7 +205,7 @@ const openAnnouncementModal = () => {
 const canMakeAnnouncement = () => {
 	if (readOnlyMode) return false
 	if (!batch.data?.students?.length) return false
-	return user.data?.is_moderator || user.data?.is_evaluator
+	return user.data?.is_moderator
 }
 
 const batchMenu = computed(() => {
@@ -232,10 +232,10 @@ const batchMenu = computed(() => {
 })
 
 const breadcrumbs = computed(() => {
-	let crumbs = [{ label: __('Batches'), route: { name: 'Batches' } }]
+	let crumbs = [{ label: __('Events'), route: { name: 'Events' } }]
 	crumbs.push({
 		label: batch?.data?.title,
-		route: { name: 'BatchDetail', params: { batchName: batch?.data?.name } },
+		route: { name: 'EventDetail', params: { eventName: batch?.data?.name } },
 	})
 	return crumbs
 })
@@ -248,22 +248,22 @@ usePageMeta(() => {
 })
 </script>
 <style>
-.batch-description p {
+.event-description p {
 	margin-bottom: 1rem;
 	line-height: 1.7;
 }
 
-.batch-description li {
+.event-description li {
 	line-height: 1.7;
 }
 
-.batch-description ol {
+.event-description ol {
 	list-style: auto;
 	margin: revert;
 	padding: revert;
 }
 
-.batch-description strong {
+.event-description strong {
 	font-weight: 600;
 	color: theme('colors.gray.900') !important;
 }

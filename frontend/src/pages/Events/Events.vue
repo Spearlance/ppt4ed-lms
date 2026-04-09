@@ -4,22 +4,22 @@
 	>
 		<Breadcrumbs :items="breadcrumbs" />
 		<Dropdown
-			v-if="canCreateBatch()"
+			v-if="canCreateEvent()"
 			:options="[
 				{
-					label: __('New Batch'),
+					label: __('New Event'),
 					icon: 'users',
 					onClick() {
 						showBatchModal = true
 					},
 				},
 				{
-					label: __('Import Batch'),
+					label: __('Import Event'),
 					icon: 'upload',
 					onClick() {
 						router.push({
 							name: 'NewDataImport',
-							params: { doctype: 'LMS Batch' },
+							params: { doctype: 'LMS Event' },
 						})
 					},
 				},
@@ -48,14 +48,14 @@
 			class="flex flex-col lg:flex-row space-y-4 lg:space-y-0 lg:items-center justify-between mb-5"
 		>
 			<div class="text-lg text-ink-gray-9 font-semibold">
-				{{ __('All Batches') }}
+				{{ __('All Events') }}
 			</div>
 			<div
 				class="flex flex-col space-y-3 lg:space-y-0 lg:flex-row lg:items-center lg:space-x-4"
 			>
 				<TabButtons
 					v-if="user.data"
-					:buttons="batchTabs"
+					:buttons="eventTabs"
 					v-model="currentTab"
 					class="w-fit"
 				/>
@@ -65,7 +65,7 @@
 						:placeholder="__('Search by Title')"
 						type="text"
 						class="min-w-40 lg:min-w-0 lg:w-32 xl:w-40"
-						@input="updateBatches()"
+						@input="updateEvents()"
 					/>
 					<div class="min-w-40 lg:min-w-0 lg:w-32 xl:w-40">
 						<Select
@@ -73,47 +73,47 @@
 							v-model="currentCategory"
 							:options="categories"
 							:placeholder="__('Category')"
-							@update:modelValue="updateBatches()"
+							@update:modelValue="updateEvents()"
 						/>
 					</div>
 				</div>
 
-				<Tooltip :text="__('Only show batches that offer a certificate')">
+				<Tooltip :text="__('Only show events that offer a certificate')">
 					<FormControl
 						type="checkbox"
 						v-model="certification"
 						:label="__('Certification')"
-						@change="updateBatches()"
+						@change="updateEvents()"
 					/>
 				</Tooltip>
 			</div>
 		</div>
 		<div
-			v-if="batches.data?.length"
+			v-if="events.data?.length"
 			class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5"
 		>
 			<router-link
-				v-for="batch in batches.data"
-				:to="{ name: 'BatchDetail', params: { batchName: batch.name } }"
+				v-for="event in events.data"
+				:to="{ name: 'EventDetail', params: { eventName: event.name } }"
 			>
-				<BatchCard :batch="batch" />
+				<EventCard :event="event" />
 			</router-link>
 		</div>
-		<EmptyState v-else-if="!batches.list.loading" type="Batches" />
+		<EmptyState v-else-if="!events.list.loading" type="Events" />
 
 		<div
-			v-if="!batches.list.loading && batches.hasNextPage"
+			v-if="!events.list.loading && events.hasNextPage"
 			class="flex justify-center mt-5"
 		>
-			<Button @click="batches.next()">
+			<Button @click="events.next()">
 				{{ __('Load More') }}
 			</Button>
 		</div>
 	</div>
-	<NewBatchModal
+	<NewEventModal
 		v-if="showBatchModal"
 		v-model="showBatchModal"
-		:batches="batches"
+		:events="events"
 	/>
 </template>
 <script setup>
@@ -132,9 +132,9 @@ import { computed, inject, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ChevronDown, Plus } from 'lucide-vue-next'
 import { sessionStore } from '@/stores/session'
-import BatchCard from '@/pages/Batches/components/BatchCard.vue'
+import EventCard from '@/pages/Events/components/EventCard.vue'
 import EmptyState from '@/components/EmptyState.vue'
-import NewBatchModal from '@/pages/Batches/components/NewBatchModal.vue'
+import NewEventModal from '@/pages/Events/components/NewEventModal.vue'
 
 const user = inject('$user')
 const dayjs = inject('$dayjs')
@@ -171,16 +171,16 @@ const setFiltersFromQuery = () => {
 	certification.value = queries.get('certification') || false
 }
 
-const batches = createListResource({
-	doctype: 'LMS Batch',
-	url: 'lms.lms.utils.get_batches',
-	cache: ['batches', user.data?.name],
+const events = createListResource({
+	doctype: 'LMS Event',
+	url: 'lms.lms.utils.get_events',
+	cache: ['events', user.data?.name],
 	pageLength: pageLength.value,
 	start: start.value,
 })
 
 const setCategories = (data) => {
-	let allCategories = data.map((batch) => batch.category)
+	let allCategories = data.map((event) => event.category)
 	allCategories = allCategories.filter(
 		(category, index) => allCategories.indexOf(category) === index && category
 	)
@@ -189,13 +189,13 @@ const setCategories = (data) => {
 	}
 }
 
-const updateBatches = () => {
+const updateEvents = () => {
 	updateFilters()
-	batches.update({
+	events.update({
 		filters: filters.value,
 		orderBy: orderBy.value,
 	})
-	batches.reload().then((data) => {
+	events.reload().then((data) => {
 		setCategories(data)
 	})
 }
@@ -292,23 +292,23 @@ const setQueryParams = () => {
 }
 
 const updateCategories = (data) => {
-	data.forEach((batch) => {
+	data.forEach((event) => {
 		if (
-			batch.category &&
-			!categories.value.find((category) => category.value === batch.category)
+			event.category &&
+			!categories.value.find((category) => category.value === event.category)
 		)
 			categories.value.push({
-				label: batch.category,
-				value: batch.category,
+				label: event.category,
+				value: event.category,
 			})
 	})
 }
 
 watch(currentTab, () => {
-	updateBatches()
+	updateEvents()
 })
 
-const batchTabs = computed(() => {
+const eventTabs = computed(() => {
 	let tabs = [
 		{
 			label: __('All'),
@@ -316,11 +316,7 @@ const batchTabs = computed(() => {
 		},
 	]
 
-	if (
-		user.data?.is_moderator ||
-		user.data?.is_instructor ||
-		user.data?.is_evaluator
-	) {
+	if (user.data?.is_moderator) {
 		tabs.push({ label: __('Upcoming'), value: 'upcoming' })
 		tabs.push({ label: __('Archived'), value: 'archived' })
 		tabs.push({ label: __('Unpublished'), value: 'unpublished' })
@@ -330,27 +326,21 @@ const batchTabs = computed(() => {
 	return tabs
 })
 
-const canCreateBatch = () => {
+const canCreateEvent = () => {
 	if (readOnlyMode) return false
-	if (
-		user.data?.is_moderator ||
-		user.data?.is_instructor ||
-		user.data?.is_evaluator
-	)
-		return true
-	return false
+	return !!user.data?.is_moderator
 }
 
 const breadcrumbs = computed(() => [
 	{
-		label: __('Batches'),
-		route: { name: 'Batches' },
+		label: __('Events'),
+		route: { name: 'Events' },
 	},
 ])
 
 usePageMeta(() => {
 	return {
-		title: __('Batches'),
+		title: __('Events'),
 		icon: brand.favicon,
 	}
 })

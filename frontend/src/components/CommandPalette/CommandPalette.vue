@@ -109,9 +109,9 @@ const generateSearchResults = () => {
 		let result: { title: string; items: any[] } = { title: '', items: [] }
 		result.title = type.title
 		type.items.forEach((item: any) => {
-			let paramName = item.doctype === 'LMS Course' ? 'courseName' : 'batchName'
+			let paramName = item.doctype === 'LMS Course' ? 'courseName' : 'eventName'
 			item.route = {
-				name: item.doctype === 'LMS Course' ? 'CourseDetail' : 'BatchDetail',
+				name: item.doctype === 'LMS Course' ? 'CourseDetail' : 'EventDetail',
 				params: {
 					[paramName]: item.name,
 				},
@@ -244,10 +244,10 @@ const jumpToOptions = ref([
 				isActive: false,
 			},
 			{
-				title: 'Batches',
+				title: 'Events',
 				icon: Users,
 				route: {
-					name: 'Batches',
+					name: 'Events',
 				},
 				isActive: false,
 			},

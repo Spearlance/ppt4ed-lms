@@ -2,7 +2,7 @@
 	<Dialog
 		v-model="show"
 		:options="{
-			title: __('New Batch'),
+			title: __('New Event'),
 			size: '3xl',
 		}"
 	>
@@ -87,12 +87,12 @@
 					</div>
 					<div class="">
 						<div class="mb-1.5 text-sm text-ink-gray-5">
-							{{ __('Batch Details') }}
+							{{ __('Event Details') }}
 							<span class="text-ink-red-3">*</span>
 						</div>
 						<TextEditor
-							:content="batch.batch_details"
-							@change="(val: string) => (batch.batch_details = val)"
+							:content="batch.event_details"
+							@change="(val: string) => (batch.event_details = val)"
 							:editable="true"
 							:fixedMenu="true"
 							editorClass="prose-sm max-w-none border-b border-x bg-surface-gray-2 rounded-b-md py-1 px-2 min-h-[10rem] max-h-[14rem] overflow-auto"
@@ -144,7 +144,7 @@ type Batch = {
 	end_time: string | null
 	timezone: string | null
 	description: string
-	batch_details: string
+	event_details: string
 	instructors: string[]
 	category: string | null
 	seat_count: number
@@ -159,7 +159,7 @@ const batch = ref<Batch>({
 	end_time: null,
 	timezone: null,
 	description: '',
-	batch_details: '',
+	event_details: '',
 	instructors: [],
 	category: null,
 	seat_count: 0,
@@ -199,17 +199,17 @@ const saveBatch = (close: () => void = () => {}) => {
 		},
 		{
 			onSuccess(data: any) {
-				toast.success(__('Batch created successfully'))
+				toast.success(__('Event created successfully'))
 				close()
-				capture('batch_created')
+				capture('event_created')
 				router.push({
-					name: 'BatchDetail',
-					params: { batchName: data.name },
+					name: 'EventDetail',
+					params: { eventName: data.name },
 					hash: '#settings',
 				})
 				if (user.data?.is_system_manager) {
-					updateOnboardingStep('create_first_batch', true, false, () => {
-						localStorage.setItem('firstBatch', data.name)
+					updateOnboardingStep('create_first_event', true, false, () => {
+						localStorage.setItem('firstEvent', data.name)
 					})
 				}
 			},
@@ -236,12 +236,12 @@ const keyboardShortcut = (e: KeyboardEvent) => {
 
 onMounted(() => {
 	window.addEventListener('keydown', keyboardShortcut)
-	capture('batch_form_opened')
+	capture('event_form_opened')
 })
 
 onBeforeUnmount(() => {
 	window.removeEventListener('keydown', keyboardShortcut)
-	capture('batch_form_closed', {
+	capture('event_form_closed', {
 		data: batch.value,
 	})
 })

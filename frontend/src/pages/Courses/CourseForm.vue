@@ -385,7 +385,7 @@ const meta = reactive({
 })
 
 onMounted(() => {
-	if (!user.data?.is_moderator && !user.data?.is_instructor) {
+	if (!user.data?.is_moderator) {
 		router.push({ name: 'Courses' })
 	}
 	window.addEventListener('keydown', keyboardShortcut)

@@ -71,7 +71,7 @@
 								class="flex items-center space-x-2 text-ink-gray-9 mt-auto"
 							>
 								<a
-									v-if="user.data?.is_moderator || user.data?.is_evaluator"
+									v-if="user.data?.is_moderator"
 									:href="cls.start_url"
 									target="_blank"
 									class="cursor-pointer inline-flex items-center justify-center gap-2 transition-colors focus:outline-none text-ink-gray-8 bg-surface-gray-2 hover:bg-surface-gray-3 active:bg-surface-gray-4 focus-visible:ring focus-visible:ring-outline-gray-3 h-7 text-base px-2 rounded"
@@ -138,11 +138,11 @@
 		<div v-if="createdBatches.data?.length" class="mt-10">
 			<div class="flex items-center justify-between mb-3">
 				<span class="font-semibold text-lg text-ink-gray-9">
-					{{ __('Upcoming Batches') }}
+					{{ __('Upcoming Events') }}
 				</span>
 				<router-link
 					:to="{
-						name: 'Batches',
+						name: 'Events',
 					}"
 				>
 					<span class="flex items-center space-x-1 text-ink-gray-5 text-xs">
@@ -156,7 +156,7 @@
 			<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
 				<router-link
 					v-for="batch in createdBatches.data"
-					:to="{ name: 'BatchDetail', params: { batchName: batch.name } }"
+					:to="{ name: 'EventDetail', params: { eventName: batch.name } }"
 				>
 					<BatchCard :batch="batch" />
 				</router-link>
@@ -210,7 +210,7 @@ import {
 } from 'lucide-vue-next'
 import { formatTime } from '@/utils'
 import CourseCard from '@/components/CourseCard.vue'
-import BatchCard from '@/pages/Batches/components/BatchCard.vue'
+import BatchCard from '@/pages/Events/components/BatchCard.vue'
 
 const user = inject<any>('$user')
 const dayjs = inject<any>('$dayjs')

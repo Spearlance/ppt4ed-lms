@@ -40,18 +40,30 @@ const routes = [
 		props: true,
 	},
 	{
+		path: '/events',
+		name: 'Events',
+		component: () => import('@/pages/Events/Events.vue'),
+	},
+	{
 		path: '/batches',
-		name: 'Batches',
-		component: () => import('@/pages/Batches/Batches.vue'),
+		redirect: '/events',
 	},
 	{
-		path: '/batches/details/:batchName',
-		redirect: (to) => `/batches/${to.params.batchName}`,
+		path: '/batches/details/:eventName',
+		redirect: (to) => `/events/${to.params.eventName}`,
 	},
 	{
-		path: '/batches/:batchName',
-		name: 'BatchDetail',
-		component: () => import('@/pages/Batches/BatchDetail.vue'),
+		path: '/batches/:eventName',
+		redirect: (to) => `/events/${to.params.eventName}`,
+	},
+	{
+		path: '/events/details/:eventName',
+		redirect: (to) => `/events/${to.params.eventName}`,
+	},
+	{
+		path: '/events/:eventName',
+		name: 'EventDetail',
+		component: () => import('@/pages/Events/EventDetail.vue'),
 		props: true,
 	},
 	{

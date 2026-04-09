@@ -8,7 +8,7 @@
 			<span class="leading-5">
 				{{
 					__(
-						'Please select a conferencing provider and add an account to the batch to create live classes.'
+						'Please select a conferencing provider and add an account to the event to create live classes.'
 					)
 				}}
 			</span>
@@ -68,7 +68,7 @@
 						class="flex items-center space-x-2 text-ink-gray-9 mt-auto"
 					>
 						<a
-							v-if="user.data?.is_moderator || user.data?.is_evaluator"
+							v-if="user.data?.is_moderator"
 							:href="cls.start_url || cls.join_url"
 							target="_blank"
 							class="cursor-pointer inline-flex items-center justify-center gap-2 transition-colors focus:outline-none text-ink-gray-8 bg-surface-gray-2 hover:bg-surface-gray-3 active:bg-surface-gray-4 focus-visible:ring focus-visible:ring-outline-gray-3 h-7 text-base px-2 rounded"
@@ -155,7 +155,7 @@ const props = defineProps({
 const liveClasses = createListResource({
 	doctype: 'LMS Live Class',
 	filters: {
-		batch_name: props.batch.data?.name,
+		event_name: props.batch.data?.name,
 	},
 	fields: [
 		'title',
@@ -168,7 +168,7 @@ const liveClasses = createListResource({
 		'join_url',
 		'owner',
 		'conferencing_provider',
-		'batch_name',
+		'event_name',
 	],
 	orderBy: 'date',
 	auto: true,
@@ -196,7 +196,7 @@ const canCreateClass = () => {
 }
 
 const isAdmin = () => {
-	return user.data?.is_moderator || user.data?.is_evaluator
+	return user.data?.is_moderator
 }
 
 const canAccessClass = (cls) => {

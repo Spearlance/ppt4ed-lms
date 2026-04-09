@@ -93,7 +93,7 @@ const createCertificate = createResource({
 				template: details.template,
 				published: details.published,
 				course: values.course,
-				batch_name: values.batch,
+				event_name: values.batch,
 				member: values.member,
 				evaluator: details.evaluator,
 			},

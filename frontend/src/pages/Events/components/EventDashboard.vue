@@ -9,7 +9,7 @@
 					<div class="text-ink-gray-7">
 						{{
 							__(
-								"As a part of this batch's curriculum you will have to complete the following courses and assessments."
+								"As a part of this event's curriculum you will have to complete the following courses and assessments."
 							)
 						}}
 					</div>
@@ -58,7 +58,7 @@
 							</ListRows>
 						</ListView>
 						<div v-else class="text-ink-gray-7">
-							{{ __('No courses added to this batch') }}
+							{{ __('No courses added to this event') }}
 						</div>
 					</div>
 					</div>

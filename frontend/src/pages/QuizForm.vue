@@ -261,7 +261,7 @@ const questions = computed(() => {
 })
 
 onMounted(() => {
-	if (!user.data?.is_moderator && !user.data?.is_instructor) {
+	if (!user.data?.is_moderator) {
 		router.push({ name: 'Courses' })
 	}
 	quizDetails.reload()

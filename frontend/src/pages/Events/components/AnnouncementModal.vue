@@ -55,7 +55,7 @@ import { reactive } from 'vue'
 const show = defineModel()
 
 const props = defineProps({
-	batch: {
+	event: {
 		type: String,
 		required: true,
 	},
@@ -79,7 +79,7 @@ const announcementResource = createResource({
 			bcc: props.students.join(', '),
 			subject: announcement.subject,
 			content: announcement.announcement,
-			doctype: 'LMS Batch',
+			doctype: 'LMS Event',
 			name: props.batch,
 			send_email: 1,
 		}
@@ -92,7 +92,7 @@ const makeAnnouncement = (close) => {
 		{
 			validate() {
 				if (!props.students.length) {
-					return __('No students in this batch')
+					return __('No students in this event')
 				}
 				if (!announcement.subject) {
 					return __('Subject is required')

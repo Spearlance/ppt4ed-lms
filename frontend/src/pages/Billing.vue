@@ -209,11 +209,11 @@
 		<div v-else-if="access.data?.message">
 			<NotPermitted
 				:text="access.data.message"
-				:buttonLabel="type == 'course' ? 'Checkout Course' : 'Checkout Batch'"
+				:buttonLabel="type == 'course' ? 'Checkout Course' : 'Checkout Event'"
 				:buttonLink="
 					type == 'course'
 						? getLmsRoute(`courses/${name}`)
-						: getLmsRoute(`batches/${name}`)
+						: getLmsRoute(`events/${name}`)
 				"
 			/>
 		</div>
@@ -287,7 +287,7 @@ const orderSummary = createResource({
 	url: 'lms.lms.utils.get_order_summary',
 	makeParams(values) {
 		return {
-			doctype: props.type == 'batch' ? 'LMS Batch' : 'LMS Course',
+			doctype: props.type == 'event' ? 'LMS Batch' : 'LMS Course',
 			docname: props.name,
 			country: billingDetails.country,
 			coupon: appliedCoupon.value,
@@ -324,7 +324,7 @@ const paymentLink = createResource({
 	url: 'lms.lms.payments.get_payment_link',
 	makeParams(values) {
 		let data = {
-			doctype: props.type == 'batch' ? 'LMS Batch' : 'LMS Course',
+			doctype: props.type == 'event' ? 'LMS Batch' : 'LMS Course',
 			docname: props.name,
 			title: orderSummary.data.title,
 			amount: orderSummary.data.original_amount,
@@ -461,8 +461,8 @@ const changeCurrency = (country) => {
 const redirectTo = computed(() => {
 	if (props.type == 'course') {
 		return getLmsRoute(`courses/${props.name}`)
-	} else if (props.type == 'batch') {
-		return getLmsRoute(`batches/${props.name}`)
+	} else if (props.type == 'event') {
+		return getLmsRoute(`events/${props.name}`)
 	} else if (props.type == 'certificate') {
 		return getLmsRoute(`courses/${props.name}/certification`)
 	}

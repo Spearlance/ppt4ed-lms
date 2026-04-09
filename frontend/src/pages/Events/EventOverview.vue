@@ -22,14 +22,14 @@
 					</div>
 					<CourseInstructors :instructors="batch.data.instructors" />
 				</div>
-				<BatchOverlay :batch="batch" class="md:hidden mt-5" />
+				<EventOverlay :event="event" class="md:hidden mt-5" />
 				<div
 					class="ProseMirror prose prose-table:table-fixed prose-td:p-2 prose-th:p-2 prose-td:border prose-th:border prose-td:border-outline-gray-2 prose-th:border-outline-gray-2 prose-td:relative prose-th:relative prose-th:bg-surface-gray-2 prose-sm max-w-none !whitespace-normal mt-10"
-					v-html="batch.data.batch_details"
+					v-html="batch.data.event_details"
 				></div>
 			</div>
 			<div class="hidden md:block">
-				<BatchOverlay :batch="batch" />
+				<EventOverlay :event="event" />
 			</div>
 		</div>
 		<div v-if="courses.data?.length">
@@ -56,10 +56,10 @@
 					</router-link>
 				</div>
 			</div>
-			<div v-if="batch.data.batch_details_raw">
+			<div v-if="batch.data.event_details_raw">
 				<div
-					v-html="batch.data.batch_details_raw"
-					class="batch-description"
+					v-html="batch.data.event_details_raw"
+					class="event-description"
 				></div>
 			</div>
 		</div>
@@ -68,7 +68,7 @@
 <script setup lang="ts">
 import { createResource } from 'frappe-ui'
 import CourseCard from '@/components/CourseCard.vue'
-import BatchOverlay from '@/pages/Batches/components/BatchOverlay.vue'
+import EventOverlay from '@/pages/Events/components/EventOverlay.vue'
 import CourseInstructors from '@/components/CourseInstructors.vue'
 import UserAvatar from '@/components/UserAvatar.vue'
 
@@ -80,11 +80,11 @@ const props = defineProps({
 })
 
 const courses = createResource({
-	url: 'lms.lms.utils.get_batch_courses',
+	url: 'lms.lms.utils.get_event_courses',
 	params: {
-		batch: props.batch?.data?.name,
+		event: props.event?.data?.name,
 	},
-	cache: ['batchCourses', props.batch?.data?.name],
+	cache: ['eventCourses', props.batch?.data?.name],
 	auto: true,
 })
 </script>

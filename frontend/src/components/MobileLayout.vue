@@ -73,7 +73,6 @@ const otherLinks = ref([])
 const showMenu = ref(false)
 const menu = ref(null)
 const isModerator = ref(false)
-const isInstructor = ref(false)
 
 onMounted(() => {
 	sidebarSettings.reload(
@@ -150,9 +149,8 @@ const addOtherLinks = () => {
 watch(userResource, () => {
 	if (userResource.data) {
 		isModerator.value = userResource.data.is_moderator
-		isInstructor.value = userResource.data.is_instructor
 		addPrograms()
-		if (isModerator.value || isInstructor.value) {
+		if (isModerator.value) {
 			addQuizzes()
 			addAssignments()
 		}
@@ -190,7 +188,7 @@ const addPrograms = async () => {
 }
 
 const checkIfCanAddProgram = async () => {
-	if (isModerator.value || isInstructor.value) {
+	if (isModerator.value) {
 		return true
 	}
 	const programs = await call('lms.lms.utils.get_programs')

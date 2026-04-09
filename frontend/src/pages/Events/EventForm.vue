@@ -13,7 +13,7 @@
 								size="sm"
 								v-model="batchDetail.doc.published"
 								:label="__('Published')"
-								:description="__('Make the batch visible to all users.')"
+								:description="__('Make the event visible to all users.')"
 							/>
 							<FormControl
 								v-model="batchDetail.doc.title"
@@ -23,14 +23,14 @@
 							/>
 							<FormControl
 								v-model="batchDetail.doc.start_date"
-								:label="__('Batch Start Date')"
+								:label="__('Event Start Date')"
 								type="date"
 								class="mb-4"
 								:required="true"
 							/>
 							<FormControl
 								v-model="batchDetail.doc.end_date"
-								:label="__('Batch End Date')"
+								:label="__('Event End Date')"
 								type="date"
 								class="mb-4"
 								:required="true"
@@ -49,7 +49,7 @@
 								v-model="batchDetail.doc.allow_self_enrollment"
 								:label="__('Allow Self Enrollment')"
 								:description="
-									__('Allow users to enroll in this batch on their own.')
+									__('Allow users to enroll in this event on their own.')
 								"
 							/>
 							<FormControl
@@ -96,7 +96,7 @@
 								size="sm"
 								v-model="batchDetail.doc.evaluation"
 								:label="__('Evaluation')"
-								:description="__('Enable evaluations for batch participants.')"
+								:description="__('Enable evaluations for event participants.')"
 							/>
 							<FormControl
 								v-if="batchDetail.doc.evaluation"
@@ -111,7 +111,7 @@
 								size="sm"
 								v-model="batchDetail.doc.certification"
 								:label="__('Certification')"
-								:description="__('Issue certificates to batch participants.')"
+								:description="__('Issue certificates to event participants.')"
 							/>
 						</div>
 					</div>
@@ -133,18 +133,18 @@
 							:label="__('Short Description')"
 							type="textarea"
 							:rows="4"
-							:placeholder="__('Short description of the batch')"
+							:placeholder="__('Short description of the event')"
 							:required="true"
 						/>
 					</div>
 					<div>
 						<label class="block text-sm text-ink-gray-5 mb-2">
-							{{ __('Batch Details') }}
+							{{ __('Event Details') }}
 							<span class="text-ink-red-3">*</span>
 						</label>
 						<TextEditor
-							:content="batchDetail.doc.batch_details"
-							@change="(val) => (batchDetail.doc.batch_details = val)"
+							:content="batchDetail.doc.event_details"
+							@change="(val) => (batchDetail.doc.event_details = val)"
 							:editable="true"
 							:fixedMenu="true"
 							editorClass="prose-sm max-w-none border-b border-x bg-surface-gray-2 rounded-b-md py-1 px-2 min-h-[7rem] max-h-[16rem] overflow-y-scroll mb-4"
@@ -226,12 +226,12 @@
 					</div>
 					<Switch
 						size="sm"
-						v-model="batchDetail.doc.paid_batch"
-						:label="__('Paid Batch')"
-						:description="__('Charge a fee for batch enrollment.')"
+						v-model="batchDetail.doc.paid_event"
+						:label="__('Paid Event')"
+						:description="__('Charge a fee for event enrollment.')"
 					/>
 					<div
-						v-if="batchDetail.doc.paid_batch"
+						v-if="batchDetail.doc.paid_event"
 						class="grid grid-cols-1 md:grid-cols-2 gap-5"
 					>
 						<FormControl
@@ -396,7 +396,7 @@ onBeforeUnmount(() => {
 })
 
 const batchDetail = createDocumentResource({
-	doctype: 'LMS Batch',
+	doctype: 'LMS Event',
 	name: props.batch.data?.name,
 	auto: true,
 })
@@ -412,7 +412,7 @@ watch(
 		}
 
 		updateBatchData()
-		getMetaInfo('batches', batchDetail.doc?.name, meta)
+		getMetaInfo('events', batchDetail.doc?.name, meta)
 	},
 	{ deep: true }
 )
@@ -430,7 +430,7 @@ const updateBatchData = () => {
 	})
 	let checkboxes = [
 		'published',
-		'paid_batch',
+		'paid_event',
 		'allow_self_enrollment',
 		'certification',
 		'evaluation',
@@ -471,8 +471,8 @@ const updateBatch = () => {
 		},
 		{
 			onSuccess(data) {
-				updateMetaInfo('batches', data.name, meta)
-				toast.success(__('Batch updated successfully'))
+				updateMetaInfo('events', data.name, meta)
+				toast.success(__('Event updated successfully'))
 				nextTick(() => {
 					originalDoc.value = structuredClone(data)
 					isDirty.value = false
@@ -490,7 +490,7 @@ const deleteBatch = () => {
 	$dialog({
 		title: __('Confirm your action to delete'),
 		message: __(
-			'Deleting this batch will also delete all its data including enrolled students, linked courses, assessments, feedback and discussions. Are you sure you want to continue?'
+			'Deleting this event will also delete all its data including enrolled students, linked courses, assessments, feedback and discussions. Are you sure you want to continue?'
 		),
 		actions: [
 			{
@@ -507,13 +507,13 @@ const deleteBatch = () => {
 }
 
 const trashBatch = (close) => {
-	call('lms.lms.api.delete_batch', {
-		batch: props.batch.data.name,
+	call('lms.lms.api.delete_event', {
+		event: props.event.data.name,
 	}).then(() => {
-		toast.success(__('Batch deleted successfully'))
+		toast.success(__('Event deleted successfully'))
 		close()
 		router.push({
-			name: 'Batches',
+			name: 'Events',
 		})
 	})
 }

@@ -786,9 +786,7 @@ const checkIfDiscussionsAllowed = () => {
 	if (
 		!hasQuiz.value &&
 		!zenModeEnabled.value &&
-		(lesson.data?.membership ||
-			user.data?.is_moderator ||
-			user.data?.is_instructor)
+		(lesson.data?.membership || user.data?.is_moderator)
 	) {
 		allowDiscussions.value = true
 	} else {
@@ -797,8 +795,8 @@ const checkIfDiscussionsAllowed = () => {
 }
 
 const isAdmin = computed(() => {
-	let isInstructor = lesson.data?.instructors?.includes(user.data?.name)
-	return user.data?.is_moderator || isInstructor
+	let isCourseInstructor = lesson.data?.instructors?.includes(user.data?.name)
+	return user.data?.is_moderator || isCourseInstructor
 })
 
 const allowEdit = () => {
@@ -853,12 +851,7 @@ const showVideoStats = () => {
 }
 
 const canGoZen = () => {
-	if (
-		user.data?.is_moderator ||
-		user.data?.is_instructor ||
-		user.data?.is_evaluator
-	)
-		return true
+	if (user.data?.is_moderator) return true
 	if (lesson.data?.membership) return true
 	return false
 }

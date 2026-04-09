@@ -480,10 +480,10 @@ const getSidebarItems = () => {
 					},
 				},
 				{
-					label: 'Batches',
-					icon: 'Users',
-					to: 'Batches',
-					activeFor: ['Batches', 'BatchDetail', 'Batch', 'BatchForm'],
+					label: 'Events',
+					icon: 'Calendar',
+					to: 'Events',
+					activeFor: ['Events', 'EventDetail', 'Event', 'EventForm'],
 				},
 				{
 					label: 'Certifications',
@@ -574,18 +574,14 @@ const getSidebarItems = () => {
 
 const isAdmin = () => {
 	const { userResource } = usersStore()
-	return (
-		userResource?.data?.is_instructor ||
-		userResource?.data?.is_moderator ||
-		userResource.data?.is_evaluator
-	)
+	return userResource?.data?.is_moderator
 }
 
 const checkIfCanAddProgram = () => {
 	const { userResource } = usersStore()
 	const { programs } = useSettings()
 	if (!userResource.data) return false
-	if (userResource?.data?.is_moderator || userResource?.data?.is_instructor) {
+	if (userResource?.data?.is_moderator) {
 		return true
 	}
 	return (
@@ -738,10 +734,7 @@ export const sanitizeHTML = (text) => {
 
 export const canCreateCourse = () => {
 	const { userResource } = usersStore()
-	return (
-		!readOnlyMode &&
-		(userResource.data?.is_instructor || userResource.data?.is_moderator)
-	)
+	return !readOnlyMode && userResource.data?.is_moderator
 }
 
 export const enablePlyr = async () => {

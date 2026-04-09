@@ -73,7 +73,7 @@
 						},
 					}"
 					v-if="
-						batch.data.paid_batch &&
+						batch.data.paid_event &&
 						batch.data.seats_left > 0 &&
 						batch.data.accept_enrollments
 					"
@@ -135,27 +135,27 @@ const props = defineProps({
 })
 
 const enroll = createResource({
-	url: 'lms.lms.utils.enroll_in_batch',
+	url: 'lms.lms.utils.enroll_in_event',
 	makeParams(values) {
 		return {
-			batch: props.batch.data.name,
+			event: props.event.data.name,
 		}
 	},
 })
 
 const enrollInBatch = () => {
 	if (!user.data) {
-		window.location.href = `/login?redirect-to=/batches/${props.batch.data.name}`
+		window.location.href = `/login?redirect-to=/events/${props.batch.data.name}`
 	}
 	enroll.submit(
 		{},
 		{
 			onSuccess(data) {
-				toast.success(__('You have been enrolled in this batch'))
+				toast.success(__('You have been enrolled in this event'))
 				router.push({
-					name: 'Batch',
+					name: 'Event',
 					params: {
-						batchName: props.batch.data.name,
+						eventName: props.batch.data.name,
 					},
 				})
 			},
@@ -177,18 +177,18 @@ const isModerator = computed(() => {
 	return user.data?.is_moderator
 })
 
-const isEvaluator = computed(() => {
-	return user.data?.is_evaluator
+const isAdmin = computed(() => {
+	return user.data?.is_moderator
 })
 
 const canAccessBatch = computed(() => {
 	if (!user.data) {
 		return false
 	}
-	return isModerator.value || isStudent.value || isEvaluator.value
+	return isModerator.value || isStudent.value || isAdmin.value
 })
 
 const isAdmin = computed(() => {
-	return isModerator.value || isEvaluator.value
+	return isModerator.value || isAdmin.value
 })
 </script>

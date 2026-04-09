@@ -36,7 +36,7 @@
 								class="flex items-center space-x-2 text-ink-gray-9 mt-auto"
 							>
 								<a
-									v-if="user.data?.is_moderator || user.data?.is_evaluator"
+									v-if="user.data?.is_moderator"
 									:href="cls.start_url"
 									target="_blank"
 									class="cursor-pointer inline-flex items-center justify-center gap-2 transition-colors focus:outline-none text-ink-gray-8 bg-surface-gray-2 hover:bg-surface-gray-3 active:bg-surface-gray-4 focus-visible:ring focus-visible:ring-outline-gray-3 h-7 text-base px-2 rounded"
@@ -109,13 +109,13 @@
 				<span class="font-semibold text-lg text-ink-gray-9">
 					{{
 						myBatches.data?.[0].students?.includes(user.data?.name)
-							? __('My Batches')
-							: __('Our Upcoming Batches')
+							? __('My Events')
+							: __('Our Upcoming Events')
 					}}
 				</span>
 				<router-link
 					:to="{
-						name: 'Batches',
+						name: 'Events',
 					}"
 				>
 					<span class="flex items-center space-x-1 text-ink-gray-5 text-xs">
@@ -129,7 +129,7 @@
 			<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
 				<router-link
 					v-for="batch in myBatches.data"
-					:to="{ name: 'BatchDetail', params: { batchName: batch.name } }"
+					:to="{ name: 'EventDetail', params: { eventName: batch.name } }"
 				>
 					<BatchCard :batch="batch" />
 				</router-link>
@@ -150,7 +150,7 @@ import {
 	Video,
 } from 'lucide-vue-next'
 import CourseCard from '@/components/CourseCard.vue'
-import BatchCard from '@/pages/Batches/components/BatchCard.vue'
+import BatchCard from '@/pages/Events/components/BatchCard.vue'
 import UpcomingEvaluations from '@/components/UpcomingEvaluations.vue'
 
 const dayjs = inject<any>('$dayjs')

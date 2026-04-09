@@ -103,7 +103,7 @@ const route = useRoute()
 const readOnlyMode = window.read_only_mode
 
 onMounted(() => {
-	if (!user.data?.is_moderator && !user.data?.is_instructor) {
+	if (!user.data?.is_moderator) {
 		router.push({ name: 'Courses' })
 	}
 	if (route.query.new === 'true') {
