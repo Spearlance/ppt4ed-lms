@@ -136,9 +136,7 @@ scheduler_events = {
 		"lms.sqlite.build_index_in_background",
 	],
 	"hourly": [
-		"lms.lms.doctype.lms_certificate_request.lms_certificate_request.schedule_evals",
 		"lms.lms.doctype.lms_course.lms_course.update_course_statistics",
-		"lms.lms.doctype.lms_certificate_request.lms_certificate_request.mark_eval_as_completed",
 		"lms.lms.doctype.lms_live_class.lms_live_class.update_attendance",
 	],
 	"daily": [
@@ -242,7 +240,6 @@ extend_bootinfo = [
 # ]
 
 has_website_permission = {
-	"LMS Certificate Evaluation": "lms.lms.doctype.lms_certificate_evaluation.lms_certificate_evaluation.has_website_permission",
 	"LMS Certificate": "lms.lms.doctype.lms_certificate.lms_certificate.has_website_permission",
 }
 
