@@ -20,7 +20,24 @@ class LMSCertificate(Document):
 
 	def after_insert(self):
 		capture("certificate_issued", "lms")
+		self.populate_ceu_fields()
 		self.send_certification_email()
+
+	def populate_ceu_fields(self):
+		"""Copy CEU hours and disciplines from the course to the certificate."""
+		if not self.course:
+			return
+		ceu_hours = frappe.db.get_value("LMS Course", self.course, "ceu_hours")
+		if not ceu_hours:
+			return
+		disciplines = frappe.get_all(
+			"CEU Discipline Link",
+			filters={"parent": self.course, "parenttype": "LMS Course"},
+			fields=["discipline"],
+		)
+		discipline_names = ", ".join(d.discipline for d in disciplines) if disciplines else ""
+		self.db_set("ceu_hours", ceu_hours, update_modified=False)
+		self.db_set("ceu_disciplines", discipline_names, update_modified=False)
 
 	def send_certification_email(self):
 		outgoing_email_account = frappe.get_cached_value(

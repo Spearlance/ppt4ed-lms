@@ -178,6 +178,16 @@ const routes = [
 		component: () => import('@/pages/Search/Search.vue'),
 	},
 	{
+		path: '/company-dashboard',
+		name: 'CompanyDashboard',
+		component: () => import('@/pages/CompanyDashboard.vue'),
+	},
+	{
+		path: '/admin-reports',
+		name: 'AdminReports',
+		component: () => import('@/pages/AdminReports.vue'),
+	},
+	{
 		path: '/data-import',
 		name: 'DataImportList',
 		component: () => import('@/pages/DataImport.vue'),
