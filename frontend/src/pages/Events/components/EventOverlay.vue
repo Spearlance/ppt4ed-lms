@@ -63,12 +63,12 @@
 				</span>
 			</div>
 
-			<div v-if="!readOnlyMode && !canAccessBatch">
+			<div v-if="!readOnlyMode && !canAccessEvent">
 				<router-link
 					:to="{
 						name: 'Billing',
 						params: {
-							type: 'batch',
+							type: 'event',
 							name: batch.data.name,
 						},
 					}"
@@ -138,7 +138,7 @@ const enroll = createResource({
 	url: 'lms.lms.utils.enroll_in_event',
 	makeParams(values) {
 		return {
-			event: props.event.data.name,
+			event: props.batch.data.name,
 		}
 	},
 })
@@ -181,14 +181,10 @@ const isAdmin = computed(() => {
 	return user.data?.is_moderator
 })
 
-const canAccessBatch = computed(() => {
+const canAccessEvent = computed(() => {
 	if (!user.data) {
 		return false
 	}
-	return isModerator.value || isStudent.value || isAdmin.value
-})
-
-const isAdmin = computed(() => {
-	return isModerator.value || isAdmin.value
+	return isModerator.value || isStudent.value
 })
 </script>
