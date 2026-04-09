@@ -2369,3 +2369,89 @@ def search_users_by_role(txt: str = "", roles: str | list | None = None, page_le
 		{"value": r.name, "description": r.full_name or r.name, "label": r.full_name or r.name}
 		for r in results
 	]
+
+
+@frappe.whitelist()
+def add_member_to_company(user_email, company_name):
+	"""Add a user to a company's member list (admin action)."""
+	frappe.only_for(["Moderator", "System Manager"])
+
+	company = frappe.get_doc("Company Account", company_name)
+
+	existing = [m for m in company.members if m.user == user_email]
+	if existing:
+		frappe.throw(_("User is already a member of this company"))
+
+	company.append("members", {
+		"user": user_email,
+		"status": "Active",
+		"joined_on": frappe.utils.today(),
+	})
+	company.save(ignore_permissions=True)
+
+
+@frappe.whitelist()
+def get_companies():
+	"""Get list of all companies for admin view."""
+	frappe.only_for(["Moderator", "System Manager"])
+
+	companies = frappe.get_all(
+		"Company Account",
+		fields=["name", "company_name", "status", "billing_email", "max_seats"],
+		order_by="company_name asc"
+	)
+
+	for c in companies:
+		c["member_count"] = frappe.db.count(
+			"Company Member",
+			{"parent": c.name, "parenttype": "Company Account", "status": "Active"}
+		)
+
+	return companies
+
+
+@frappe.whitelist()
+def create_company_account(company_name, admin_email, max_seats=0):
+	"""Create a new Company Account and invite the admin."""
+	frappe.only_for(["Moderator", "System Manager"])
+
+	if frappe.db.exists("Company Account", company_name):
+		frappe.throw(_("A company with this name already exists"))
+
+	company = frappe.get_doc({
+		"doctype": "Company Account",
+		"company_name": company_name,
+		"billing_email": admin_email,
+		"status": "Active",
+		"max_seats": max_seats,
+	}).insert(ignore_permissions=True)
+
+	invite = frappe.get_doc({
+		"doctype": "Company Invite",
+		"company": company.name,
+		"email": admin_email,
+		"status": "Pending",
+	}).insert(ignore_permissions=True)
+
+	frappe.sendmail(
+		recipients=[admin_email],
+		subject=f"You've been invited to manage {company_name} on PPT4ed",
+		message=f"You have been invited as the admin for {company_name}. "
+				f"Use invite code: {invite.token}"
+	)
+
+	return {"company": company.name, "invite": invite.name}
+
+	return {"status": "added", "company": company_name}
+
+
+@frappe.whitelist(allow_guest=True)
+def get_membership_plans():
+	"""Get active membership plans for the pricing page."""
+	plans = frappe.get_all(
+		"CEU Membership Plan",
+		filters={"active": 1},
+		fields=["name", "title", "plan_type", "ceu_hours", "price", "stripe_price_id"],
+		order_by="price asc"
+	)
+	return plans
