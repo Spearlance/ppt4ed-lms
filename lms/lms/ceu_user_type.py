@@ -3,7 +3,7 @@ from frappe import _
 
 
 @frappe.whitelist()
-def get_user_type(user=None):
+def get_user_type(user: str | None = None):
     """Determine the user's account type based on their relationships.
 
     Returns dict with 'type' key: 'company', 'professional', or 'one_off'.
