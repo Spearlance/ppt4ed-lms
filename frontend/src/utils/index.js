@@ -501,6 +501,16 @@ const getSidebarItems = () => {
 					activeFor: ['Statistics'],
 				},
 				{
+					label: 'Company',
+					icon: 'Building2',
+					to: 'CompanyDashboard',
+					activeFor: ['CompanyDashboard'],
+					await: true,
+					condition: () => {
+						return userResource?.data?.is_company_admin
+					},
+				},
+				{
 					label: 'Contact Us',
 					icon: settings.data?.contact_us_url ? 'Headset' : 'Mail',
 					to: settings.data?.contact_us_url

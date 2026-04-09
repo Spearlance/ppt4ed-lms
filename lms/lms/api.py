@@ -66,6 +66,10 @@ def get_user_info():
 	user.is_student = not user.is_instructor and not user.is_moderator and not user.is_evaluator
 	user.is_fc_site = is_fc_site()
 	user.is_system_manager = "System Manager" in user.roles
+	user.is_company_admin = frappe.db.exists(
+		"Company Admin",
+		{"user": frappe.session.user, "parenttype": "Company Account"}
+	)
 	user.sitename = frappe.local.site
 	user.developer_mode = frappe.conf.developer_mode
 	if user.is_fc_site and user.is_system_manager:
