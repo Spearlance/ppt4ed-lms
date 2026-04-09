@@ -74,24 +74,24 @@ class LMSCertificate(Document):
 
 	def validate_criteria(self):
 		self.validate_role_of_owner()
-		if self.batch_name:
+		if self.event_name:
 			self.validate_batch_enrollment()
 		elif self.course:
 			self.validate_course_enrollment()
 
 	def validate_role_of_owner(self):
 		roles = frappe.get_roles()
-		is_admin = any(role in roles for role in ["Moderator", "Course Creator", "Batch Evaluator"])
-		if not self.course and not self.batch_name and not is_admin:
-			frappe.throw(_("Course or Batch is required to issue a certificate."))
+		is_admin = any(role in roles for role in ["Moderator"])
+		if not self.course and not self.event_name and not is_admin:
+			frappe.throw(_("Course or Event is required to issue a certificate."))
 
 	def validate_batch_enrollment(self):
-		if self.batch_name:
+		if self.event_name:
 			is_enrolled = frappe.db.exists(
-				"LMS Batch Enrollment", {"batch": self.batch_name, "member": self.member}
+				"LMS Event Registration", {"event": self.event_name, "member": self.member}
 			)
 			if not is_enrolled:
-				frappe.throw(_("Certification cannot be issued as the member is not enrolled in this batch."))
+				frappe.throw(_("Certification cannot be issued as the member is not enrolled in this event."))
 
 	def validate_course_enrollment(self):
 		if self.course:
@@ -135,21 +135,21 @@ class LMSCertificate(Document):
 				)
 
 	def validate_batch_duplicates(self):
-		if self.batch_name:
+		if self.event_name:
 			batch_duplicates = frappe.get_all(
 				"LMS Certificate",
 				filters={
 					"member": self.member,
 					"name": ["!=", self.name],
-					"batch_name": self.batch_name,
+					"event_name": self.event_name,
 				},
-				fields=["name", "batch_name", "batch_title"],
+				fields=["name", "event_name", "event_title"],
 			)
 			if len(batch_duplicates):
 				full_name = frappe.db.get_value("User", self.member, "full_name")
 				frappe.throw(
-					_("{0} is already certified for the batch {1}").format(
-						full_name, batch_duplicates[0].batch_title
+					_("{0} is already certified for the event {1}").format(
+						full_name, batch_duplicates[0].event_title
 					)
 				)
 
@@ -240,7 +240,7 @@ def validate_certification_eligibility(course):
 def has_permission(doc, ptype="read", user=None):
 	user = user or frappe.session.user
 	roles = frappe.get_roles(user)
-	if "Moderator" in roles or "Course Creator" in roles or "Batch Evaluator" in roles:
+	if "Moderator" in roles:
 		return True
 	if doc.owner == user:
 		return True
@@ -252,6 +252,6 @@ def has_permission(doc, ptype="read", user=None):
 def get_permission_query_conditions(user):
 	user = user or frappe.session.user
 	roles = frappe.get_roles(user)
-	if "Moderator" in roles or "Course Creator" in roles or "Batch Evaluator" in roles:
+	if "Moderator" in roles:
 		return None
 	return """(`tabLMS Certificate`.published = 1)"""

@@ -13,7 +13,7 @@ def get_sales_data(site_info):
 		"LMS Course",
 		"Course Chapter",
 		"Course Lesson",
-		"LMS Batch",
+		"LMS Event",
 		"LMS Enrollment",
 		"LMS Quiz",
 		"LMS Assignment",

@@ -181,11 +181,11 @@ class BaseTestUtils(UnitTestCase):
 		title="Utility Training",
 		evaluator="frappe@example.com",
 	):
-		existing = frappe.db.exists("LMS Batch", {"title": title})
+		existing = frappe.db.exists("LMS Event", {"title": title})
 		if existing:
-			return frappe.get_doc("LMS Batch", existing)
+			return frappe.get_doc("LMS Event", existing)
 
-		batch = frappe.new_doc("LMS Batch")
+		batch = frappe.new_doc("LMS Event")
 		batch.update(
 			{
 				"title": title,
@@ -203,18 +203,18 @@ class BaseTestUtils(UnitTestCase):
 			}
 		)
 		batch.save()
-		self.cleanup_items.append(("LMS Batch", batch.name))
+		self.cleanup_items.append(("LMS Event", batch.name))
 		return batch
 
 	def _create_batch_enrollment(self, member, batch):
-		existing = frappe.db.exists("LMS Batch Enrollment", {"batch": batch, "member": member})
+		existing = frappe.db.exists("LMS Event Registration", {"event": batch, "member": member})
 		if existing:
-			return frappe.get_doc("LMS Batch Enrollment", existing)
+			return frappe.get_doc("LMS Event Registration", existing)
 
-		batch_enrollment = frappe.new_doc("LMS Batch Enrollment")
-		batch_enrollment.update({"member": member, "batch": batch})
+		batch_enrollment = frappe.new_doc("LMS Event Registration")
+		batch_enrollment.update({"member": member, "event": batch})
 		batch_enrollment.insert()
-		self.cleanup_items.append(("LMS Batch Enrollment", batch_enrollment.name))
+		self.cleanup_items.append(("LMS Event Registration", batch_enrollment.name))
 		return batch_enrollment
 
 	def _add_rating(self, course, member, rating, review_text):
@@ -322,7 +322,7 @@ class BaseTestUtils(UnitTestCase):
 		self.student1 = self._create_user("student1@example.com", "Ashley", "Smith", ["LMS Student"])
 		self.student2 = self._create_user("student2@example.com", "John", "Doe", ["LMS Student"])
 		self.admin = self._create_user(
-			"frappe@example.com", "Frappe", "Admin", ["Moderator", "Course Creator", "Batch Evaluator"]
+			"frappe@example.com", "Frappe", "Admin", ["Moderator"]
 		)
 		self.course = self._create_course()
 		self._setup_quiz()

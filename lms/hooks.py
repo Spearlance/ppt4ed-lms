@@ -95,7 +95,7 @@ permission_query_conditions = {
 
 has_permission = {
 	"LMS Live Class": "lms.lms.doctype.lms_live_class.lms_live_class.has_permission",
-	"LMS Batch": "lms.lms.doctype.lms_batch.lms_batch.has_permission",
+	"LMS Event": "lms.lms.doctype.lms_event.lms_event.has_permission",
 	"LMS Program": "lms.lms.doctype.lms_program.lms_program.has_permission",
 	"LMS Certificate": "lms.lms.doctype.lms_certificate.lms_certificate.has_permission",
 }
@@ -189,12 +189,13 @@ website_redirects = [
 		"source": r"^/courses/.*$",
 		"target": f"/{get_lms_path()}/courses",
 	},
-	{"source": "/batches", "target": f"/{get_lms_path()}/batches"},
+	{"source": "/events", "target": f"/{get_lms_path()}/events"},
 	{
-		"source": r"/batches/(.*)",
-		"target": f"/{get_lms_path()}/batches",
+		"source": r"/events/(.*)",
+		"target": f"/{get_lms_path()}/events",
 		"match_with_query_string": True,
 	},
+	{"source": "/batches", "target": f"/{get_lms_path()}/events"},
 	# {"source": "/job-openings", "target": f"/{get_lms_path()}/job-openings"},  # PPT4ed: hidden
 	# {  # PPT4ed: hidden
 	# 	"source": r"/job-openings/(.*)",

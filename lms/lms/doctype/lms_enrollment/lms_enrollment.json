@@ -64,7 +64,6 @@
    "fieldtype": "Column Break"
   },
   {
-   "fetch_from": "batch.course",
    "fieldname": "course",
    "fieldtype": "Link",
    "in_list_view": 1,

@@ -32,11 +32,11 @@ from pypika import functions as fn
 from lms.lms.doctype.course_lesson.course_lesson import save_progress
 from lms.lms.utils import (
 	LMS_ROLES,
-	can_modify_batch,
 	can_modify_course,
+	can_modify_event,
 	get_average_rating,
-	get_batch_details,
 	get_course_details,
+	get_event_details,
 	get_field_meta,
 	get_instructors,
 	get_lesson_count,
@@ -84,7 +84,7 @@ def get_translations():
 
 @frappe.whitelist()
 def validate_billing_access(billing_type: str, name: str):
-	doctype = "LMS Batch" if billing_type == "batch" else "LMS Course"
+	doctype = "LMS Event" if billing_type == "event" else "LMS Course"
 	access, message = verify_billing_access(doctype, name, billing_type)
 
 	address = frappe.db.get_value(
@@ -162,7 +162,7 @@ def verify_billing_access(doctype, name, billing_type):
 		access = False
 		message = _("Please login to continue with payment.")
 
-	if access and billing_type not in ["course", "batch", "certificate"]:
+	if access and billing_type not in ["course", "event", "certificate"]:
 		access = False
 		message = _("Module is incorrect.")
 
@@ -176,22 +176,22 @@ def verify_billing_access(doctype, name, billing_type):
 			access = False
 			message = _("You are already enrolled for this course.")
 
-	elif access and billing_type == "batch":
-		membership = frappe.db.exists("LMS Batch Enrollment", {"member": frappe.session.user, "batch": name})
+	elif access and billing_type == "event":
+		membership = frappe.db.exists("LMS Event Registration", {"member": frappe.session.user, "event": name})
 		if membership:
 			access = False
-			message = _("You are already enrolled for this batch.")
+			message = _("You are already enrolled for this event.")
 
-		seat_count = frappe.get_cached_value("LMS Batch", name, "seat_count")
-		number_of_students = frappe.db.count("LMS Batch Enrollment", {"batch": name})
+		seat_count = frappe.get_cached_value("LMS Event", name, "seat_count")
+		number_of_students = frappe.db.count("LMS Event Registration", {"event": name})
 		if seat_count <= number_of_students:
 			access = False
-			message = _("Batch is sold out.")
+			message = _("Event is sold out.")
 
-		start_date = frappe.get_cached_value("LMS Batch", name, "start_date")
+		start_date = frappe.get_cached_value("LMS Event", name, "start_date")
 		if start_date and date_diff(start_date, now()) < 0:
 			access = False
-			message = _("Batch has already started.")
+			message = _("Event has already started.")
 
 	elif access and billing_type == "certificate":
 		purchased_certificate = frappe.db.exists(
@@ -318,7 +318,7 @@ def get_unsplash_photos(keyword: str = None):
 
 @frappe.whitelist()
 def get_evaluator_details(evaluator: str):
-	frappe.only_for("Batch Evaluator")
+	frappe.only_for("Moderator")
 
 	if not frappe.db.exists("Google Calendar", {"user": evaluator}):
 		calendar = frappe.new_doc("Google Calendar")
@@ -645,7 +645,7 @@ def get_members(start: int = 0, search: str = None):
 		elif "Course Creator" in roles:
 			member.role = "Course Creator"
 		elif "Batch Evaluator" in roles:
-			member.role = "Batch Evaluator"
+			member.role = "Moderator"
 		elif "LMS Student" in roles:
 			member.role = "LMS Student"
 
@@ -676,7 +676,7 @@ def save_evaluation_details(
 	"""
 	Save evaluation details for a member against a course.
 	"""
-	frappe.only_for(["Batch Evaluator", "Moderator"])
+	frappe.only_for(["Moderator"])
 	evaluation = frappe.db.exists("LMS Certificate Evaluation", {"member": member, "course": course})
 
 	details = {
@@ -720,7 +720,7 @@ def save_certificate_details(
 	"""
 	Save certificate details for a member against a course.
 	"""
-	frappe.only_for(["Batch Evaluator", "Moderator"])
+	frappe.only_for(["Moderator"])
 	certificate = frappe.db.exists("LMS Certificate", {"member": member, "course": course})
 
 	details = {
@@ -846,19 +846,19 @@ def get_new_gateway_fields(doctype: str):
 def get_announcements(batch: str):
 	roles = frappe.get_roles()
 	is_batch_student = frappe.db.exists(
-		"LMS Batch Enrollment", {"batch": batch, "member": frappe.session.user}
+		"LMS Event Registration", {"event": batch, "member": frappe.session.user}
 	)
-	is_admin = "Moderator" in roles or "Batch Evaluator" in roles
+	is_admin = "Moderator" in roles
 
 	if not (is_batch_student or is_admin):
 		frappe.throw(
-			_("You do not have permission to access announcements for this batch."), frappe.PermissionError
+			_("You do not have permission to access announcements for this event."), frappe.PermissionError
 		)
 
 	communications = frappe.get_all(
 		"Communication",
 		filters={
-			"reference_doctype": "LMS Batch",
+			"reference_doctype": "LMS Event",
 			"reference_name": batch,
 		},
 		fields=[
@@ -921,22 +921,22 @@ def delete_course(course: str):
 
 @frappe.whitelist()
 def delete_batch(batch: str):
-	if not can_modify_batch(batch):
-		frappe.throw(_("You do not have permission to delete this batch."), frappe.PermissionError)
+	if not can_modify_event(batch):
+		frappe.throw(_("You do not have permission to delete this event."), frappe.PermissionError)
 
-	frappe.db.delete("LMS Batch Enrollment", {"batch": batch})
-	frappe.db.delete("Batch Course", {"parent": batch, "parenttype": "LMS Batch"})
-	frappe.db.delete("LMS Assessment", {"parent": batch, "parenttype": "LMS Batch"})
-	frappe.db.delete("LMS Batch Timetable", {"parent": batch, "parenttype": "LMS Batch"})
+	frappe.db.delete("LMS Event Registration", {"event": batch})
+	frappe.db.delete("Batch Course", {"parent": batch, "parenttype": "LMS Event"})
+	frappe.db.delete("LMS Assessment", {"parent": batch, "parenttype": "LMS Event"})
+	frappe.db.delete("LMS Batch Timetable", {"parent": batch, "parenttype": "LMS Event"})
 	frappe.db.delete("LMS Batch Feedback", {"batch": batch})
 	delete_batch_discussions(batch)
-	frappe.db.delete("LMS Batch", batch)
+	frappe.db.delete("LMS Event", batch)
 
 
 def delete_batch_discussions(batch: str):
 	topics = frappe.get_all(
 		"Discussion Topic",
-		{"reference_doctype": "LMS Batch", "reference_docname": batch},
+		{"reference_doctype": "LMS Event", "reference_docname": batch},
 		pluck="name",
 	)
 
@@ -947,7 +947,7 @@ def delete_batch_discussions(batch: str):
 
 def give_discussions_permission():
 	doctypes = ["Discussion Topic", "Discussion Reply"]
-	roles = ["LMS Student", "Course Creator", "Moderator", "Batch Evaluator"]
+	roles = ["LMS Student", "Course Creator", "Moderator"]
 	for doctype in doctypes:
 		for role in roles:
 			if not frappe.db.exists("Custom DocPerm", {"parent": doctype, "role": role}):
@@ -1325,9 +1325,9 @@ def update_document_details(notification: dict) -> dict:
 		details["instructors"] = instructors
 		notification["document_details"] = details
 
-	elif notification.document_type == "LMS Batch":
+	elif notification.document_type == "LMS Event":
 		details = frappe.db.get_value(
-			"LMS Batch",
+			"LMS Event",
 			notification.document_name,
 			[
 				"title",
@@ -1340,7 +1340,7 @@ def update_document_details(notification: dict) -> dict:
 			],
 			as_dict=1,
 		)
-		instructors = get_instructors("LMS Batch", notification.document_name)
+		instructors = get_instructors("LMS Event", notification.document_name)
 		details["instructors"] = instructors
 		notification["document_details"] = details
 	return notification
@@ -1441,7 +1441,7 @@ def save_role(user: str, role: str, value: int):
 	if role not in LMS_ROLES:
 		frappe.throw(_("You do not have permission to modify this role."), frappe.PermissionError)
 
-	if role == "Batch Evaluator":
+	if role == "Moderator":
 		return save_evaluator_role(user, value)
 
 	if cint(value):
@@ -1461,19 +1461,19 @@ def save_role(user: str, role: str, value: int):
 def save_evaluator_role(user: str, value: int):
 	frappe.only_for("Moderator")
 	if cint(value):
-		if not frappe.db.exists("Has Role", {"parent": user, "role": "Batch Evaluator"}):
+		if not frappe.db.exists("Has Role", {"parent": user, "role": "Moderator"}):
 			doc = frappe.new_doc("Has Role")
 			doc.parent = user
 			doc.parenttype = "User"
 			doc.parentfield = "roles"
-			doc.role = "Batch Evaluator"
+			doc.role = "Moderator"
 			doc.save(ignore_permissions=True)
 		if not frappe.db.exists("Course Evaluator", {"evaluator": user}):
 			doc = frappe.new_doc("Course Evaluator")
 			doc.evaluator = user
 			doc.save(ignore_permissions=True)
 	else:
-		frappe.db.delete("Has Role", {"parent": user, "role": "Batch Evaluator"})
+		frappe.db.delete("Has Role", {"parent": user, "role": "Moderator"})
 		if frappe.db.exists("Course Evaluator", {"evaluator": user}):
 			frappe.db.delete("Course Evaluator", {"evaluator": user})
 	frappe.clear_cache(user=user)
@@ -1512,7 +1512,7 @@ def get_meta_info(type: str, route: str):
 
 @frappe.whitelist()
 def update_meta_info(meta_type: str, route: str, meta_tags: list):
-	frappe.only_for(["Course Creator", "Batch Evaluator", "Moderator"])
+	frappe.only_for(["Course Creator", "Moderator"])
 	validate_meta_data_permissions(meta_type)
 	validate_meta_tags(meta_tags)
 
@@ -1577,8 +1577,8 @@ def validate_meta_data_permissions(meta_type: str):
 		if not ("Course Creator" in roles or "Moderator" in roles):
 			frappe.throw(_("You do not have permission to update meta tags."))
 
-	elif meta_type == "batches":
-		if not ("Batch Evaluator" in roles or "Moderator" in roles):
+	elif meta_type == "events":
+		if not ("Moderator" in roles):
 			frappe.throw(_("You do not have permission to update meta tags."))
 
 
@@ -1869,12 +1869,12 @@ def get_my_live_classes():
 	my_live_classes = []
 
 	batches = frappe.get_all(
-		"LMS Batch Enrollment",
+		"LMS Event Registration",
 		{
 			"member": frappe.session.user,
 		},
 		order_by="creation desc",
-		pluck="batch",
+		pluck="event",
 	)
 
 	live_class_details = frappe.get_all(
@@ -1944,7 +1944,7 @@ def get_created_batches():
 	created_batches = []
 
 	CourseInstructor = frappe.qb.DocType("Course Instructor")
-	Batch = frappe.qb.DocType("LMS Batch")
+	Batch = frappe.qb.DocType("LMS Event")
 
 	query = (
 		frappe.qb.from_(CourseInstructor)
@@ -1961,7 +1961,7 @@ def get_created_batches():
 	batches = [row["name"] for row in results]
 
 	for batch in batches:
-		batch_details = get_batch_details(batch)
+		batch_details = get_event_details(batch)
 		created_batches.append(batch_details)
 
 	return created_batches
@@ -2086,7 +2086,7 @@ def get_my_batches():
 		batches = get_upcoming_batches()
 
 	for batch in batches:
-		batch_details = get_batch_details(batch)
+		batch_details = get_event_details(batch)
 		if batch_details:
 			my_batches.append(batch_details)
 
@@ -2095,19 +2095,19 @@ def get_my_batches():
 
 def get_my_latest_batches():
 	return frappe.get_all(
-		"LMS Batch Enrollment",
+		"LMS Event Registration",
 		{
 			"member": frappe.session.user,
 		},
 		order_by="creation desc",
 		limit=4,
-		pluck="batch",
+		pluck="event",
 	)
 
 
 def get_upcoming_batches():
 	return frappe.get_all(
-		"LMS Batch",
+		"LMS Event",
 		{
 			"published": 1,
 			"start_date": [">=", getdate()],

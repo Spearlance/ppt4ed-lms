@@ -381,7 +381,7 @@ def handle_notifications(doc: Document, method: str):
 		["reference_doctype", "reference_docname", "owner", "title"],
 		as_dict=1,
 	)
-	if topic.reference_doctype not in ["Course Lesson", "LMS Batch"]:
+	if topic.reference_doctype not in ["Course Lesson", "LMS Event"]:
 		return
 	create_notification_log(doc, topic)
 	notify_mentions_on_portal(doc, topic)
@@ -405,17 +405,17 @@ def get_course_details_for_notification(topic: dict):
 	return subject, link, users
 
 
-def get_batch_details_for_notification(topic: dict):
+def get_event_details_for_notification(topic: dict):
 	users = []
-	batch_title = frappe.db.get_value("LMS Batch", topic.reference_docname, "title")
-	subject = _("New comment in batch {0}").format(batch_title)
-	link = get_lms_route(f"batches/{topic.reference_docname}#discussions")
+	event_title = frappe.db.get_value("LMS Event", topic.reference_docname, "title")
+	subject = _("New comment in event {0}").format(event_title)
+	link = get_lms_route(f"events/{topic.reference_docname}#discussions")
 	instructors = frappe.db.get_all(
 		"Course Instructor",
-		{"parenttype": "LMS Batch", "parent": topic.reference_docname},
+		{"parenttype": "LMS Event", "parent": topic.reference_docname},
 		pluck="instructor",
 	)
-	students = frappe.db.get_all("LMS Batch Enrollment", {"batch": topic.reference_docname}, pluck="member")
+	students = frappe.db.get_all("LMS Event Registration", {"event": topic.reference_docname}, pluck="member")
 	users += instructors
 	users += students
 	return subject, link, users
@@ -425,7 +425,7 @@ def create_notification_log(doc: Document, topic: dict):
 	if topic.reference_doctype == "Course Lesson":
 		subject, link, users = get_course_details_for_notification(topic)
 	else:
-		subject, link, users = get_batch_details_for_notification(topic)
+		subject, link, users = get_event_details_for_notification(topic)
 
 	if doc.owner in users:
 		users.remove(doc.owner)
@@ -459,11 +459,11 @@ def notify_mentions_on_portal(doc: Document, topic: dict):
 		)
 		link = get_lesson_url(course, get_lesson_index(topic.reference_docname))
 	else:
-		batch_title = frappe.db.get_value("LMS Batch", topic.reference_docname, "title")
+		event_title = frappe.db.get_value("LMS Event", topic.reference_docname, "title")
 		subject = _("{0} mentioned you in a comment in {1}").format(
-			frappe.bold(from_user_name), frappe.bold(batch_title)
+			frappe.bold(from_user_name), frappe.bold(event_title)
 		)
-		link = get_lms_route(f"batches/{topic.reference_docname}#discussions")
+		link = get_lms_route(f"events/{topic.reference_docname}#discussions")
 
 	for user in mentions:
 		notification = frappe._dict(
@@ -504,8 +504,8 @@ def notify_mentions_via_email(doc: Document, topic: dict):
 	subject = _("{0} mentioned you in a comment").format(sender_fullname)
 	template = "mention_template"
 
-	if topic.reference_doctype == "LMS Batch":
-		link = f"/batches/{topic.reference_docname}#discussions"
+	if topic.reference_doctype == "LMS Event":
+		link = f"/events/{topic.reference_docname}#discussions"
 	if topic.reference_doctype == "Course Lesson":
 		course = frappe.db.get_value("Course Lesson", topic.reference_docname, "course")
 		lesson_index = get_lesson_index(topic.reference_docname)
@@ -1073,20 +1073,20 @@ def get_neighbour_lesson(course: str, chapter: int, lesson: int) -> dict:
 
 @frappe.whitelist(allow_guest=True)  # nosemgrep: frappe-semgrep-rules.rules.security.guest-whitelisted-method
 @rate_limit(limit=500, seconds=60 * 60)
-def get_batch_details(batch: str):
+def get_event_details(batch: str):
 	if not guest_access_allowed():
 		return {}
 
-	batch_students = frappe.get_all("LMS Batch Enrollment", {"batch": batch}, pluck="member")
-	is_batch_admin = can_modify_batch(batch)
-	is_batch_published = frappe.db.get_value("LMS Batch", batch, "published")
+	batch_students = frappe.get_all("LMS Event Registration", {"event": batch}, pluck="member")
+	is_batch_admin = can_modify_event(batch)
+	is_batch_published = frappe.db.get_value("LMS Event", batch, "published")
 	is_student_enrolled = frappe.session.user in batch_students
 
 	if not (is_batch_published or is_batch_admin or is_student_enrolled):
 		return {}
 
 	batch_details = frappe.db.get_value(
-		"LMS Batch",
+		"LMS Event",
 		batch,
 		[
 			"name",
@@ -1118,7 +1118,7 @@ def get_batch_details(batch: str):
 		as_dict=True,
 	)
 
-	batch_details.instructors = get_instructors("LMS Batch", batch)
+	batch_details.instructors = get_instructors("LMS Event", batch)
 	batch_details.accept_enrollments = batch_details.start_date > getdate()
 
 	if (
@@ -1135,7 +1135,7 @@ def get_batch_details(batch: str):
 		"LMS Assessment", {"parent": batch}, ["assessment_name", "assessment_type"]
 	)
 
-	if can_modify_batch(batch):
+	if can_modify_event(batch):
 		batch_details.students = batch_students
 	elif is_student_enrolled:
 		batch_details.students = [frappe.session.user]
@@ -1166,7 +1166,7 @@ def categorize_batches(batches: list) -> dict:
 			upcoming.append(batch)
 
 		if frappe.session.user != "Guest":
-			if frappe.db.exists("LMS Batch Enrollment", {"member": frappe.session.user, "batch": batch.name}):
+			if frappe.db.exists("LMS Event Registration", {"member": frappe.session.user, "event": batch.name}):
 				enrolled.append(batch)
 
 	categories = [archived, private, enrolled]
@@ -1230,9 +1230,9 @@ def get_batch_courses(batch: str) -> list:
 @frappe.whitelist()
 def get_assessments(batch: str) -> list:
 	member = frappe.session.user
-	is_enrolled = frappe.db.exists("LMS Batch Enrollment", {"batch": batch, "member": member})
-	if not is_enrolled and not can_modify_batch(batch):
-		frappe.throw(_("You are not authorized to view the assessments of this batch."))
+	is_enrolled = frappe.db.exists("LMS Event Registration", {"event": batch, "member": member})
+	if not is_enrolled and not can_modify_event(batch):
+		frappe.throw(_("You are not authorized to view the assessments of this event."))
 
 	assessments = frappe.get_all(
 		"LMS Assessment",
@@ -1342,8 +1342,8 @@ def get_exercise_details(assessment: dict, member: str) -> dict:
 
 @frappe.whitelist()
 def get_batch_student_progress(member: str, batch: str) -> dict:
-	if not can_modify_batch(batch):
-		frappe.throw(_("You are not authorized to view the students of this batch."))
+	if not can_modify_event(batch):
+		frappe.throw(_("You are not authorized to view the students of this event."))
 
 	details = get_batch_student_details(member)
 	calculate_student_progress(batch, details)
@@ -1353,13 +1353,13 @@ def get_batch_student_progress(member: str, batch: str) -> dict:
 def get_course_completion_stats(batch: str) -> list:
 	"""Get completion counts per course in batch"""
 	BatchCourse = frappe.qb.DocType("Batch Course")
-	BatchEnrollment = frappe.qb.DocType("LMS Batch Enrollment")
+	BatchEnrollment = frappe.qb.DocType("LMS Event Registration")
 	Enrollment = frappe.qb.DocType("LMS Enrollment")
 
 	rows = (
 		frappe.qb.from_(BatchCourse)
 		.left_join(BatchEnrollment)
-		.on(BatchEnrollment.batch == BatchCourse.parent)
+		.on(BatchEnrollment.event == BatchCourse.parent)
 		.left_join(Enrollment)
 		.on((Enrollment.course == BatchCourse.course) & (Enrollment.member == BatchEnrollment.member))
 		.where(BatchCourse.parent == batch)
@@ -1377,7 +1377,7 @@ def get_assignment_pass_stats(batch: str) -> list:
 	"""Get pass counts per assignment in batch"""
 	Assessment = frappe.qb.DocType("LMS Assessment")
 	Assignment = frappe.qb.DocType("LMS Assignment")
-	BatchEnrollment = frappe.qb.DocType("LMS Batch Enrollment")
+	BatchEnrollment = frappe.qb.DocType("LMS Event Registration")
 	Submission = frappe.qb.DocType("LMS Assignment Submission")
 
 	rows = (
@@ -1385,7 +1385,7 @@ def get_assignment_pass_stats(batch: str) -> list:
 		.join(Assignment)
 		.on(Assignment.name == Assessment.assessment_name)
 		.left_join(BatchEnrollment)
-		.on(BatchEnrollment.batch == Assessment.parent)
+		.on(BatchEnrollment.event == Assessment.parent)
 		.left_join(Submission)
 		.on(
 			(Submission.assignment == Assessment.assessment_name)
@@ -1406,7 +1406,7 @@ def get_quiz_pass_stats(batch: str) -> list:
 	"""Get pass counts per quiz in batch"""
 	Assessment = frappe.qb.DocType("LMS Assessment")
 	Quiz = frappe.qb.DocType("LMS Quiz")
-	BatchEnrollment = frappe.qb.DocType("LMS Batch Enrollment")
+	BatchEnrollment = frappe.qb.DocType("LMS Event Registration")
 	Submission = frappe.qb.DocType("LMS Quiz Submission")
 
 	rows = (
@@ -1414,7 +1414,7 @@ def get_quiz_pass_stats(batch: str) -> list:
 		.join(Quiz)
 		.on(Quiz.name == Assessment.assessment_name)
 		.left_join(BatchEnrollment)
-		.on(BatchEnrollment.batch == Assessment.parent)
+		.on(BatchEnrollment.event == Assessment.parent)
 		.left_join(Submission)
 		.on((Submission.quiz == Assessment.assessment_name) & (Submission.member == BatchEnrollment.member))
 		.where((Assessment.parent == batch) & (Assessment.assessment_type == "LMS Quiz"))
@@ -1431,12 +1431,12 @@ def get_quiz_pass_stats(batch: str) -> list:
 
 
 @frappe.whitelist()
-def get_batch_chart_data(batch: str) -> list:
+def get_event_chart_data(batch: str) -> list:
 	"""Get completion counts per course and assessment"""
-	if not can_modify_batch(batch):
-		frappe.throw(_("You are not authorized to view the chart data of this batch."))
-	if not frappe.db.exists("LMS Batch", batch):
-		frappe.throw(_("The specified batch does not exist."))
+	if not can_modify_event(batch):
+		frappe.throw(_("You are not authorized to view the chart data of this event."))
+	if not frappe.db.exists("LMS Event", batch):
+		frappe.throw(_("The specified event does not exist."))
 
 	return get_course_completion_stats(batch) + get_assignment_pass_stats(batch) + get_quiz_pass_stats(batch)
 
@@ -1585,11 +1585,11 @@ def can_access_topic(doctype: str, docname: str) -> bool:
 		is_student = frappe.db.exists("LMS Enrollment", {"course": course, "member": frappe.session.user})
 		if not is_student and not can_modify_course(course):
 			return False
-	elif doctype == "LMS Batch":
+	elif doctype == "LMS Event":
 		is_student = frappe.db.exists(
-			"LMS Batch Enrollment", {"batch": docname, "member": frappe.session.user}
+			"LMS Event Registration", {"event": docname, "member": frappe.session.user}
 		)
-		if not is_student and not can_modify_batch(docname):
+		if not is_student and not can_modify_event(docname):
 			return False
 	return True
 
@@ -1705,14 +1705,14 @@ def get_paid_course_details(docname: str) -> dict:
 
 def get_paid_batch_details(docname: str) -> dict:
 	details = frappe.db.get_value(
-		"LMS Batch",
+		"LMS Event",
 		docname,
 		["title", "name", "paid_batch", "amount", "currency", "amount_usd"],
 		as_dict=True,
 	)
 
 	if not details.paid_batch:
-		raise frappe.throw(_("To join this batch, please contact the Administrator."))
+		raise frappe.throw(_("To join this event, please contact the Administrator."))
 
 	return details
 
@@ -1780,7 +1780,7 @@ def validate_coupon_applicability(doctype: str, docname: str, coupon_name: str):
 	if not applicable_item:
 		frappe.throw(
 			_("This coupon is not applicable to this {0}.").format(
-				"Course" if doctype == "LMS Course" else "Batch"
+				"Course" if doctype == "LMS Course" else "Event"
 			)
 		)
 
@@ -1933,8 +1933,8 @@ def enroll_in_course(course: str, payment_name: str):
 
 @frappe.whitelist()
 def enroll_in_batch(batch: str, payment_name: str = None):
-	if not frappe.db.exists("LMS Batch", batch):
-		frappe.throw(_("The specified batch does not exist."))
+	if not frappe.db.exists("LMS Event", batch):
+		frappe.throw(_("The specified event does not exist."))
 
 	payment_doc = get_payment_details(payment_name)
 	create_enrollment(batch, payment_doc)
@@ -1950,11 +1950,11 @@ def get_payment_details(payment_name: str) -> dict:
 
 
 def create_enrollment(batch: str, payment_doc: dict = None):
-	new_student = frappe.new_doc("LMS Batch Enrollment")
+	new_student = frappe.new_doc("LMS Event Registration")
 	new_student.update(
 		{
 			"member": frappe.session.user,
-			"batch": batch,
+			"event": batch,
 		}
 	)
 
@@ -2099,13 +2099,13 @@ def get_batches(filters: dict = None, start: int = 0, order_by: str = "start_dat
 
 	if filters.get("enrolled"):
 		enrolled_batches = frappe.get_all(
-			"LMS Batch Enrollment", {"member": frappe.session.user}, pluck="batch"
+			"LMS Event Registration", {"member": frappe.session.user}, pluck="event"
 		)
 		filters.update({"name": ["in", enrolled_batches]})
 		del filters["enrolled"]
 
 	batches = frappe.get_all(
-		"LMS Batch",
+		"LMS Event",
 		filters=filters,
 		fields=[
 			"name",
@@ -2168,8 +2168,8 @@ def get_batch_type(filters: dict) -> str:
 
 def get_batch_card_details(batches: list) -> list:
 	for batch in batches:
-		batch.instructors = get_instructors("LMS Batch", batch.name)
-		students_count = frappe.db.count("LMS Batch Enrollment", {"batch": batch.name})
+		batch.instructors = get_instructors("LMS Event", batch.name)
+		students_count = frappe.db.count("LMS Event Registration", {"event": batch.name})
 
 		if batch.seat_count:
 			batch.seats_left = batch.seat_count - students_count
@@ -2231,7 +2231,7 @@ def validate_discussion_reply(doc: Document, method: str):
 	if topic.reference_doctype == "Course Lesson":
 		validate_course_access(topic.reference_docname)
 
-	elif topic.reference_doctype == "LMS Batch":
+	elif topic.reference_doctype == "LMS Event":
 		validate_batch_access(topic.reference_docname)
 
 
@@ -2252,8 +2252,8 @@ def validate_course_access(lesson: str):
 
 
 def validate_batch_access(batch: str):
-	if not frappe.db.exists("LMS Batch", batch):
-		frappe.throw(_("The batch does not exist."))
+	if not frappe.db.exists("LMS Event", batch):
+		frappe.throw(_("The event does not exist."))
 
 	if has_moderator_role():
 		return
@@ -2262,10 +2262,10 @@ def validate_batch_access(batch: str):
 		return
 
 	enrollment_exists = frappe.db.exists(
-		"LMS Batch Enrollment", {"member": frappe.session.user, "batch": batch}
+		"LMS Event Registration", {"member": frappe.session.user, "event": batch}
 	)
 	if not enrollment_exists:
-		frappe.throw(_("You do not have access to this batch."))
+		frappe.throw(_("You do not have access to this event."))
 
 
 def can_modify_course(course: str) -> bool:
@@ -2278,13 +2278,13 @@ def can_modify_course(course: str) -> bool:
 	return True
 
 
-def can_modify_batch(batch: str) -> bool:
+def can_modify_event(batch: str) -> bool:
 	is_instructor = frappe.db.exists(
 		"Course Instructor",
 		{
 			"instructor": frappe.session.user,
 			"parent": batch,
-			"parenttype": "LMS Batch",
+			"parenttype": "LMS Event",
 		},
 	)
 	if not (has_moderator_role() or is_instructor):

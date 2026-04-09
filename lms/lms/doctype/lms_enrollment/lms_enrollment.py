@@ -56,7 +56,7 @@ class LMSEnrollment(Document):
 				frappe.throw(_("This batch is not associated with this course."))
 
 			if frappe.db.exists(
-				"LMS Batch Enrollment", {"batch": self.enrollment_from_batch, "member": self.member}
+				"LMS Event Registration", {"event": self.enrollment_from_batch, "member": self.member}
 			):
 				return
 
@@ -80,7 +80,7 @@ class LMSEnrollment(Document):
 
 def is_admin():
 	roles = frappe.get_roles(frappe.session.user)
-	admin_roles = ["Moderator", "Course Creator", "Batch Evaluator"]
+	admin_roles = ["Moderator"]
 	for role in admin_roles:
 		if role in roles:
 			return True
