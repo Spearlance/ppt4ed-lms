@@ -119,7 +119,7 @@
    "if_owner": 1,
    "read": 1,
    "role": "LMS Student"
-  },
+  }
  ],
  "row_format": "Dynamic",
  "show_title_field_in_link": 1,

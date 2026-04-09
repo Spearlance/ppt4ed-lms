@@ -117,7 +117,7 @@
    "if_owner": 1,
    "read": 1,
    "role": "LMS Student"
-  },
+  }
  ],
  "row_format": "Dynamic",
  "sort_field": "creation",
