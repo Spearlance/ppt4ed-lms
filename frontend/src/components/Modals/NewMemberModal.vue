@@ -63,16 +63,6 @@
 						/>
 						<Switch
 							size="sm"
-							:label="__('Course Creator')"
-							v-model="roles.course_creator"
-						/>
-						<Switch
-							size="sm"
-							:label="__('Evaluator')"
-							v-model="roles.batch_evaluator"
-						/>
-						<Switch
-							size="sm"
 							:label="__('Moderator')"
 							v-model="roles.moderator"
 						/>
@@ -102,8 +92,6 @@ const emit = defineEmits<{
 
 const ROLE_MAP: Record<string, string> = {
 	moderator: 'Moderator',
-	course_creator: 'Course Creator',
-	batch_evaluator: 'Batch Evaluator',
 	lms_student: 'LMS Student',
 }
 
@@ -116,8 +104,6 @@ const member = reactive({
 
 const roles = reactive({
 	moderator: false,
-	course_creator: false,
-	batch_evaluator: false,
 	lms_student: false,
 })
 
@@ -131,9 +117,6 @@ const resetForm = () => {
 
 const applyDefaultRoles = () => {
 	roles.moderator = props.defaultRoles?.includes('moderator') ?? false
-	roles.course_creator = props.defaultRoles?.includes('course_creator') ?? false
-	roles.batch_evaluator =
-		props.defaultRoles?.includes('batch_evaluator') ?? false
 	roles.lms_student = props.defaultRoles?.includes('lms_student') ?? false
 }
 

@@ -17,24 +17,10 @@
 				size="sm"
 				:label="__('Student')"
 				:description="
-					__('Access courses, join batches, and track learning progress')
+					__('Access courses, join events, and track learning progress')
 				"
 				v-model="lms_student"
 				@update:modelValue="saveRole('lms_student')"
-			/>
-			<Switch
-				size="sm"
-				:label="__('Course Creator')"
-				:description="__('Build and manage courses, chapters, and lessons')"
-				v-model="course_creator"
-				@update:modelValue="saveRole('course_creator')"
-			/>
-			<Switch
-				size="sm"
-				:label="__('Evaluator')"
-				:description="__('Manage batches, review and grade submissions')"
-				v-model="batch_evaluator"
-				@update:modelValue="saveRole('batch_evaluator')"
 			/>
 			<Switch
 				size="sm"
@@ -53,8 +39,6 @@ import { convertToTitleCase } from '@/utils'
 import { CircleAlert } from 'lucide-vue-next'
 
 const moderator = ref(false)
-const course_creator = ref(false)
-const batch_evaluator = ref(false)
 const lms_student = ref(false)
 const readOnlyMode = window.read_only_mode
 
@@ -73,12 +57,7 @@ const roles = createResource({
 		}
 	},
 	onSuccess(data) {
-		let roles = [
-			'moderator',
-			'course_creator',
-			'batch_evaluator',
-			'lms_student',
-		]
+		let roles = ['moderator', 'lms_student']
 		for (let role of roles) {
 			if (data[role]) eval(role).value = true
 		}

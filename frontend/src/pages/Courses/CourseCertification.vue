@@ -38,8 +38,8 @@
 				</div>
 			</div>
 		</div>
-		<div v-else>
-			<UpcomingEvaluations v-if="courses.length" :courses="courses" />
+		<div v-else class="text-ink-gray-7">
+			{{ __('Complete the course to earn your certificate.') }}
 		</div>
 	</div>
 </template>
@@ -48,12 +48,8 @@ import { computed, inject, onMounted, ref } from 'vue'
 import { Breadcrumbs, call, createResource, usePageMeta } from 'frappe-ui'
 import { useRouter } from 'vue-router'
 import { sessionStore } from '../../stores/session'
-import UpcomingEvaluations from '@/components/UpcomingEvaluations.vue'
-
 const courseTitle = ref(null)
-const evaluator = ref(null)
 const { brand } = sessionStore()
-const courses = ref([])
 const user = inject('$user')
 const dayjs = inject('$dayjs')
 const router = useRouter()
@@ -104,22 +100,10 @@ const fetchCourseDetails = () => {
 	call('frappe.client.get_value', {
 		doctype: 'LMS Course',
 		filters: { name: props.courseName },
-		fieldname: ['title', 'evaluator'],
+		fieldname: ['title'],
 	}).then((data) => {
 		courseTitle.value = data.title
-		evaluator.value = data.evaluator
-		populateCourses()
 	})
-}
-
-const populateCourses = () => {
-	courses.value = [
-		{
-			course: props.courseName,
-			title: courseTitle.value,
-			evaluator: evaluator.value,
-		},
-	]
 }
 
 const openCertificate = (certificate) => {

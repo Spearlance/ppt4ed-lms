@@ -82,7 +82,7 @@
 							:required="true"
 							:onCreate="() => (showMemberModal = true)"
 							url="lms.lms.api.search_users_by_role"
-							:searchParams="{ roles: JSON.stringify(['Batch Evaluator']) }"
+							:searchParams="{ roles: JSON.stringify(['Moderator', 'LMS Student']) }"
 						/>
 					</div>
 					<div class="">
@@ -111,7 +111,7 @@
 	</Dialog>
 	<NewMemberModal
 		v-model="showMemberModal"
-		:defaultRoles="['batch_evaluator']"
+		:defaultRoles="[]"
 		@created="onInstructorCreated"
 	/>
 </template>

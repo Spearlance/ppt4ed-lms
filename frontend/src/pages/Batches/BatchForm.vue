@@ -126,7 +126,7 @@
 							:required="true"
 							:onCreate="() => (showMemberModal = true)"
 							url="lms.lms.api.search_users_by_role"
-							:searchParams="{ roles: JSON.stringify(['Batch Evaluator']) }"
+							:searchParams="{ roles: JSON.stringify(['Moderator', 'LMS Student']) }"
 						/>
 						<FormControl
 							v-model="batchDetail.doc.description"
@@ -287,7 +287,7 @@
 	</div>
 	<NewMemberModal
 		v-model="showMemberModal"
-		:defaultRoles="['batch_evaluator']"
+		:defaultRoles="[]"
 		@created="onInstructorCreated"
 	/>
 	<EmailTemplateModal

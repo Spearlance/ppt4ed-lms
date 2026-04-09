@@ -429,7 +429,7 @@ def get_certification_categories():
 
 @frappe.whitelist()
 def get_all_users():
-	frappe.only_for(["Moderator", "Course Creator", "Batch Evaluator"])
+	frappe.only_for(["Moderator"])
 	users = frappe.get_all(
 		"User",
 		{
@@ -1584,7 +1584,7 @@ def validate_meta_data_permissions(meta_type: str):
 
 @frappe.whitelist()
 def create_programming_exercise_submission(exercise: str, submission: str, code: str, test_cases: list):
-	frappe.only_for(["Moderator", "Course Creator", "Batch Evaluator"])
+	frappe.only_for(["Moderator"])
 	if submission == "new":
 		return make_new_exercise_submission(exercise, code, test_cases)
 	else:
@@ -2120,7 +2120,7 @@ def get_upcoming_batches():
 
 @frappe.whitelist()
 def delete_programming_exercise(exercise: str):
-	frappe.only_for(["Moderator", "Course Creator", "Batch Evaluator"])
+	frappe.only_for(["Moderator"])
 	frappe.db.delete("LMS Programming Exercise Submission", {"exercise": exercise})
 	frappe.db.delete("LMS Programming Exercise", exercise)
 
@@ -2324,7 +2324,7 @@ def clear_demo_data():
 @frappe.whitelist()
 def search_users_by_role(txt: str = "", roles: str | list | None = None, page_length: int = 10):
 	"""Returns users with `roles` in search_link format"""
-	frappe.only_for(["Moderator", "Course Creator", "Batch Evaluator"])
+	frappe.only_for(["Moderator"])
 	if not roles:
 		return []
 

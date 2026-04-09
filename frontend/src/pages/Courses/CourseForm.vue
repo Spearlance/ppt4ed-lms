@@ -33,11 +33,10 @@
 								:label="__('Instructors')"
 								url="lms.lms.api.search_users_by_role"
 								:searchParams="{
-									roles: JSON.stringify(['Course Creator', 'Batch Evaluator']),
+									roles: JSON.stringify(['Moderator', 'LMS Student']),
 								}"
 								:onCreate="
 									() => {
-										memberModalRoles = ['course_creator']
 										showMemberModal = true
 									}
 								"
@@ -270,20 +269,6 @@
 								/>
 							</div>
 							<div v-if="courseResource.doc.paid_certificate" class="space-y-5">
-								<Link
-									ref="evaluatorLinkRef"
-									doctype="Course Evaluator"
-									v-model="courseResource.doc.evaluator"
-									:label="__('Evaluator')"
-									:required="courseResource.doc.paid_certificate"
-									:onCreate="
-										() => {
-											memberModalRoles = ['batch_evaluator']
-											showMemberModal = true
-										}
-									"
-									@update:modelValue="makeFormDirty()"
-								/>
 								<FormControl
 									v-model="courseResource.doc.timezone"
 									:label="__('Timezone')"
@@ -386,8 +371,7 @@ const selfEnrollment = computed({
 		makeFormDirty()
 	},
 })
-const evaluatorLinkRef = ref(null)
-const memberModalRoles = ref(['course_creator'])
+const memberModalRoles = ref([])
 
 const props = defineProps({
 	course: {
@@ -462,13 +446,7 @@ const submitCourse = () => {
 }
 
 const onMemberCreated = (user) => {
-	if (memberModalRoles.value.includes('batch_evaluator')) {
-		courseResource.doc.evaluator = user.name
-		evaluatorLinkRef.value?.reload()
-		makeFormDirty()
-	} else {
-		instructors.value = [...instructors.value, user.name]
-	}
+	instructors.value = [...instructors.value, user.name]
 }
 
 const validateFields = () => {
