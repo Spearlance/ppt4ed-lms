@@ -1,7 +1,7 @@
 // Copyright (c) 2022, Frappe and contributors
 // For license information, please see license.txt
 
-frappe.ui.form.on("LMS Batch", {
+frappe.ui.form.on("LMS Event", {
 	onload: function (frm) {
 		frm.set_query("reference_doctype", "timetable", function () {
 			let doctypes = ["Course Lesson", "LMS Quiz", "LMS Assignment"];
@@ -50,7 +50,7 @@ frappe.ui.form.on("LMS Batch", {
 	refresh: (frm) => {
 		const lmsPath = frappe.boot.lms_path || "lms";
 		frm.add_web_link(
-			`/${lmsPath}/batches/${frm.doc.name}`,
+			`/${lmsPath}/events/${frm.doc.name}`,
 			"See on website"
 		);
 	},

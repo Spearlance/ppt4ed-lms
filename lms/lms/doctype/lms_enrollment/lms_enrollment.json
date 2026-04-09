@@ -10,7 +10,7 @@
   "progress",
   "payment",
   "current_lesson",
-  "enrollment_from_batch",
+  "enrollment_from_event",
   "column_break_3",
   "member",
   "member_name",
@@ -132,10 +132,10 @@
    "label": "Member Image"
   },
   {
-   "fieldname": "enrollment_from_batch",
+   "fieldname": "enrollment_from_event",
    "fieldtype": "Link",
-   "label": "Enrollment from Batch",
-   "options": "LMS Batch"
+   "label": "Enrollment from Event",
+   "options": "LMS Event"
   }
  ],
  "grid_page_length": 50,

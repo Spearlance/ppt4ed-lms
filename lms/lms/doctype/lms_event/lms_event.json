@@ -31,7 +31,7 @@
   "description",
   "instructors",
   "column_break_hlqw",
-  "batch_details",
+  "event_details",
   "section_break_rgfj",
   "medium",
   "confirmation_email_template",
@@ -47,7 +47,7 @@
   "section_break_jgji",
   "courses",
   "section_break_khcn",
-  "batch_details_raw",
+  "event_details_raw",
   "assessment_tab",
   "assessment",
   "schedule_tab",
@@ -60,7 +60,7 @@
   "timetable_legends",
   "pricing_tab",
   "section_break_gsac",
-  "paid_batch",
+  "paid_event",
   "column_break_iens",
   "amount",
   "currency",
@@ -123,7 +123,7 @@
   {
    "default": "0",
    "description": "Students will be enrolled in a paid batch once they complete the payment",
-   "fieldname": "paid_batch",
+   "fieldname": "paid_event",
    "fieldtype": "Check",
    "label": "Paid Batch"
   },
@@ -197,22 +197,22 @@
    "fieldtype": "Column Break"
   },
   {
-   "depends_on": "paid_batch",
+   "depends_on": "paid_event",
    "fieldname": "amount",
    "fieldtype": "Currency",
    "label": "Amount",
-   "mandatory_depends_on": "paid_batch"
+   "mandatory_depends_on": "paid_event"
   },
   {
-   "depends_on": "paid_batch",
+   "depends_on": "paid_event",
    "fieldname": "currency",
    "fieldtype": "Link",
    "label": "Currency",
-   "mandatory_depends_on": "paid_batch",
+   "mandatory_depends_on": "paid_event",
    "options": "Currency"
   },
   {
-   "fieldname": "batch_details",
+   "fieldname": "event_details",
    "fieldtype": "Text Editor",
    "label": "Batch Details",
    "reqd": 1
@@ -251,7 +251,7 @@
    "fieldtype": "Section Break"
   },
   {
-   "fieldname": "batch_details_raw",
+   "fieldname": "event_details_raw",
    "fieldtype": "HTML Editor",
    "label": "Batch Details Raw"
   },
@@ -307,7 +307,7 @@
    "label": "Evaluation End Date"
   },
   {
-   "depends_on": "paid_batch",
+   "depends_on": "paid_event",
    "description": "If you set an amount here, then the USD equivalent setting will not get applied.",
    "fieldname": "amount_usd",
    "fieldtype": "Currency",
@@ -421,16 +421,12 @@
  "index_web_pages_for_search": 1,
  "links": [
   {
-   "link_doctype": "LMS Batch Enrollment",
-   "link_fieldname": "batch"
-  },
-  {
-   "link_doctype": "LMS Certificate Evaluation",
-   "link_fieldname": "batch_name"
+   "link_doctype": "LMS Event Registration",
+   "link_fieldname": "event"
   },
   {
    "link_doctype": "LMS Certificate",
-   "link_fieldname": "batch_name"
+   "link_fieldname": "event_name"
   },
   {
    "link_doctype": "LMS Payment",
@@ -440,7 +436,7 @@
  "modified": "2026-02-13 14:23:51.913875",
  "modified_by": "sayali@frappe.io",
  "module": "LMS",
- "name": "LMS Batch",
+ "name": "LMS Event",
  "owner": "Administrator",
  "permissions": [
   {
@@ -464,18 +460,6 @@
    "read": 1,
    "report": 1,
    "role": "Moderator",
-   "share": 1,
-   "write": 1
-  },
-  {
-   "create": 1,
-   "delete": 1,
-   "email": 1,
-   "export": 1,
-   "print": 1,
-   "read": 1,
-   "report": 1,
-   "role": "Batch Evaluator",
    "share": 1,
    "write": 1
   },

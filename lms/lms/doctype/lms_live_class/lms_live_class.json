@@ -13,7 +13,7 @@
   "conferencing_provider",
   "zoom_account",
   "google_meet_account",
-  "batch_name",
+  "event_name",
   "column_break_astv",
   "date",
   "time",
@@ -121,10 +121,10 @@
    "reqd": 1
   },
   {
-   "fieldname": "batch_name",
+   "fieldname": "event_name",
    "fieldtype": "Link",
-   "label": "Batch",
-   "options": "LMS Batch"
+   "label": "Event",
+   "options": "LMS Event"
   },
   {
    "default": "No Recording",

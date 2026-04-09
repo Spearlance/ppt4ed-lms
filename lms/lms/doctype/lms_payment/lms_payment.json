@@ -140,7 +140,7 @@
    "fieldname": "payment_for_document_type",
    "fieldtype": "Select",
    "label": "Payment for Document Type",
-   "options": "\nLMS Course\nLMS Batch",
+   "options": "\nLMS Course\nLMS Event",
    "reqd": 1
   },
   {
@@ -195,7 +195,7 @@
  "index_web_pages_for_search": 1,
  "links": [
   {
-   "link_doctype": "LMS Batch Enrollment",
+   "link_doctype": "LMS Event Registration",
    "link_fieldname": "payment"
   },
   {

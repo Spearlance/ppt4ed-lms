@@ -5,5 +5,5 @@
 from frappe.tests import UnitTestCase
 
 
-class TestLMSBatch(UnitTestCase):
+class TestLMSEvent(UnitTestCase):
 	pass

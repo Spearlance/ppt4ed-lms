@@ -15,8 +15,8 @@
   "evaluator",
   "evaluator_name",
   "column_break_sjco",
-  "batch_name",
-  "batch_title",
+  "event_name",
+  "event_title",
   "timezone",
   "section_break_lifi",
   "date",
@@ -104,11 +104,11 @@
    "read_only": 1
   },
   {
-   "fieldname": "batch_name",
+   "fieldname": "event_name",
    "fieldtype": "Link",
    "in_standard_filter": 1,
-   "label": "Batch",
-   "options": "LMS Batch"
+   "label": "Event",
+   "options": "LMS Event"
   },
   {
    "fieldname": "section_break_ikne",
@@ -139,11 +139,11 @@
    "read_only": 1
   },
   {
-   "fetch_from": "batch_name.title",
-   "fieldname": "batch_title",
+   "fetch_from": "event_name.title",
+   "fieldname": "event_title",
    "fieldtype": "Data",
    "hidden": 1,
-   "label": "Batch Title"
+   "label": "Event Title"
   },
   {
    "fieldname": "status",
