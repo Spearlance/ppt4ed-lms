@@ -155,7 +155,7 @@ const showBatchModal = ref(false)
 
 onMounted(() => {
 	setFiltersFromQuery()
-	updateBatches()
+	updateEvents()
 	categories.value = [
 		{
 			label: '',

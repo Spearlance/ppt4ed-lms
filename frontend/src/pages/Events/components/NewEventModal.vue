@@ -133,7 +133,7 @@ const user = inject<any>('$user')
 const showMemberModal = ref(false)
 
 const props = defineProps<{
-	batches: any
+	events: any
 }>()
 
 type Batch = {
@@ -190,7 +190,7 @@ const validateFields = () => {
 
 const saveBatch = (close: () => void = () => {}) => {
 	validateFields()
-	props.batches.insert.submit(
+	props.events.insert.submit(
 		{
 			...batch.value,
 			instructors: batch.value.instructors.map((instructor) => ({
