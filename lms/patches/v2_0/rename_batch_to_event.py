@@ -76,4 +76,5 @@ def _rename_column(doctype, old_col, new_col, col_type):
 	"""Safely rename a column if the old one exists."""
 	table = f"tab{doctype}"
 	if frappe.db.sql(f"SHOW COLUMNS FROM `{table}` LIKE '{old_col}'"):
-		frappe.db.sql(f"ALTER TABLE `{table}` CHANGE `{old_col}` `{new_col}` {col_type}")
+		frappe.db.commit()
+		frappe.db.sql_ddl(f"ALTER TABLE `{table}` CHANGE `{old_col}` `{new_col}` {col_type}")
