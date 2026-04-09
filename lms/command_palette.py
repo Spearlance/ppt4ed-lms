@@ -80,11 +80,11 @@ def can_access_batch(batch, roles):
 
 
 def can_create_course(roles):
-	return "Course Creator" in roles or "Moderator" in roles
+	return "Moderator" in roles
 
 
 def can_create_batch(roles):
-	return "Batch Evaluator" in roles or "Moderator" in roles
+	return "Moderator" in roles
 
 
 def get_instructor_info(doctype, record):

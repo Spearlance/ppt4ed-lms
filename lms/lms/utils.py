@@ -31,7 +31,7 @@ from lms.lms.doctype.lms_enrollment.lms_enrollment import update_program_progres
 from lms.lms.md import find_macros
 
 RE_SLUG_NOTALLOWED = re.compile("[^a-z0-9]+")
-LMS_ROLES = ["Moderator", "Course Creator", "Batch Evaluator", "LMS Student"]
+LMS_ROLES = ["Moderator", "LMS Student"]
 
 
 def get_lms_path():
@@ -327,26 +327,10 @@ def is_instructor(course: str) -> bool:
 	return False
 
 
-def has_course_instructor_role(member: str = None):
-	return frappe.db.get_value(
-		"Has Role",
-		{"parent": member or frappe.session.user, "role": "Course Creator"},
-		"name",
-	)
-
-
 def has_moderator_role(member: str = None):
 	return frappe.db.get_value(
 		"Has Role",
 		{"parent": member or frappe.session.user, "role": "Moderator"},
-		"name",
-	)
-
-
-def has_evaluator_role(member: str = None):
-	return frappe.db.get_value(
-		"Has Role",
-		{"parent": member or frappe.session.user, "role": "Batch Evaluator"},
 		"name",
 	)
 
@@ -1814,7 +1798,7 @@ def calculate_discount_amount(base_amount: float, coupon: dict) -> float:
 
 @frappe.whitelist()
 def get_lesson_creation_details(course: str, chapter: int, lesson: int) -> dict:
-	frappe.only_for(["Moderator", "Course Creator"])
+	frappe.only_for(["Moderator"])
 	chapter_name = frappe.db.get_value("Chapter Reference", {"parent": course, "idx": chapter}, "chapter")
 	lesson_name = frappe.db.get_value("Lesson Reference", {"parent": chapter_name, "idx": lesson}, "lesson")
 
@@ -1845,11 +1829,9 @@ def get_lesson_creation_details(course: str, chapter: int, lesson: int) -> dict:
 
 @frappe.whitelist()
 def get_roles(name: str) -> dict:
-	frappe.only_for(["Moderator", "Batch Evaluator"])
+	frappe.only_for(["Moderator"])
 	return {
 		"moderator": has_moderator_role(name),
-		"course_creator": has_course_instructor_role(name),
-		"batch_evaluator": has_evaluator_role(name),
 		"lms_student": has_student_role(name),
 	}
 

@@ -41,8 +41,6 @@ from lms.lms.utils import (
 	get_instructors,
 	get_lesson_count,
 	get_lms_route,
-	has_course_instructor_role,
-	has_evaluator_role,
 	has_lms_role,
 	has_moderator_role,
 )
@@ -60,10 +58,8 @@ def get_user_info():
 		as_dict=1,
 	)
 	user["roles"] = frappe.get_roles(user.name)
-	user.is_instructor = "Course Creator" in user.roles
 	user.is_moderator = "Moderator" in user.roles
-	user.is_evaluator = "Batch Evaluator" in user.roles
-	user.is_student = not user.is_instructor and not user.is_moderator and not user.is_evaluator
+	user.is_student = not user.is_moderator
 	user.is_fc_site = is_fc_site()
 	user.is_system_manager = "System Manager" in user.roles
 	user.is_company_admin = frappe.db.exists(
