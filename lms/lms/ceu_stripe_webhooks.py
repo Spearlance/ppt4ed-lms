@@ -54,7 +54,8 @@ def handle_checkout_completed(data):
             plan=metadata.get("plan"),
             user=metadata.get("user"),
             stripe_subscription_id=data.get("subscription"),
-            stripe_customer_id=data.get("customer")
+            stripe_customer_id=data.get("customer"),
+            company_name=metadata.get("company_name")
         )
 
 
@@ -94,7 +95,7 @@ def handle_subscription_updated(data):
 
 
 def handle_subscription_deleted(data):
-    """Handle cancellation - freeze credit usage."""
+    """Handle cancellation - freeze credit usage and suspend company if applicable."""
     subscription_id = data.get("id")
     membership_name = frappe.db.get_value(
         "CEU Membership",
@@ -103,6 +104,15 @@ def handle_subscription_deleted(data):
     )
     if membership_name:
         frappe.db.set_value("CEU Membership", membership_name, "status", "Cancelled")
+
+        # If this is a company membership, suspend the company
+        company_name = frappe.db.get_value(
+            "Company Account",
+            {"membership": membership_name},
+            "name"
+        )
+        if company_name:
+            frappe.db.set_value("Company Account", company_name, "status", "Suspended")
 
 
 def handle_payment_failed(data):
@@ -129,7 +139,7 @@ def _create_one_off_enrollment(course, user):
     }).insert(ignore_permissions=True)
 
 
-def _activate_subscription(plan, user, stripe_subscription_id, stripe_customer_id):
+def _activate_subscription(plan, user, stripe_subscription_id, stripe_customer_id, company_name=None):
     """Create or activate a CEU Membership."""
     plan_doc = frappe.get_doc("CEU Membership Plan", plan)
 
@@ -148,3 +158,29 @@ def _activate_subscription(plan, user, stripe_subscription_id, stripe_customer_i
 
     from lms.lms.ceu_credits import allocate_credits
     allocate_credits(membership.name, plan_doc.ceu_hours)
+
+    # For Company plans, create the Company Account
+    if plan_doc.plan_type == "Company":
+        _create_company_for_subscription(user, membership.name, company_name)
+
+
+def _create_company_for_subscription(user, membership_name, company_name=None):
+    """Create a Company Account for a new company subscription."""
+    if not company_name:
+        user_doc = frappe.get_doc("User", user)
+        company_name = f"{user_doc.full_name or user}'s Company"
+
+    # Ensure unique company name
+    if frappe.db.exists("Company Account", company_name):
+        company_name = f"{company_name} ({frappe.utils.now_datetime().strftime('%Y%m%d%H%M')})"
+
+    company = frappe.get_doc({
+        "doctype": "Company Account",
+        "company_name": company_name,
+        "billing_email": user,
+        "status": "Active",
+        "membership": membership_name,
+    }).insert(ignore_permissions=True)
+
+    company.append("admins", {"user": user})
+    company.save(ignore_permissions=True)
