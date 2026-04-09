@@ -214,6 +214,12 @@ const routes = [
 		name: 'MembershipPlans',
 		component: () => import('@/pages/MembershipPlans.vue'),
 	},
+	{
+		path: '/admin/company/:companyName',
+		name: 'CompanyAdmin',
+		component: () => import('@/pages/CompanyAdmin.vue'),
+		props: true,
+	},
 ]
 
 let router = createRouter({

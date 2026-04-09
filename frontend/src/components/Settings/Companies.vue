@@ -37,9 +37,12 @@
                         class="flex items-center justify-between py-3"
                     >
                         <div class="space-y-1">
-                            <div class="text-ink-gray-9 font-medium">
+                            <router-link
+                                :to="{ name: 'CompanyAdmin', params: { companyName: company.name } }"
+                                class="text-ink-gray-9 font-medium hover:text-ink-blue-3 hover:underline"
+                            >
                                 {{ company.company_name }}
-                            </div>
+                            </router-link>
                             <div class="text-sm text-ink-gray-5">
                                 {{ company.member_count }} members
                                 <span v-if="company.billing_email">
