@@ -6,9 +6,23 @@ from frappe.utils import today, add_years
 class TestGetUserType(IntegrationTestCase):
     """Tests for get_user_type — derives account type from DB relationships."""
 
+    def setUp(self):
+        """Clean up any company memberships and CEU memberships for Administrator."""
+        self._cleanup()
+
     def tearDown(self):
+        self._cleanup()
+
+    def _cleanup(self):
+        # Remove Administrator from all company member lists
+        frappe.db.delete("Company Member", {
+            "user": "Administrator",
+            "parenttype": "Company Account",
+        })
+        # Delete test companies
         for name in frappe.get_all("Company Account", filters={"company_name": ["like", "Test_UT_%"]}, pluck="name"):
             frappe.delete_doc("Company Account", name, force=True)
+        # Delete Administrator's CEU memberships
         for name in frappe.get_all("CEU Membership", filters={"member": "Administrator"}, pluck="name"):
             for entry in frappe.get_all("CEU Credit Ledger", filters={"membership": name}, pluck="name"):
                 frappe.delete_doc("CEU Credit Ledger", entry, force=True)
