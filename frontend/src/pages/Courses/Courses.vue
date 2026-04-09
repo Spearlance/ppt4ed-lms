@@ -46,6 +46,7 @@
 			</template>
 		</Dropdown>
 	</header>
+	<MembershipUpsell class="mx-5 mt-4" />
 	<div class="p-5 pb-10">
 		<div
 			class="flex flex-col lg:flex-row space-y-4 lg:space-y-0 lg:items-center justify-between mb-5"
@@ -135,6 +136,7 @@ import CourseCard from '@/components/CourseCard.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import { useRouter } from 'vue-router'
 import NewCourseModal from '@/pages/Courses/NewCourseModal.vue'
+import MembershipUpsell from '@/components/MembershipUpsell.vue'
 
 const user = inject('$user')
 const dayjs = inject('$dayjs')
