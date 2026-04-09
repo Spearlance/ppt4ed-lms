@@ -33,7 +33,7 @@
 			</Dropdown>
 		</header>
 		<div>
-			<BatchOverview v-if="!isAdmin && !isStudent" :event="event" />
+			<EventOverview v-if="!isAdmin && !isStudent" :event="event" />
 			<div v-else>
 				<Tabs :tabs="tabs" v-model="tabIndex">
 					<template #tab-panel="{ tab }">

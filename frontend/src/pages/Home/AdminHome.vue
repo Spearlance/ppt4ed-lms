@@ -158,7 +158,7 @@
 					v-for="batch in createdBatches.data"
 					:to="{ name: 'EventDetail', params: { eventName: batch.name } }"
 				>
-					<BatchCard :batch="batch" />
+					<EventCard :batch="batch" />
 				</router-link>
 			</div>
 		</div>
@@ -210,7 +210,7 @@ import {
 } from 'lucide-vue-next'
 import { formatTime } from '@/utils'
 import CourseCard from '@/components/CourseCard.vue'
-import BatchCard from '@/pages/Events/components/BatchCard.vue'
+import EventCard from '@/pages/Events/components/EventCard.vue'
 
 const user = inject<any>('$user')
 const dayjs = inject<any>('$dayjs')

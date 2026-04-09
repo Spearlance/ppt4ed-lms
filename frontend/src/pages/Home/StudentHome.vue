@@ -1,7 +1,6 @@
 <template>
 	<div>
 		<div class="mt-10 space-y-10">
-			<UpcomingEvaluations :forHome="true" />
 			<div v-if="myLiveClasses.data?.length">
 				<div class="font-semibold text-lg mb-3 text-ink-gray-9">
 					{{ __('Upcoming Live Classes') }}
@@ -131,7 +130,7 @@
 					v-for="batch in myBatches.data"
 					:to="{ name: 'EventDetail', params: { eventName: batch.name } }"
 				>
-					<BatchCard :batch="batch" />
+					<EventCard :batch="batch" />
 				</router-link>
 			</div>
 		</div>
@@ -150,8 +149,7 @@ import {
 	Video,
 } from 'lucide-vue-next'
 import CourseCard from '@/components/CourseCard.vue'
-import BatchCard from '@/pages/Events/components/BatchCard.vue'
-import UpcomingEvaluations from '@/components/UpcomingEvaluations.vue'
+import EventCard from '@/pages/Events/components/EventCard.vue'
 
 const dayjs = inject<any>('$dayjs')
 const user = inject<any>('$user')
