@@ -14,6 +14,7 @@ def after_sync():
 	create_lms_roles()
 	set_default_certificate_print_format()
 	give_lms_roles_to_admin()
+	set_website_branding()
 
 
 def before_uninstall():
@@ -227,3 +228,26 @@ def delete_lms_roles():
 	for role in roles:
 		if frappe.db.exists("Role", role):
 			frappe.db.delete("Role", role)
+
+
+def set_website_branding():
+	"""Set PPT4ed branding in Website Settings. Runs on every migrate."""
+	settings = frappe.get_single("Website Settings")
+
+	branding = {
+		"app_name": "PPT4ed Learning",
+		"home_page": "lms",
+		"app_logo": "/assets/lms/images/ppt4ed-logo.png",
+		"favicon": "/assets/lms/images/ppt4ed-logo.png",
+		"splash_image": "/assets/lms/images/ppt4ed-logo.png",
+	}
+
+	changed = False
+	for field, value in branding.items():
+		if settings.get(field) != value:
+			settings.set(field, value)
+			changed = True
+
+	if changed:
+		settings.save(ignore_permissions=True)
+		frappe.db.commit()
