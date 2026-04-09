@@ -91,7 +91,7 @@ def admin_adjust_credits(membership: str, hours: float, reason: str):
             "transaction_type": "Admin Adjustment",
             "hours": hours,
             "balance_after": doc.credit_balance,
-            "course": reason,
+            "course": None,
             "timestamp": now_datetime(),
         }
     ).insert(ignore_permissions=True)

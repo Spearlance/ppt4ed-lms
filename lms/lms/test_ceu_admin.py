@@ -184,7 +184,7 @@ class TestCEUAdmin(IntegrationTestCase):
         self.assertEqual(len(entries), 1)
         self.assertEqual(entries[0]["hours"], 4.0)
         self.assertEqual(entries[0]["balance_after"], 14.0)
-        self.assertEqual(entries[0]["course"], "Test reason")
+        self.assertIsNone(entries[0]["course"])
 
     # ─────────────────────────────────────────────
     # get_company_admin_details
