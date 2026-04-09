@@ -6,7 +6,8 @@
     "doctype": "DocType",
     "engine": "InnoDB",
     "field_order": [
-        "company_name", "admins_section", "admins",
+        "company_name", "status", "details_section", "billing_email", "max_seats",
+        "admins_section", "admins",
         "membership_section", "membership",
         "members_section", "members"
     ],
@@ -18,6 +19,34 @@
             "label": "Company Name",
             "reqd": 1,
             "unique": 1
+        },
+        {
+            "fieldname": "status",
+            "fieldtype": "Select",
+            "label": "Status",
+            "options": "Active\nSuspended\nCancelled",
+            "default": "Active",
+            "reqd": 1,
+            "in_list_view": 1,
+            "in_standard_filter": 1
+        },
+        {
+            "fieldname": "details_section",
+            "fieldtype": "Section Break",
+            "label": "Details"
+        },
+        {
+            "fieldname": "billing_email",
+            "fieldtype": "Data",
+            "label": "Billing Email",
+            "options": "Email"
+        },
+        {
+            "fieldname": "max_seats",
+            "fieldtype": "Int",
+            "label": "Max Seats",
+            "default": "0",
+            "description": "0 = unlimited"
         },
         {
             "fieldname": "admins_section",
