@@ -27,6 +27,15 @@
 					{{ __('Issued On') }}:
 					{{ dayjs(certificate.data.issue_date).format('DD MMM YYYY') }}
 				</div>
+				<div
+					v-if="certificate.data.ceu_hours"
+					class="text-sm text-ink-gray-7"
+				>
+					{{ certificate.data.ceu_hours }} {{ __('CEU Hours') }}
+					<span v-if="certificate.data.ceu_disciplines" class="text-ink-gray-5">
+						· {{ certificate.data.ceu_disciplines }}
+					</span>
+				</div>
 			</div>
 		</div>
 		<div v-else>
@@ -69,7 +78,7 @@ const certificate = createResource({
 			member: user.data?.name,
 			course: props.courseName,
 		},
-		fieldname: ['name', 'template', 'issue_date'],
+		fieldname: ['name', 'template', 'issue_date', 'ceu_hours', 'ceu_disciplines'],
 	},
 	cache: [user.data?.name, props.courseName],
 })
