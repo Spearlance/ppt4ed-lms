@@ -73,8 +73,19 @@ def _clear_auto_created_doctype(new_name, old_name):
 
 
 def _rename_column(doctype, old_col, new_col, col_type):
-	"""Safely rename a column if the old one exists."""
+	"""Safely rename a column. Skips if new column already exists or old doesn't."""
 	table = f"tab{doctype}"
-	if frappe.db.sql(f"SHOW COLUMNS FROM `{table}` LIKE '{old_col}'"):
+	has_old = frappe.db.sql(f"SHOW COLUMNS FROM `{table}` LIKE '{old_col}'")
+	has_new = frappe.db.sql(f"SHOW COLUMNS FROM `{table}` LIKE '{new_col}'")
+
+	if has_new:
+		# New column already exists (from previous partial run or model sync).
+		# Drop the old column if it still exists to avoid duplicates.
+		if has_old:
+			frappe.db.commit()
+			frappe.db.sql_ddl(f"ALTER TABLE `{table}` DROP COLUMN `{old_col}`")
+		return
+
+	if has_old:
 		frappe.db.commit()
 		frappe.db.sql_ddl(f"ALTER TABLE `{table}` CHANGE `{old_col}` `{new_col}` {col_type}")
