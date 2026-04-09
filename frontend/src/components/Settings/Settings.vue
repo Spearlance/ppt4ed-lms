@@ -78,6 +78,7 @@ import Transactions from '@/components/Settings/Transactions/Transactions.vue'
 import ZoomSettings from '@/components/Settings/ZoomSettings.vue'
 import GoogleMeetSettings from '@/components/Settings/GoogleMeetSettings.vue'
 import Badges from '@/components/Settings/Badges.vue'
+import Companies from '@/components/Settings/Companies.vue'
 
 const show = defineModel()
 const doctype = ref('LMS Settings')
@@ -308,6 +309,12 @@ const tabsStructure = computed(() => {
 					description:
 						'Add new evaluators or check the slots of existing evaluators',
 					template: markRaw(Evaluators),
+				},
+				{
+					label: 'Companies',
+					description: 'Add new companies or manage existing company accounts',
+					icon: 'Building2',
+					template: markRaw(Companies),
 				},
 			],
 		},
