@@ -18,7 +18,7 @@ class LMSBadgeAssignment(Document):
 		event = frappe.db.get_value("LMS Badge", self.badge, "event")
 		if event == "Manual Assignment":
 			roles = frappe.get_roles(frappe.session.user)
-			admins = ["Moderator", "Course Creator", "Batch Evaluator"]
+			admins = ["Moderator"]
 			if not any(role in roles for role in admins):
 				frappe.throw(_("You must be an Admin to assign badges to users."))
 

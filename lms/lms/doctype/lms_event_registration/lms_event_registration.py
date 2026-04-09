@@ -28,7 +28,7 @@ class LMSEventRegistration(Document):
 
 		roles = frappe.get_roles()
 		if "Moderator" not in roles and "Moderator" not in roles:
-			frappe.throw(_("You must be a Moderator or Batch Evaluator to register users for an event."))
+			frappe.throw(_("You must be a Moderator to register users for an event."))
 
 	def validate_payment(self):
 		paid_batch = frappe.db.get_value("LMS Event", self.event, "paid_batch")

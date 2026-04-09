@@ -642,10 +642,6 @@ def get_members(start: int = 0, search: str = None):
 		)
 		if "Moderator" in roles:
 			member.role = "Moderator"
-		elif "Course Creator" in roles:
-			member.role = "Course Creator"
-		elif "Batch Evaluator" in roles:
-			member.role = "Moderator"
 		elif "LMS Student" in roles:
 			member.role = "LMS Student"
 
@@ -947,7 +943,7 @@ def delete_batch_discussions(batch: str):
 
 def give_discussions_permission():
 	doctypes = ["Discussion Topic", "Discussion Reply"]
-	roles = ["LMS Student", "Course Creator", "Moderator"]
+	roles = ["LMS Student", "Moderator"]
 	for doctype in doctypes:
 		for role in roles:
 			if not frappe.db.exists("Custom DocPerm", {"parent": doctype, "role": role}):
@@ -1512,7 +1508,7 @@ def get_meta_info(type: str, route: str):
 
 @frappe.whitelist()
 def update_meta_info(meta_type: str, route: str, meta_tags: list):
-	frappe.only_for(["Course Creator", "Moderator"])
+	frappe.only_for(["Moderator"])
 	validate_meta_data_permissions(meta_type)
 	validate_meta_tags(meta_tags)
 
@@ -1574,7 +1570,7 @@ def validate_meta_data_permissions(meta_type: str):
 	roles = frappe.get_roles()
 
 	if meta_type == "courses":
-		if not ("Course Creator" in roles or "Moderator" in roles):
+		if "Moderator" not in roles:
 			frappe.throw(_("You do not have permission to update meta tags."))
 
 	elif meta_type == "events":
@@ -2128,7 +2124,7 @@ def delete_programming_exercise(exercise: str):
 @frappe.whitelist()
 def get_lesson_completion_stats(course: str):
 	roles = frappe.get_roles()
-	if "Course Creator" not in roles and "Moderator" not in roles:
+	if "Moderator" not in roles:
 		frappe.throw(_("You do not have permission to access lesson completion stats."))
 
 	CourseProgress = frappe.qb.DocType("LMS Course Progress")
