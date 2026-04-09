@@ -1148,7 +1148,7 @@ def mark_lesson_progress(course: str, chapter_number: int, lesson_number: int):
 
 @frappe.whitelist()
 def get_heatmap_data(member: str, base_days: int = 200):
-	if not (has_course_instructor_role() or has_moderator_role() or has_evaluator_role()):
+	if not has_moderator_role():
 		frappe.throw(_("You do not have permission to access heatmap data."), frappe.PermissionError)
 
 	base_date, start_date, number_of_days, days = calculate_date_ranges(base_days)

@@ -19,8 +19,6 @@ from lms.lms.utils import (
 	get_lms_route,
 	get_membership,
 	get_reviews,
-	has_course_instructor_role,
-	has_evaluator_role,
 	has_moderator_role,
 	has_student_role,
 	is_instructor,
@@ -92,17 +90,9 @@ class TestLMSUtils(BaseTestUtils):
 		frappe.session.user = "Administrator"
 		self.assertFalse(is_instructor(self.course.name))
 
-	def test_has_course_instructor_role(self):
-		self.assertIsNotNone(has_course_instructor_role("frappe@example.com"))
-		self.assertIsNone(has_course_instructor_role("student1@example.com"))
-
 	def test_has_moderator_role(self):
 		self.assertIsNotNone(has_moderator_role("frappe@example.com"))
 		self.assertIsNone(has_moderator_role("student2@example.com"))
-
-	def test_has_evaluator_role(self):
-		self.assertIsNotNone(has_evaluator_role("frappe@example.com"))
-		self.assertIsNone(has_evaluator_role("student2@example.com"))
 
 	def test_has_student_role(self):
 		self.assertIsNotNone(has_student_role("student1@example.com"))

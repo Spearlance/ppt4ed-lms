@@ -2242,9 +2242,6 @@ def validate_course_access(lesson: str):
 	if has_moderator_role():
 		return
 
-	if has_course_instructor_role():
-		return
-
 	course = frappe.db.get_value("Course Lesson", lesson, "course")
 	enrollment_exists = frappe.db.exists("LMS Enrollment", {"member": frappe.session.user, "course": course})
 	if not enrollment_exists:
@@ -2256,9 +2253,6 @@ def validate_batch_access(batch: str):
 		frappe.throw(_("The event does not exist."))
 
 	if has_moderator_role():
-		return
-
-	if has_evaluator_role():
 		return
 
 	enrollment_exists = frappe.db.exists(

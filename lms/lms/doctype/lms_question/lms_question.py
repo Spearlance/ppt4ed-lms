@@ -5,7 +5,7 @@ import frappe
 from frappe import _
 from frappe.model.document import Document
 
-from lms.lms.utils import has_course_instructor_role, has_moderator_role
+from lms.lms.utils import has_moderator_role
 
 
 class LMSQuestion(Document):
