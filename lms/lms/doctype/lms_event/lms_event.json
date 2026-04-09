@@ -122,10 +122,10 @@
   },
   {
    "default": "0",
-   "description": "Students will be enrolled in a paid batch once they complete the payment",
+   "description": "Students will be enrolled in a paid event once they complete the payment",
    "fieldname": "paid_event",
    "fieldtype": "Check",
-   "label": "Paid Batch"
+   "label": "Paid Event"
   },
   {
    "fieldname": "seat_count",
@@ -179,7 +179,7 @@
    "options": "LMS Category"
   },
   {
-   "description": "These customisations will work on the main batch page.",
+   "description": "These customisations will work on the main event page.",
    "fieldname": "section_break_ubxi",
    "fieldtype": "Section Break"
   },
@@ -214,7 +214,7 @@
   {
    "fieldname": "event_details",
    "fieldtype": "Text Editor",
-   "label": "Batch Details",
+   "label": "Event Details",
    "reqd": 1
   },
   {
@@ -253,7 +253,7 @@
   {
    "fieldname": "event_details_raw",
    "fieldtype": "HTML Editor",
-   "label": "Batch Details Raw"
+   "label": "Event Details Raw"
   },
   {
    "fieldname": "column_break_hlqw",

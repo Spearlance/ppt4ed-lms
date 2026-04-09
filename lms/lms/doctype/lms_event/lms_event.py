@@ -48,7 +48,7 @@ class LMSEvent(Document):
 
 	def validate_event_end_date(self):
 		if self.end_date < self.start_date:
-			frappe.throw(_("Batch end date cannot be before the event start date"))
+			frappe.throw(_("Event end date cannot be before the event start date"))
 
 	def validate_event_time(self):
 		if self.start_time and self.end_time:
