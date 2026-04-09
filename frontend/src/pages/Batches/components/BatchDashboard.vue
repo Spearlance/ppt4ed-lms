@@ -61,21 +61,7 @@
 							{{ __('No courses added to this batch') }}
 						</div>
 					</div>
-					<!-- <BatchCourses :batch="batch" /> -->
-					<Assessments :batch="batch.data.name" />
-				</div>
-			</div>
-			<div class="border-l h-[88vh] divide-y">
-				<div v-if="batch.data?.evaluation" class="p-4 mb-5">
-					<UpcomingEvaluations
-						:batch="batch.data.name"
-						:endDate="batch.data.evaluation_end_date"
-						:courses="batch.data.courses"
-					/>
-				</div>
-				<div class="p-5">
-					<BatchFeedback :batch="batch.data?.name" />
-				</div>
+					</div>
 			</div>
 		</div>
 	</div>
@@ -90,10 +76,6 @@ import {
 	ListRow,
 	ListRowItem,
 } from 'frappe-ui'
-import Assessments from '@/pages/Batches/components/Assessments.vue'
-import BatchCourses from '@/pages/Batches/components/BatchCourses.vue'
-import BatchFeedback from '@/pages/Batches/components/BatchFeedback.vue'
-import UpcomingEvaluations from '@/components/UpcomingEvaluations.vue'
 
 const user = inject('$user')
 

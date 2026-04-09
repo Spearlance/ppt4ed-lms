@@ -275,14 +275,6 @@
 					</div>
 				</div>
 			</div>
-			<div class="border-l min-w-0">
-				<div class="border-b p-4">
-					<BatchCourses :batch="batch" />
-				</div>
-				<div class="p-4">
-					<Assessments :batch="batch.data?.name" />
-				</div>
-			</div>
 		</div>
 	</div>
 	<NewMemberModal
@@ -331,8 +323,6 @@ import { useTelemetry } from 'frappe-ui/frappe'
 import Uploader from '@/components/Controls/Uploader.vue'
 import MultiSelect from '@/components/Controls/MultiSelect.vue'
 import Link from '@/components/Controls/Link.vue'
-import BatchCourses from '@/pages/Batches/components/BatchCourses.vue'
-import Assessments from '@/pages/Batches/components/Assessments.vue'
 import NewMemberModal from '@/components/Modals/NewMemberModal.vue'
 import EmailTemplateModal from '@/components/Modals/EmailTemplateModal.vue'
 
