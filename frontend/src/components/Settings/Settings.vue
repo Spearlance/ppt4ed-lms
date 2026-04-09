@@ -110,7 +110,7 @@ const tabsStructure = computed(() => {
 											label: 'Allow Guest Access',
 											name: 'allow_guest_access',
 											description:
-												'If enabled, users can access the course and batch lists without logging in.',
+												'If enabled, users can access the course and event lists without logging in.',
 											type: 'checkbox',
 										},
 										{
@@ -149,30 +149,13 @@ const tabsStructure = computed(() => {
 									],
 								},
 								{
-									fields: [
-										{
-											label: 'Send Notification for Published Batches',
-											name: 'send_notification_for_published_batches',
-											type: 'select',
-											options: [' ', 'Email', 'In-app'],
-										},
-									],
+									fields: [],
 								},
 							],
 						},
 						{
 							label: 'Email Templates',
 							columns: [
-								{
-									fields: [
-										{
-											label: 'Batch Confirmation Email Template',
-											name: 'batch_confirmation_template',
-											doctype: 'Email Template',
-											type: 'Link',
-										},
-									],
-								},
 								{
 									fields: [
 										{
@@ -359,15 +342,7 @@ const tabsStructure = computed(() => {
 							label: 'Payment Reminders',
 							columns: [
 								{
-									fields: [
-										{
-											label: 'Send payment reminders for batch',
-											name: 'send_payment_reminders_for_batch',
-											type: 'checkbox',
-											description:
-												'If enabled, it sends payment reminders to students who left the payment incomplete for a batch.',
-										},
-									],
+									fields: [],
 								},
 								{
 									fields: [
@@ -400,7 +375,7 @@ const tabsStructure = computed(() => {
 					label: 'Coupons',
 					icon: 'Ticket',
 					template: markRaw(Coupons),
-					description: 'Manage discount coupons for courses and batches',
+					description: 'Manage discount coupons for courses and events',
 				},
 			],
 		},
@@ -411,14 +386,14 @@ const tabsStructure = computed(() => {
 				{
 					label: 'Zoom',
 					description:
-						'Manage zoom accounts to conduct live classes from batches',
+						'Manage zoom accounts to conduct live classes from events',
 					icon: 'Video',
 					template: markRaw(ZoomSettings),
 				},
 				{
 					label: 'Google Meet',
 					description:
-						'Manage Google Meet accounts to conduct live classes from batches',
+						'Manage Google Meet accounts to conduct live classes from events',
 					icon: 'Presentation',
 					template: markRaw(GoogleMeetSettings),
 				},
@@ -479,7 +454,7 @@ const tabsStructure = computed(() => {
 											type: 'checkbox',
 										},
 										{
-											label: 'Batches',
+											label: 'Events',
 											name: 'batches',
 											type: 'checkbox',
 										},
