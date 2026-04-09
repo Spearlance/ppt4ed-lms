@@ -183,6 +183,11 @@ const routes = [
 		component: () => import('@/pages/CompanyDashboard.vue'),
 	},
 	{
+		path: '/admin-reports',
+		name: 'AdminReports',
+		component: () => import('@/pages/AdminReports.vue'),
+	},
+	{
 		path: '/data-import',
 		name: 'DataImportList',
 		component: () => import('@/pages/DataImport.vue'),

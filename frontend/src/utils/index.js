@@ -511,6 +511,15 @@ const getSidebarItems = () => {
 					},
 				},
 				{
+					label: 'Reports',
+					icon: 'BarChart3',
+					to: 'AdminReports',
+					activeFor: ['AdminReports'],
+					condition: () => {
+						return userResource?.data?.is_system_manager
+					},
+				},
+				{
 					label: 'Contact Us',
 					icon: settings.data?.contact_us_url ? 'Headset' : 'Mail',
 					to: settings.data?.contact_us_url
