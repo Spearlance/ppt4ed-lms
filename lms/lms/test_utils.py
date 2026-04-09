@@ -8,7 +8,7 @@ from lms.lms.doctype.lms_certificate.lms_certificate import is_certified
 from lms.lms.test_helpers import BaseTestUtils
 from lms.lms.utils import (
 	get_average_rating,
-	get_batch_details,
+	get_event_details,
 	get_chapters,
 	get_course_details,
 	get_evaluator,
@@ -131,8 +131,8 @@ class TestLMSUtils(BaseTestUtils):
 		self.assertEqual(course_details.published, 1)
 		self.assertEqual(len(course_details.instructors), len(self.course.instructors))
 
-	def test_get_batch_details(self):
-		batch_details = get_batch_details(self.batch.name)
+	def test_get_event_details(self):
+		batch_details = get_event_details(self.batch.name)
 		self.assertEqual(batch_details.name, self.batch.name)
 		self.assertEqual(batch_details.title, self.batch.title)
 		self.assertEqual(batch_details.start_date, getdate(self.batch.start_date))
