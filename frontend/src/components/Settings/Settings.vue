@@ -43,7 +43,6 @@
 								? { sections: activeTab.sections }
 								: {}),
 							...(activeTab.label == 'Members' ||
-							activeTab.label == 'Evaluators' ||
 							activeTab.label == 'Transactions'
 								? { 'onUpdate:show': (val) => (show = val), show }
 								: {}),
@@ -68,7 +67,6 @@ import { useSettings } from '@/stores/settings'
 import SettingDetails from '@/components/Settings/SettingDetails.vue'
 import SidebarLink from '@/components/Sidebar/SidebarLink.vue'
 import Members from '@/components/Settings/Members.vue'
-import Evaluators from '@/components/Settings/Evaluators.vue'
 import Categories from '@/components/Settings/Categories.vue'
 import EmailTemplates from '@/components/Settings/EmailTemplates.vue'
 import BrandSettings from '@/components/Settings/BrandSettings.vue'
@@ -132,13 +130,6 @@ const tabsStructure = computed(() => {
 											type: 'checkbox',
 											description:
 												'If checked, users will not be able to install the application as a Progressive Web App.',
-										},
-										{
-											label: 'Send calendar invite for evaluations',
-											name: 'send_calendar_invite_for_evaluations',
-											description:
-												'If enabled, it sends google calendar invite to the student for evaluations.',
-											type: 'checkbox',
 										},
 									],
 								},
@@ -301,14 +292,6 @@ const tabsStructure = computed(() => {
 						'Add new members or manage roles and permissions of existing members',
 					icon: 'User',
 					template: markRaw(Members),
-				},
-				{
-					label: 'Evaluators',
-					description: '',
-					icon: 'UserCircle2',
-					description:
-						'Add new evaluators or check the slots of existing evaluators',
-					template: markRaw(Evaluators),
 				},
 				{
 					label: 'Companies',

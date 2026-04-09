@@ -88,17 +88,6 @@ const routes = [
 				component: () => import('@/pages/ProfileRoles.vue'),
 			},
 			{
-				name: 'ProfileEvaluator',
-				path: 'slots',
-				component: () => import('@/pages/ProfileEvaluator.vue'),
-			},
-			{
-				name: 'ProfileEvaluationSchedule',
-				path: 'schedule',
-				component: () =>
-					import('@/pages/ProfileEvaluationSchedule.vue'),
-			},
-			{
 				name: 'ProfileMembership',
 				path: 'membership',
 				component: () => import('@/pages/ProfileMembership.vue'),
