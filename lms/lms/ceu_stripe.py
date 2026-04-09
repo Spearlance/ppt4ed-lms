@@ -44,9 +44,17 @@ def create_one_off_checkout(course_name, price_amount, user_email):
 
 
 @frappe.whitelist()
-def create_subscription_checkout(plan_name, stripe_price_id, user_email):
+def create_subscription_checkout(plan_name, stripe_price_id, user_email, company_name=None):
     """Create a Stripe Checkout session for a membership subscription."""
     s = get_stripe()
+
+    metadata = {
+        "type": "subscription",
+        "plan": plan_name,
+        "user": user_email
+    }
+    if company_name:
+        metadata["company_name"] = company_name
 
     session = s.checkout.Session.create(
         mode="subscription",
@@ -55,11 +63,7 @@ def create_subscription_checkout(plan_name, stripe_price_id, user_email):
             "price": stripe_price_id,
             "quantity": 1
         }],
-        metadata={
-            "type": "subscription",
-            "plan": plan_name,
-            "user": user_email
-        },
+        metadata=metadata,
         success_url=frappe.utils.get_url("/lms?subscription=success"),
         cancel_url=frappe.utils.get_url("/lms/membership-plans?subscription=cancelled")
     )
