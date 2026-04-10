@@ -2278,7 +2278,7 @@
   "name": "LMS Enrollment-credit_source",
   "no_copy": 0,
   "non_negative": 0,
-  "options": "\nOne-Off\nProfessional Membership\nCompany Membership",
+  "options": "\nOne-Off\nProfessional Membership\nCompany Membership\nPPT Employee",
   "permlevel": 0,
   "precision": "",
   "print_hide": 0,

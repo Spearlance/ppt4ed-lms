@@ -34,7 +34,7 @@
             "in_list_view": 1,
             "in_standard_filter": 1,
             "label": "Membership Type",
-            "options": "\nProfessional\nCompany\nIndividual-Business",
+            "options": "\nProfessional\nCompany\nIndividual-Business\nPPT Employee",
             "reqd": 1
         },
         {
