@@ -5,6 +5,9 @@ from frappe.utils import today, add_years
 
 class TestPPTEmployee(UnitTestCase):
     def test_can_create_ppt_employee_plan(self):
+        if frappe.db.exists("CEU Membership Plan", "PPT Employee Test Plan"):
+            frappe.delete_doc("CEU Membership Plan", "PPT Employee Test Plan", force=True, ignore_permissions=True)
+
         doc = frappe.get_doc({
             "doctype": "CEU Membership Plan",
             "title": "PPT Employee Test Plan",

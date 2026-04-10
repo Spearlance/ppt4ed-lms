@@ -64,6 +64,11 @@ class LMSEnrollment(Document):
 			frappe.throw(_("You cannot enroll in an unpublished course."))
 
 		if course_details.paid_course:
+			# Credit-based enrollments (Professional, Company, PPT Employee, One-Off)
+			# are validated by their own enrollment functions before reaching here
+			if self.credit_source:
+				return
+
 			payment = frappe.db.exists(
 				"LMS Payment",
 				{
