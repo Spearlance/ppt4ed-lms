@@ -62,6 +62,7 @@ class TestCEUCredits(UnitTestCase):
         from lms.lms.ceu_credits import allocate_credits, debit_credits
 
         allocate_credits(self.membership.name, 20.0)
+        self.membership.reload()
         self.membership.status = "Cancelled"
         self.membership.save(ignore_permissions=True)
 

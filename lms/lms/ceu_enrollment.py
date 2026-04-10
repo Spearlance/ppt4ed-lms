@@ -137,7 +137,7 @@ def deny_enrollment_request(request_name):
 
 
 @frappe.whitelist()
-def enroll_ppt_employee(course_name, membership_name):
+def enroll_ppt_employee(course_name: str, membership_name: str):
     """Enroll a PPT employee — no credit deduction, but always log to ledger."""
     membership = frappe.get_doc("CEU Membership", membership_name)
 
