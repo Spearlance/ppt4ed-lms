@@ -2443,8 +2443,8 @@ def get_membership_plans():
 	plans = frappe.get_all(
 		"CEU Membership Plan",
 		filters={"active": 1},
-		fields=["name", "title", "plan_type", "ceu_hours", "price", "stripe_price_id"],
-		order_by="price asc"
+		fields=["name", "title", "plan_type", "ceu_hours", "price", "stripe_price_id", "display_order", "is_recommended"],
+		order_by="display_order asc, price asc"
 	)
 	return plans
 
