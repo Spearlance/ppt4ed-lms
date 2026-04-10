@@ -244,6 +244,13 @@
 							/>
 						</div>
 						<div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+							<FormControl
+								v-model="courseResource.doc.ceu_hours"
+								type="number"
+								:label="__('Credit Hours')"
+								:description="__('CEU hours deducted from credit balance on enrollment.')"
+								@input="makeFormDirty()"
+							/>
 							<div
 								v-if="
 									courseResource.doc.paid_course ||
