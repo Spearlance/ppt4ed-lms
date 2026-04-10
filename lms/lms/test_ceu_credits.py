@@ -67,3 +67,16 @@ class TestCEUCredits(UnitTestCase):
 
         with self.assertRaises(frappe.ValidationError):
             debit_credits(self.membership.name, "Administrator", 2.0, course=None)
+
+    def test_debit_uses_locked_balance(self):
+        """Verify debit reads the actual DB balance, not a stale cached value."""
+        from lms.lms.ceu_credits import allocate_credits, debit_credits
+
+        allocate_credits(self.membership.name, 10.0)
+
+        # Simulate stale read: manually change balance in DB without going through ORM
+        frappe.db.set_value("CEU Membership", self.membership.name, "credit_balance", 3.0)
+
+        # Should use the DB value (3.0), not the ORM-cached value (10.0)
+        with self.assertRaises(frappe.ValidationError):
+            debit_credits(self.membership.name, "Administrator", 5.0, course=None)
