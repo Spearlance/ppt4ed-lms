@@ -88,3 +88,73 @@ class TestCEUStripeWebhooks(UnitTestCase):
 
         membership.reload()
         self.assertEqual(membership.credit_balance, 20.0)
+
+    def test_one_off_purchase_creates_ledger_entry(self):
+        from lms.lms.ceu_stripe_webhooks import _create_one_off_enrollment
+
+        # Need a real course
+        courses = frappe.db.get_all("LMS Course", limit=1)
+        if not courses:
+            self.skipTest("No LMS Course exists for testing")
+
+        course_name = courses[0].name
+        user = "Administrator"
+
+        # Delete any existing enrollment for this test
+        for e in frappe.db.get_all("LMS Enrollment", {"course": course_name, "member": user}):
+            frappe.delete_doc("LMS Enrollment", e.name, force=True, ignore_permissions=True)
+
+        _create_one_off_enrollment(
+            course=course_name,
+            user=user,
+            stripe_payment_id="cs_test_oneoff_789"
+        )
+
+        # Should have created a ledger entry
+        ledger = frappe.get_last_doc("CEU Credit Ledger", filters={
+            "user": user,
+            "transaction_type": "Direct Purchase",
+            "course": course_name
+        })
+        self.assertEqual(ledger.stripe_payment_id, "cs_test_oneoff_789")
+        self.assertEqual(ledger.hours, 0)
+
+        # Should have created enrollment with credit_source
+        enrollment = frappe.get_last_doc("LMS Enrollment", filters={
+            "member": user,
+            "course": course_name
+        })
+        self.assertEqual(enrollment.credit_source, "One-Off")
+
+    def test_invoice_paid_records_stripe_invoice_id(self):
+        from lms.lms.ceu_stripe_webhooks import handle_invoice_paid
+
+        if not frappe.db.exists("CEU Membership Plan", "Invoice Test Plan"):
+            frappe.get_doc({
+                "doctype": "CEU Membership Plan",
+                "title": "Invoice Test Plan",
+                "plan_type": "Professional",
+                "ceu_hours": 15.0,
+                "price": 149.00,
+                "active": 1
+            }).insert(ignore_permissions=True)
+
+        membership = frappe.get_doc({
+            "doctype": "CEU Membership",
+            "member": "Administrator",
+            "plan": "Invoice Test Plan",
+            "membership_type": "Professional",
+            "stripe_subscription_id": "sub_test_invoice_track",
+            "status": "Active",
+            "start_date": today(),
+            "end_date": add_years(today(), 1),
+            "credit_balance": 0
+        }).insert(ignore_permissions=True)
+
+        handle_invoice_paid("sub_test_invoice_track", invoice_id="in_test_123")
+
+        ledger = frappe.get_last_doc("CEU Credit Ledger", filters={
+            "membership": membership.name,
+            "transaction_type": "Allocation"
+        })
+        self.assertEqual(ledger.stripe_invoice_id, "in_test_123")

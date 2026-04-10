@@ -64,6 +64,26 @@
 						:label="__('Medium')"
 						class="mb-4"
 					/>
+					<FormControl
+						v-model="batch.event_type"
+						type="select"
+						:options="eventTypeOptions"
+						:label="__('Event Type')"
+					/>
+					<FormControl
+						v-model="batch.credit_hours"
+						:label="__('CEU Credit Hours')"
+						type="number"
+						:placeholder="__('e.g. 2.0')"
+					/>
+					<FormControl
+						v-if="batch.event_type === 'In-Person'"
+						v-model="batch.venue"
+						:label="__('Venue / Location')"
+						type="textarea"
+						:rows="2"
+						:placeholder="__('Address or venue name')"
+					/>
 				</div>
 
 				<div class="space-y-5 border-t mt-5 pt-5">
@@ -149,6 +169,9 @@ type Batch = {
 	category: string | null
 	seat_count: number
 	medium: string | null
+	event_type: string | null
+	credit_hours: number | null
+	venue: string
 }
 
 const batch = ref<Batch>({
@@ -164,6 +187,9 @@ const batch = ref<Batch>({
 	category: null,
 	seat_count: 0,
 	medium: null,
+	event_type: null,
+	credit_hours: null,
+	venue: '',
 })
 
 const createCategory = (name: string, done: () => void) => {
@@ -244,6 +270,23 @@ onBeforeUnmount(() => {
 	capture('event_form_closed', {
 		data: batch.value,
 	})
+})
+
+const eventTypeOptions = computed(() => {
+	return [
+		{
+			label: '',
+			value: '',
+		},
+		{
+			label: __('Live Webinar'),
+			value: 'Live Webinar',
+		},
+		{
+			label: __('In-Person'),
+			value: 'In-Person',
+		},
+	]
 })
 
 const mediumOptions = computed(() => {

@@ -149,7 +149,7 @@ const addOtherLinks = () => {
 watch(userResource, () => {
 	if (userResource.data) {
 		isModerator.value = userResource.data.is_moderator
-		addPrograms()
+		// addPrograms() — Programs hidden, feature not currently used
 		if (isModerator.value) {
 			addQuizzes()
 			addAssignments()

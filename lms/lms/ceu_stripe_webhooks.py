@@ -1,6 +1,6 @@
 import frappe
 from frappe import _
-from frappe.utils import add_years, today
+from frappe.utils import add_years, today, now_datetime
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
@@ -25,7 +25,10 @@ def stripe_webhook():
 
     handlers = {
         "checkout.session.completed": handle_checkout_completed,
-        "invoice.paid": lambda d: handle_invoice_paid(d.get("subscription")),
+        "invoice.paid": lambda d: handle_invoice_paid(
+            d.get("subscription"),
+            invoice_id=d.get("id")
+        ),
         "customer.subscription.updated": handle_subscription_updated,
         "customer.subscription.deleted": handle_subscription_deleted,
         "invoice.payment_failed": handle_payment_failed,
@@ -47,7 +50,8 @@ def handle_checkout_completed(data):
     if checkout_type == "one_off":
         _create_one_off_enrollment(
             course=metadata.get("course"),
-            user=metadata.get("user")
+            user=metadata.get("user"),
+            stripe_payment_id=data.get("payment_intent")
         )
     elif checkout_type == "subscription":
         _activate_subscription(
@@ -59,7 +63,7 @@ def handle_checkout_completed(data):
         )
 
 
-def handle_invoice_paid(subscription_id):
+def handle_invoice_paid(subscription_id, invoice_id=None):
     """Process successful payment - allocate credits for renewal."""
     if not subscription_id:
         return
@@ -77,7 +81,7 @@ def handle_invoice_paid(subscription_id):
     plan = frappe.get_doc("CEU Membership Plan", membership.plan)
 
     from lms.lms.ceu_credits import allocate_credits
-    allocate_credits(membership.name, plan.ceu_hours)
+    allocate_credits(membership.name, plan.ceu_hours, stripe_invoice_id=invoice_id)
 
     frappe.db.set_value("CEU Membership", membership.name, "end_date", add_years(today(), 1))
 
@@ -127,10 +131,23 @@ def handle_payment_failed(data):
         frappe.db.set_value("CEU Membership", membership_name, "status", "Past Due")
 
 
-def _create_one_off_enrollment(course, user):
-    """Create an LMS Enrollment for a one-off purchase."""
+def _create_one_off_enrollment(course, user, stripe_payment_id=None):
+    """Create an LMS Enrollment for a one-off purchase with ledger entry."""
     if frappe.db.exists("LMS Enrollment", {"course": course, "member": user}):
         return
+
+    # Write ledger entry for audit trail
+    frappe.get_doc({
+        "doctype": "CEU Credit Ledger",
+        "user": user,
+        "course": course,
+        "transaction_type": "Direct Purchase",
+        "hours": 0,
+        "balance_after": 0,
+        "timestamp": now_datetime(),
+        "stripe_payment_id": stripe_payment_id,
+    }).insert(ignore_permissions=True)
+
     frappe.get_doc({
         "doctype": "LMS Enrollment",
         "member": user,

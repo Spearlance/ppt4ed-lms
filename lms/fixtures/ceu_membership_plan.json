@@ -70,5 +70,17 @@
     "active": 1,
     "display_order": 2,
     "is_recommended": 0
+  },
+  {
+    "doctype": "CEU Membership Plan",
+    "name": "PPT Employee Plan",
+    "title": "PPT Employee Plan",
+    "plan_type": "PPT Employee",
+    "ceu_hours": 0,
+    "price": 0.0,
+    "stripe_price_id": "",
+    "active": 1,
+    "display_order": 99,
+    "is_recommended": 0
   }
 ]

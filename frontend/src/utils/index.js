@@ -469,6 +469,7 @@ const getSidebarItems = () => {
 						'LessonForm',
 					],
 				},
+				/* Programs hidden – feature not currently used
 				{
 					label: 'Programs',
 					icon: 'Route',
@@ -479,6 +480,7 @@ const getSidebarItems = () => {
 						return checkIfCanAddProgram()
 					},
 				},
+				*/
 				{
 					label: 'Events',
 					icon: 'Calendar',

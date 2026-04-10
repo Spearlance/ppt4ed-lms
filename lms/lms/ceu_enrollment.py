@@ -134,3 +134,43 @@ def deny_enrollment_request(request_name):
     request.save(ignore_permissions=True)
 
     return {"status": "denied"}
+
+
+@frappe.whitelist()
+def enroll_ppt_employee(course_name: str, membership_name: str):
+    """Enroll a PPT employee — no credit deduction, but always log to ledger."""
+    membership = frappe.get_doc("CEU Membership", membership_name)
+
+    if membership.membership_type != "PPT Employee":
+        frappe.throw(_("This function is only for PPT Employee memberships"))
+
+    if membership.status != "Active":
+        frappe.throw(_("Membership is not active"))
+
+    # Check for existing enrollment
+    if frappe.db.exists("LMS Enrollment", {"course": course_name, "member": frappe.session.user}):
+        frappe.throw(_("Already enrolled in this course"))
+
+    # Write ledger entry (hours=0, no deduction)
+    frappe.get_doc({
+        "doctype": "CEU Credit Ledger",
+        "membership": membership_name,
+        "user": frappe.session.user,
+        "course": course_name,
+        "transaction_type": "Enrollment",
+        "hours": 0,
+        "balance_after": membership.credit_balance,
+        "timestamp": now_datetime(),
+        "notes": "PPT Employee — no charge"
+    }).insert(ignore_permissions=True)
+
+    # Create enrollment
+    enrollment = frappe.get_doc({
+        "doctype": "LMS Enrollment",
+        "member": frappe.session.user,
+        "course": course_name,
+        "credit_source": "PPT Employee",
+        "membership": membership_name,
+    }).insert(ignore_permissions=True)
+
+    return enrollment.name
