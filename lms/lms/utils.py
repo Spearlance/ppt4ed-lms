@@ -2123,6 +2123,9 @@ def get_batches(filters: dict = None, start: int = 0, order_by: str = "start_dat
 			"timezone",
 			"published",
 			"category",
+			"credit_hours",
+			"event_type",
+			"venue",
 		],
 		order_by=order_by,
 		start=start,
@@ -2132,6 +2135,10 @@ def get_batches(filters: dict = None, start: int = 0, order_by: str = "start_dat
 	batches = filter_batches_based_on_start_time(batches, filters)
 	batches = get_batch_card_details(batches)
 	return batches
+
+
+# Alias for frontend compatibility (Batch→Event rename)
+get_events = get_batches
 
 
 def filter_batches_based_on_start_time(batches: list, filters: dict) -> list:

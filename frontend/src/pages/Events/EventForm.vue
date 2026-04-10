@@ -42,6 +42,13 @@
 								class="mb-4"
 								:placeholder="__('Number of seats available')"
 							/>
+							<FormControl
+								v-model="batchDetail.doc.credit_hours"
+								:label="__('CEU Credit Hours')"
+								type="number"
+								class="mb-4"
+								:placeholder="__('e.g. 2.0')"
+							/>
 						</div>
 						<div class="space-y-5">
 							<Switch
@@ -155,6 +162,22 @@
 				<div class="px-5 pb-5 space-y-5 border-b mb-5">
 					<div class="grid grid-cols-1 md:grid-cols-2 gap-5">
 						<div class="space-y-5">
+							<FormControl
+								v-model="batchDetail.doc.event_type"
+								type="select"
+								:options="eventTypeOptions"
+								:label="__('Event Type')"
+								class="mb-4"
+							/>
+							<FormControl
+								v-if="batchDetail.doc.event_type === 'In-Person'"
+								v-model="batchDetail.doc.venue"
+								:label="__('Venue / Location')"
+								type="textarea"
+								:rows="2"
+								class="mb-4"
+								:placeholder="__('Address or venue name')"
+							/>
 							<FormControl
 								v-model="batchDetail.doc.medium"
 								type="select"
@@ -531,6 +554,23 @@ const conferencingOptions = computed(() => {
 		{
 			label: __('Google Meet'),
 			value: 'Google Meet',
+		},
+	]
+})
+
+const eventTypeOptions = computed(() => {
+	return [
+		{
+			label: '',
+			value: '',
+		},
+		{
+			label: __('Live Webinar'),
+			value: 'Live Webinar',
+		},
+		{
+			label: __('In-Person'),
+			value: 'In-Person',
 		},
 	]
 })

@@ -62,6 +62,24 @@
 					{{ batch.data.timezone }}
 				</span>
 			</div>
+			<div v-if="batch.data.event_type" class="flex items-center mb-3 text-ink-gray-7">
+				<Monitor class="h-4 w-4 stroke-1.5 mr-2" />
+				<span>
+					{{ batch.data.event_type }}
+				</span>
+			</div>
+			<div v-if="batch.data.credit_hours" class="flex items-center mb-3 text-ink-gray-7">
+				<Award class="h-4 w-4 stroke-1.5 mr-2" />
+				<span>
+					{{ batch.data.credit_hours }} CEU {{ batch.data.credit_hours == 1 ? __('Credit') : __('Credits') }}
+				</span>
+			</div>
+			<div v-if="batch.data.venue && batch.data.event_type === 'In-Person'" class="flex items-center mb-3 text-ink-gray-7">
+				<MapPin class="h-4 w-4 stroke-1.5 mr-2" />
+				<span>
+					{{ batch.data.venue }}
+				</span>
+			</div>
 
 			<div v-if="!readOnlyMode && !canAccessEvent">
 				<router-link
@@ -110,12 +128,15 @@
 import { inject, computed } from 'vue'
 import { Badge, Button, createResource, toast } from 'frappe-ui'
 import {
+	Award,
 	BookOpen,
 	Clock,
 	CreditCard,
 	Globe,
 	GraduationCap,
 	LogIn,
+	MapPin,
+	Monitor,
 	Pencil,
 	Settings,
 } from 'lucide-vue-next'

@@ -26,6 +26,24 @@
 			class="self-start"
 			:label="__('Sold Out')"
 		/>
+		<div class="flex items-center gap-2 flex-wrap">
+			<Badge
+				v-if="batch.event_type"
+				variant="subtle"
+				theme="blue"
+				size="md"
+				class="self-start"
+				:label="batch.event_type"
+			/>
+			<Badge
+				v-if="batch.credit_hours"
+				variant="subtle"
+				theme="orange"
+				size="md"
+				class="self-start"
+				:label="batch.credit_hours + ' CEU ' + (batch.credit_hours == 1 ? __('Credit') : __('Credits'))"
+			/>
+		</div>
 		<div class="short-introduction text-sm text-ink-gray-7">
 			{{ batch.description }}
 		</div>
