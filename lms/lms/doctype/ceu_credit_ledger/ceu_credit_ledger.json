@@ -6,7 +6,9 @@
     "engine": "InnoDB",
     "field_order": [
         "membership", "user", "course",
-        "transaction_type", "hours", "balance_after", "timestamp"
+        "transaction_type", "hours", "balance_after", "timestamp",
+        "stripe_section", "stripe_payment_id", "stripe_invoice_id", "payment",
+        "notes_section", "notes"
     ],
     "fields": [
         {
@@ -37,7 +39,7 @@
             "in_list_view": 1,
             "in_standard_filter": 1,
             "label": "Transaction Type",
-            "options": "\nAllocation\nEnrollment\nRefund\nExpiry\nTop-Up\nAdmin Adjustment",
+            "options": "\nAllocation\nEnrollment\nDirect Purchase\nRefund\nExpiry\nTop-Up\nAdmin Adjustment",
             "reqd": 1
         },
         {
@@ -60,6 +62,37 @@
             "in_list_view": 1,
             "label": "Timestamp",
             "reqd": 1
+        },
+        {
+            "fieldname": "stripe_section",
+            "fieldtype": "Section Break",
+            "label": "Payment Reference"
+        },
+        {
+            "fieldname": "stripe_payment_id",
+            "fieldtype": "Data",
+            "label": "Stripe Payment ID"
+        },
+        {
+            "fieldname": "stripe_invoice_id",
+            "fieldtype": "Data",
+            "label": "Stripe Invoice ID"
+        },
+        {
+            "fieldname": "payment",
+            "fieldtype": "Link",
+            "label": "Payment",
+            "options": "LMS Payment"
+        },
+        {
+            "fieldname": "notes_section",
+            "fieldtype": "Section Break",
+            "label": "Notes"
+        },
+        {
+            "fieldname": "notes",
+            "fieldtype": "Small Text",
+            "label": "Notes"
         }
     ],
     "in_create": 1,

@@ -58,3 +58,42 @@ class TestCEUCreditLedger(UnitTestCase):
 
         with self.assertRaises(frappe.ValidationError):
             doc.delete(ignore_permissions=True)
+
+    def test_ledger_accepts_stripe_payment_id(self):
+        doc = frappe.get_doc({
+            "doctype": "CEU Credit Ledger",
+            "user": "Administrator",
+            "transaction_type": "Allocation",
+            "hours": 20.0,
+            "balance_after": 20.0,
+            "timestamp": now_datetime(),
+            "stripe_payment_id": "ch_test_123"
+        })
+        doc.insert(ignore_permissions=True)
+        self.assertEqual(doc.stripe_payment_id, "ch_test_123")
+
+    def test_ledger_accepts_notes(self):
+        doc = frappe.get_doc({
+            "doctype": "CEU Credit Ledger",
+            "user": "Administrator",
+            "transaction_type": "Admin Adjustment",
+            "hours": 5.0,
+            "balance_after": 25.0,
+            "timestamp": now_datetime(),
+            "notes": "Manual credit restore per support ticket #42"
+        })
+        doc.insert(ignore_permissions=True)
+        self.assertEqual(doc.notes, "Manual credit restore per support ticket #42")
+
+    def test_ledger_accepts_direct_purchase(self):
+        doc = frappe.get_doc({
+            "doctype": "CEU Credit Ledger",
+            "user": "Administrator",
+            "transaction_type": "Direct Purchase",
+            "hours": 0,
+            "balance_after": 0,
+            "timestamp": now_datetime(),
+            "stripe_payment_id": "cs_test_456"
+        })
+        doc.insert(ignore_permissions=True)
+        self.assertEqual(doc.transaction_type, "Direct Purchase")
