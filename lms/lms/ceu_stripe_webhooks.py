@@ -25,7 +25,10 @@ def stripe_webhook():
 
     handlers = {
         "checkout.session.completed": handle_checkout_completed,
-        "invoice.paid": lambda d: handle_invoice_paid(d.get("subscription")),
+        "invoice.paid": lambda d: handle_invoice_paid(
+            d.get("subscription"),
+            invoice_id=d.get("id")
+        ),
         "customer.subscription.updated": handle_subscription_updated,
         "customer.subscription.deleted": handle_subscription_deleted,
         "invoice.payment_failed": handle_payment_failed,
@@ -60,7 +63,7 @@ def handle_checkout_completed(data):
         )
 
 
-def handle_invoice_paid(subscription_id):
+def handle_invoice_paid(subscription_id, invoice_id=None):
     """Process successful payment - allocate credits for renewal."""
     if not subscription_id:
         return
@@ -78,7 +81,7 @@ def handle_invoice_paid(subscription_id):
     plan = frappe.get_doc("CEU Membership Plan", membership.plan)
 
     from lms.lms.ceu_credits import allocate_credits
-    allocate_credits(membership.name, plan.ceu_hours)
+    allocate_credits(membership.name, plan.ceu_hours, stripe_invoice_id=invoice_id)
 
     frappe.db.set_value("CEU Membership", membership.name, "end_date", add_years(today(), 1))
 

@@ -3,7 +3,7 @@ from frappe import _
 from frappe.utils import now_datetime
 
 
-def allocate_credits(membership_name, hours):
+def allocate_credits(membership_name, hours, stripe_invoice_id=None, stripe_payment_id=None):
     """Add credits to a membership. Used on subscription payment."""
     membership = frappe.get_doc("CEU Membership", membership_name)
     membership.credit_balance += hours
@@ -16,7 +16,9 @@ def allocate_credits(membership_name, hours):
         "transaction_type": "Allocation",
         "hours": hours,
         "balance_after": membership.credit_balance,
-        "timestamp": now_datetime()
+        "timestamp": now_datetime(),
+        "stripe_invoice_id": stripe_invoice_id,
+        "stripe_payment_id": stripe_payment_id,
     }).insert(ignore_permissions=True)
 
 
