@@ -103,7 +103,7 @@ class TestLMSLiveClass(BaseTestUtils):
 			"time": "10:00:00",
 			"duration": 60,
 			"timezone": "Asia/Kolkata",
-			"batch_name": self.batch.name,
+			"event_name": self.batch.name,
 			"conferencing_provider": provider,
 		}
 		if provider == "Google Meet":
@@ -134,14 +134,14 @@ class TestLMSLiveClass(BaseTestUtils):
 
 	def test_google_meet_disabled_account_raises_error(self):
 		"""Creating a live class with a disabled Google Meet account should raise an error."""
-		from lms.lms.doctype.lms_batch.lms_batch import create_google_meet_live_class
+		from lms.lms.doctype.lms_event.lms_event import create_google_meet_live_class
 
 		self.google_meet_settings.enabled = 0
 		self.google_meet_settings.save()
 
 		with self.assertRaises(frappe.exceptions.ValidationError):
 			create_google_meet_live_class(
-				batch_name=self.batch.name,
+				event_name=self.batch.name,
 				google_meet_account=self.google_meet_settings.name,
 				title="Test Disabled",
 				duration=30,
@@ -155,7 +155,7 @@ class TestLMSLiveClass(BaseTestUtils):
 
 	def test_google_meet_missing_calendar_raises_error(self):
 		"""Creating a live class with a Google Meet account without a calendar should raise an error."""
-		from lms.lms.doctype.lms_batch.lms_batch import create_google_meet_live_class
+		from lms.lms.doctype.lms_event.lms_event import create_google_meet_live_class
 
 		old_calendar = self.google_meet_settings.google_calendar
 		self.google_meet_settings.google_calendar = ""
@@ -164,7 +164,7 @@ class TestLMSLiveClass(BaseTestUtils):
 
 		with self.assertRaises(frappe.exceptions.ValidationError):
 			create_google_meet_live_class(
-				batch_name=self.batch.name,
+				event_name=self.batch.name,
 				google_meet_account=self.google_meet_settings.name,
 				title="Test No Calendar",
 				duration=30,

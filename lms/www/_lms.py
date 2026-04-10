@@ -120,16 +120,16 @@ def get_meta_from_document(app_path):
 			"link": get_lms_route(f"courses/{course_name}"),
 		}
 
-	if app_path == "batches":
+	if app_path == "events":
 		return {
-			"title": _("Batches"),
-			"keywords": "All Batches, Batches, Learn",
-			"link": get_lms_route("batches"),
+			"title": _("Events"),
+			"keywords": "All Events, Events, Learn",
+			"link": get_lms_route("events"),
 		}
-	if re.match(r"^batches/details/.*$", app_path):
+	if re.match(r"^events/details/.*$", app_path):
 		batch_name = app_path.split("/")[2]
 		batch = frappe.db.get_value(
-			"LMS Batch",
+			"LMS Event",
 			batch_name,
 			["title", "meta_image", "batch_details", "category", "medium"],
 			as_dict=True,
@@ -144,19 +144,19 @@ def get_meta_from_document(app_path):
 			"image": batch.meta_image,
 			"description": batch.batch_details,
 			"keywords": f"{batch.category} {batch.medium}",
-			"link": get_lms_route(f"batches/details/{batch_name}"),
+			"link": get_lms_route(f"events/details/{batch_name}"),
 		}
 
-	if re.match(r"^batches/.*$", app_path):
+	if re.match(r"^events/.*$", app_path):
 		batch_name = app_path.split("/")[1]
 		if "new/edit" in app_path:
 			return {
-				"title": _("New Batch"),
-				"keywords": "New Batch, Create Batch",
-				"link": get_lms_route("batches/new/edit"),
+				"title": _("New Event"),
+				"keywords": "New Event, Create Event",
+				"link": get_lms_route("events/new/edit"),
 			}
 		batch = frappe.db.get_value(
-			"LMS Batch",
+			"LMS Event",
 			batch_name,
 			["title", "meta_image", "batch_details", "category", "medium"],
 			as_dict=True,
@@ -171,7 +171,7 @@ def get_meta_from_document(app_path):
 			"image": batch.meta_image,
 			"description": batch.batch_details,
 			"keywords": f"{batch.category} {batch.medium}",
-			"link": get_lms_route(f"batches/{batch_name}"),
+			"link": get_lms_route(f"events/{batch_name}"),
 		}
 
 	if app_path == "job-openings":

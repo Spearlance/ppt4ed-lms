@@ -228,7 +228,7 @@ const isSessionUser = () => {
 }
 
 const currentUserHasHigherAccess = () => {
-	return $user.data?.is_evaluator || $user.data?.is_moderator
+	return $user.data?.is_moderator
 }
 
 const isEvaluatorOrModerator = () => {

@@ -43,7 +43,6 @@
 								? { sections: activeTab.sections }
 								: {}),
 							...(activeTab.label == 'Members' ||
-							activeTab.label == 'Evaluators' ||
 							activeTab.label == 'Transactions'
 								? { 'onUpdate:show': (val) => (show = val), show }
 								: {}),
@@ -68,7 +67,6 @@ import { useSettings } from '@/stores/settings'
 import SettingDetails from '@/components/Settings/SettingDetails.vue'
 import SidebarLink from '@/components/Sidebar/SidebarLink.vue'
 import Members from '@/components/Settings/Members.vue'
-import Evaluators from '@/components/Settings/Evaluators.vue'
 import Categories from '@/components/Settings/Categories.vue'
 import EmailTemplates from '@/components/Settings/EmailTemplates.vue'
 import BrandSettings from '@/components/Settings/BrandSettings.vue'
@@ -79,6 +77,7 @@ import ZoomSettings from '@/components/Settings/ZoomSettings.vue'
 import GoogleMeetSettings from '@/components/Settings/GoogleMeetSettings.vue'
 import Badges from '@/components/Settings/Badges.vue'
 import Companies from '@/components/Settings/Companies.vue'
+import MembershipPlans from '@/components/Settings/MembershipPlans.vue'
 
 const show = defineModel()
 const doctype = ref('LMS Settings')
@@ -112,7 +111,7 @@ const tabsStructure = computed(() => {
 											label: 'Allow Guest Access',
 											name: 'allow_guest_access',
 											description:
-												'If enabled, users can access the course and batch lists without logging in.',
+												'If enabled, users can access the course and event lists without logging in.',
 											type: 'checkbox',
 										},
 										{
@@ -133,13 +132,6 @@ const tabsStructure = computed(() => {
 											description:
 												'If checked, users will not be able to install the application as a Progressive Web App.',
 										},
-										{
-											label: 'Send calendar invite for evaluations',
-											name: 'send_calendar_invite_for_evaluations',
-											description:
-												'If enabled, it sends google calendar invite to the student for evaluations.',
-											type: 'checkbox',
-										},
 									],
 								},
 							],
@@ -158,30 +150,13 @@ const tabsStructure = computed(() => {
 									],
 								},
 								{
-									fields: [
-										{
-											label: 'Send Notification for Published Batches',
-											name: 'send_notification_for_published_batches',
-											type: 'select',
-											options: [' ', 'Email', 'In-app'],
-										},
-									],
+									fields: [],
 								},
 							],
 						},
 						{
 							label: 'Email Templates',
 							columns: [
-								{
-									fields: [
-										{
-											label: 'Batch Confirmation Email Template',
-											name: 'batch_confirmation_template',
-											doctype: 'Email Template',
-											type: 'Link',
-										},
-									],
-								},
 								{
 									fields: [
 										{
@@ -303,14 +278,6 @@ const tabsStructure = computed(() => {
 					template: markRaw(Members),
 				},
 				{
-					label: 'Evaluators',
-					description: '',
-					icon: 'UserCircle2',
-					description:
-						'Add new evaluators or check the slots of existing evaluators',
-					template: markRaw(Evaluators),
-				},
-				{
 					label: 'Companies',
 					description: 'Add new companies or manage existing company accounts',
 					icon: 'Building2',
@@ -376,15 +343,7 @@ const tabsStructure = computed(() => {
 							label: 'Payment Reminders',
 							columns: [
 								{
-									fields: [
-										{
-											label: 'Send payment reminders for batch',
-											name: 'send_payment_reminders_for_batch',
-											type: 'checkbox',
-											description:
-												'If enabled, it sends payment reminders to students who left the payment incomplete for a batch.',
-										},
-									],
+									fields: [],
 								},
 								{
 									fields: [
@@ -417,7 +376,13 @@ const tabsStructure = computed(() => {
 					label: 'Coupons',
 					icon: 'Ticket',
 					template: markRaw(Coupons),
-					description: 'Manage discount coupons for courses and batches',
+					description: 'Manage discount coupons for courses and events',
+				},
+				{
+					label: 'Membership Plans',
+					icon: 'Crown',
+					template: markRaw(MembershipPlans),
+					description: 'Create and manage membership plans with Stripe pricing',
 				},
 			],
 		},
@@ -428,14 +393,14 @@ const tabsStructure = computed(() => {
 				{
 					label: 'Zoom',
 					description:
-						'Manage zoom accounts to conduct live classes from batches',
+						'Manage zoom accounts to conduct live classes from events',
 					icon: 'Video',
 					template: markRaw(ZoomSettings),
 				},
 				{
 					label: 'Google Meet',
 					description:
-						'Manage Google Meet accounts to conduct live classes from batches',
+						'Manage Google Meet accounts to conduct live classes from events',
 					icon: 'Presentation',
 					template: markRaw(GoogleMeetSettings),
 				},
@@ -496,7 +461,7 @@ const tabsStructure = computed(() => {
 											type: 'checkbox',
 										},
 										{
-											label: 'Batches',
+											label: 'Events',
 											name: 'batches',
 											type: 'checkbox',
 										},

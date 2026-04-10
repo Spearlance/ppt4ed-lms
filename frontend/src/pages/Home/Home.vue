@@ -66,11 +66,7 @@ const fetchEvalCount = () => {
 }
 
 const isAdmin = computed(() => {
-	return (
-		user.data?.is_moderator ||
-		user.data?.is_instructor ||
-		user.data?.is_evaluator
-	)
+	return user.data?.is_moderator
 })
 
 onMounted(() => {
@@ -126,7 +122,7 @@ const subtitle = computed(() => {
 				evalSuffix
 			)
 		}
-		return __('Manage your courses and batches at a glance')
+		return __('Manage your courses and events at a glance')
 	} else {
 		let liveClassSuffix =
 			myLiveClasses.data?.length > 1 ? __('live classes') : __('live class')

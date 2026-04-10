@@ -106,7 +106,7 @@ class LMSCertificateRequest(Document):
 
 	def validate_evaluation_end_date(self):
 		if self.batch_name:
-			evaluation_end_date = frappe.db.get_value("LMS Batch", self.batch_name, "evaluation_end_date")
+			evaluation_end_date = frappe.db.get_value("LMS Event", self.batch_name, "evaluation_end_date")
 
 			if evaluation_end_date:
 				if getdate(self.date) > getdate(evaluation_end_date):
@@ -176,7 +176,7 @@ def setup_calendar_event(eval_name: str):
 
 	is_member = evaluation.member == frappe.session.user
 	roles = frappe.get_roles(frappe.session.user)
-	is_admin = "Moderator" in roles or "Batch Evaluator" in roles
+	is_admin = "Moderator" in roles
 
 	if not is_member and not is_admin:
 		frappe.throw(
@@ -241,7 +241,7 @@ def update_meeting_details(evaluation: dict, event: Document, calendar: str):
 
 @frappe.whitelist()
 def create_lms_certificate_evaluation(source_name: str, target_doc: dict = None):
-	frappe.only_for(["Moderator", "Batch Evaluator", "System Manager"])
+	frappe.only_for(["Moderator", "System Manager"])
 	doc = get_mapped_doc(
 		"LMS Certificate Request",
 		source_name,

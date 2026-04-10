@@ -7,9 +7,7 @@
 	<div
 		v-if="
 			readyToRender &&
-			(enrollment.data?.length ||
-				user.data?.is_moderator ||
-				user.data?.is_instructor)
+			(enrollment.data?.length || user.data?.is_moderator)
 		"
 	>
 		<iframe

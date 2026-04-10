@@ -36,7 +36,7 @@ class LearningSearch(SQLiteSearch):
 				{"modified": "published_on"},
 			],
 		},
-		"LMS Batch": {
+		"LMS Event": {
 			"fields": [
 				"name",
 				"title",
@@ -121,7 +121,7 @@ class LearningSearch(SQLiteSearch):
 
 	DOCTYPE_FIELDS = {
 		"LMS Course": COURSE_FIELDS,
-		"LMS Batch": BATCH_FIELDS,
+		"LMS Event": BATCH_FIELDS,
 		# "Job Opportunity": JOB_FIELDS,  # PPT4ed: hidden
 		"Course Instructor": INSTRUCTOR_FIELDS,
 	}
@@ -164,7 +164,7 @@ class LearningSearch(SQLiteSearch):
 			self.set_modified_date(details, doc.parenttype, document)
 			if doc.parenttype == "LMS Course":
 				document["published_on"] = details.get("published_on")
-			elif doc.parenttype == "LMS Batch":
+			elif doc.parenttype == "LMS Event":
 				document["start_date"] = details.get("start_date")
 
 		return document
@@ -173,7 +173,7 @@ class LearningSearch(SQLiteSearch):
 		modified_value = None
 		if doctype == "LMS Course":
 			modified_value = details.get("published_on")
-		elif doctype == "LMS Batch":
+		elif doctype == "LMS Event":
 			modified_value = details.get("start_date")
 
 		if not modified_value:
@@ -182,7 +182,7 @@ class LearningSearch(SQLiteSearch):
 		modified_value = get_datetime(modified_value)
 		if doctype == "LMS Course":
 			document["published_on"] = getdate(modified_value)
-		elif doctype == "LMS Batch":
+		elif doctype == "LMS Event":
 			document["start_date"] = getdate(modified_value)
 
 		document["modified"] = modified_value.timestamp()
@@ -193,7 +193,7 @@ class LearningSearch(SQLiteSearch):
 		if doctype == "LMS Course":
 			if row["published"]:
 				return 1.3
-		elif doctype == "LMS Batch":
+		elif doctype == "LMS Event":
 			if row["published"] and row["start_date"] >= nowdate():
 				return 1.3
 			elif row["published"]:

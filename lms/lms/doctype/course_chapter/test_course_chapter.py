@@ -11,7 +11,7 @@ class TestCourseChapter(BaseTestUtils):
 	def setUp(self):
 		super().setUp()
 		self.instructor = self._create_user(
-			"frappe@example.com", "Frappe", "Admin", ["Moderator", "Course Creator"]
+			"frappe@example.com", "Frappe", "Admin", ["Moderator"]
 		)
 
 	def tearDown(self):

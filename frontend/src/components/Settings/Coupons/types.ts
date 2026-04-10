@@ -13,7 +13,7 @@ export interface Coupon {
 }
 
 export type ApplicableItem = {
-    reference_doctype: "LMS Course" | "LMS Batch";
+    reference_doctype: "LMS Course" | "LMS Event";
     reference_name: string;
     name: string;
     parent: string;

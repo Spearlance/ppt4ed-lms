@@ -8,7 +8,6 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
-    AddEvaluatorModal: typeof import('./src/components/Modals/AddEvaluatorModal.vue')['default']
     Apps: typeof import('./src/components/Sidebar/Apps.vue')['default']
     AppSidebar: typeof import('./src/components/Sidebar/AppSidebar.vue')['default']
     AssessmentModal: typeof import('./src/components/Modals/AssessmentModal.vue')['default']
@@ -21,7 +20,6 @@ declare module 'vue' {
     BadgeAssignments: typeof import('./src/components/Settings/BadgeAssignments.vue')['default']
     BadgeForm: typeof import('./src/components/Settings/BadgeForm.vue')['default']
     Badges: typeof import('./src/components/Settings/Badges.vue')['default']
-    BatchCourseModal: typeof import('./src/components/Modals/BatchCourseModal.vue')['default']
     BrandSettings: typeof import('./src/components/Settings/BrandSettings.vue')['default']
     Categories: typeof import('./src/components/Settings/Categories.vue')['default']
     CertificationLinks: typeof import('./src/components/CertificationLinks.vue')['default']
@@ -55,8 +53,6 @@ declare module 'vue' {
     EmailTemplateModal: typeof import('./src/components/Modals/EmailTemplateModal.vue')['default']
     EmailTemplates: typeof import('./src/components/Settings/EmailTemplates.vue')['default']
     EmptyState: typeof import('./src/components/EmptyState.vue')['default']
-    EvaluationModal: typeof import('./src/components/Modals/EvaluationModal.vue')['default']
-    Evaluators: typeof import('./src/components/Settings/Evaluators.vue')['default']
     Event: typeof import('./src/components/Modals/Event.vue')['default']
     ExplanationVideos: typeof import('./src/components/Modals/ExplanationVideos.vue')['default']
     FeedbackModal: typeof import('./src/components/Modals/FeedbackModal.vue')['default']
@@ -110,7 +106,6 @@ declare module 'vue' {
     TransactionList: typeof import('./src/components/Settings/Transactions/TransactionList.vue')['default']
     Transactions: typeof import('./src/components/Settings/Transactions/Transactions.vue')['default']
     UnsplashImageBrowser: typeof import('./src/components/UnsplashImageBrowser.vue')['default']
-    UpcomingEvaluations: typeof import('./src/components/UpcomingEvaluations.vue')['default']
     Uploader: typeof import('./src/components/Controls/Uploader.vue')['default']
     UploadPlugin: typeof import('./src/components/UploadPlugin.vue')['default']
     UserAvatar: typeof import('./src/components/UserAvatar.vue')['default']

@@ -36,9 +36,9 @@ def get_grouped_results(result):
 		if doctype == "LMS Course" and can_access_course(r, roles):
 			r["author_info"] = get_instructor_info(doctype, r)
 			groups.setdefault("Courses", []).append(r)
-		elif doctype == "LMS Batch" and can_access_batch(r, roles):
+		elif doctype == "LMS Event" and can_access_event(r, roles):
 			r["author_info"] = get_instructor_info(doctype, r)
-			groups.setdefault("Batches", []).append(r)
+			groups.setdefault("Events", []).append(r)
 		# PPT4ed: hidden — Job Opportunity search results
 		# elif doctype == "Job Opportunity" and can_access_job(r, roles):
 		# 	r["author_info"] = get_instructor_info(doctype, r)
@@ -64,8 +64,8 @@ def can_access_course(course, roles):
 	return False
 
 
-def can_access_batch(batch, roles):
-	if can_create_batch(roles):
+def can_access_event(batch, roles):
+	if can_create_event(roles):
 		return True
 	elif batch.get("published") and batch.get("start_date") >= nowdate():
 		return True
@@ -80,11 +80,11 @@ def can_access_batch(batch, roles):
 
 
 def can_create_course(roles):
-	return "Course Creator" in roles or "Moderator" in roles
+	return "Moderator" in roles
 
 
-def can_create_batch(roles):
-	return "Batch Evaluator" in roles or "Moderator" in roles
+def can_create_event(roles):
+	return "Moderator" in roles
 
 
 def get_instructor_info(doctype, record):

@@ -72,7 +72,7 @@ onMounted(() => {
 	if (!user.data) {
 		window.location.href = '/login'
 	}
-	if (user.data?.is_moderator || user.data?.is_instructor) {
+	if (user.data?.is_moderator) {
 		programs.reload()
 	}
 })
@@ -94,7 +94,7 @@ const programs = createListResource({
 
 const canCreateProgram = () => {
 	if (readOnlyMode) return false
-	if (user.data?.is_moderator || user.data?.is_instructor) return true
+	if (user.data?.is_moderator) return true
 	return false
 }
 

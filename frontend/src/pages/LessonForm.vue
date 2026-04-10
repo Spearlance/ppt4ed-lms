@@ -133,7 +133,7 @@ const props = defineProps({
 })
 
 onMounted(() => {
-	if (!user.data?.is_moderator && !user.data?.is_instructor) {
+	if (!user.data?.is_moderator) {
 		window.location.href = '/login'
 	}
 	capture('lesson_form_opened')

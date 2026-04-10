@@ -92,7 +92,7 @@
 							{{
 								log.document_type === 'LMS Course'
 									? __('New Course')
-									: __('New Batch')
+									: __('New Event')
 							}}
 						</div>
 						<div class="font-semibold mb-1 text-ink-gray-9">
@@ -254,18 +254,11 @@ const navigateToPage = (log) => {
 			name: 'CourseDetail',
 			params: { courseName: link[3] },
 		})
-	} else if (link.includes('batches')) {
-		if (link.includes('details')) {
-			router.push({
-				name: 'BatchDetail',
-				params: { batchName: link.pop() },
-			})
-		} else {
-			router.push({
-				name: 'Batch',
-				params: { batchName: link.pop() },
-			})
-		}
+	} else if (link.includes('batches') || link.includes('events')) {
+		router.push({
+			name: 'EventDetail',
+			params: { eventName: link.pop() },
+		})
 	} else if (link.includes('assignment-submission')) {
 		router.push({
 			name: 'AssignmentSubmission',

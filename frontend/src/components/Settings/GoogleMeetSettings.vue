@@ -145,7 +145,7 @@ onMounted(() => {
 })
 
 const fetchGoogleMeetAccounts = () => {
-	if (!user?.data?.is_moderator && !user?.data?.is_evaluator) return
+	if (!user?.data?.is_moderator) return
 
 	if (!user?.data?.is_moderator) {
 		googleMeetAccounts.update({

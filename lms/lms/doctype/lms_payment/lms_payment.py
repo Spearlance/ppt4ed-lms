@@ -54,7 +54,7 @@ def allowed_payment_types():
 
 	allowed_types = []
 	if send_batch_reminders:
-		allowed_types.append("LMS Batch")
+		allowed_types.append("LMS Event")
 
 	if send_course_reminders:
 		allowed_types.append("LMS Course")
@@ -75,9 +75,9 @@ def has_paid_later(payment):
 
 
 def is_batch_sold_out(payment):
-	if payment.payment_for_document_type == "LMS Batch":
-		seat_count = frappe.get_cached_value("LMS Batch", payment.payment_for_document, "seat_count")
-		number_of_students = frappe.db.count("LMS Batch Enrollment", {"batch": payment.payment_for_document})
+	if payment.payment_for_document_type == "LMS Event":
+		seat_count = frappe.get_cached_value("LMS Event", payment.payment_for_document, "seat_count")
+		number_of_students = frappe.db.count("LMS Event Registration", {"event": payment.payment_for_document})
 
 		if seat_count <= number_of_students:
 			return True

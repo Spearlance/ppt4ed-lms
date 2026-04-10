@@ -56,7 +56,7 @@
                         :loading="checkingOut === plan.name"
                         @click="startCheckout(plan)"
                     >
-                        {{ plan.plan_type === 'Company' ? __('Start Company Plan') : __('Start Professional Plan') }}
+                        {{ plan.plan_type === 'Company' ? __('Start Company Plan') : plan.plan_type === 'Individual-Business' ? __('Start Business Plan') : __('Start Professional Plan') }}
                     </Button>
                 </div>
             </div>

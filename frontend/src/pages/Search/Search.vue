@@ -194,9 +194,9 @@ const navigate = (result: any) => {
 		})
 	} else if (result.doctype == 'LMS Batch') {
 		router.push({
-			name: 'BatchDetail',
+			name: 'EventDetail',
 			params: {
-				batchName: result.name,
+				eventName: result.name,
 			},
 		})
 	} else if (result.doctype == 'Job Opportunity') {
@@ -232,7 +232,7 @@ const getDocTypeTitle = (doctype: string) => {
 	if (doctype === 'LMS Course') {
 		return __('Course')
 	} else if (doctype === 'LMS Batch') {
-		return __('Batch')
+		return __('Event')
 	} else if (doctype === 'Job Opportunity') {
 		return __('Job')
 	} else {

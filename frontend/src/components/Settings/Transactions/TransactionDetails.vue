@@ -239,7 +239,7 @@ const openDetails = () => {
 	const docName = transactionData.value?.payment_for_document
 	if (docType && docName) {
 		router.push({
-			name: docType == 'LMS Course' ? 'CourseDetail' : 'BatchDetail',
+			name: docType == 'LMS Course' ? 'CourseDetail' : 'EventDetail',
 			params: {
 				[docType == 'LMS Course' ? 'courseName' : 'batchName']: docName,
 			},

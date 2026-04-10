@@ -10,7 +10,7 @@
   "progress",
   "payment",
   "current_lesson",
-  "enrollment_from_batch",
+  "enrollment_from_event",
   "column_break_3",
   "member",
   "member_name",
@@ -64,7 +64,6 @@
    "fieldtype": "Column Break"
   },
   {
-   "fetch_from": "batch.course",
    "fieldname": "course",
    "fieldtype": "Link",
    "in_list_view": 1,
@@ -132,10 +131,10 @@
    "label": "Member Image"
   },
   {
-   "fieldname": "enrollment_from_batch",
+   "fieldname": "enrollment_from_event",
    "fieldtype": "Link",
-   "label": "Enrollment from Batch",
-   "options": "LMS Batch"
+   "label": "Enrollment from Event",
+   "options": "LMS Event"
   }
  ],
  "grid_page_length": 50,
@@ -182,18 +181,6 @@
    "report": 1,
    "role": "Moderator",
    "select": 1,
-   "share": 1,
-   "write": 1
-  },
-  {
-   "create": 1,
-   "delete": 1,
-   "email": 1,
-   "export": 1,
-   "print": 1,
-   "read": 1,
-   "report": 1,
-   "role": "Course Creator",
    "share": 1,
    "write": 1
   }

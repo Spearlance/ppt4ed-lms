@@ -312,7 +312,6 @@ const sidebarLinks = ref(null)
 const { capture } = useTelemetry()
 const showPageModal = ref(false)
 const isModerator = ref(false)
-const isInstructor = ref(false)
 const pageToEdit = ref(null)
 const { sidebarSettings, activeTab, isSettingsOpen, programs } = useSettings()
 const settingsStore = useSettings()
@@ -440,12 +439,6 @@ const getFirstCourse = async () => {
 	return await call('lms.lms.onboarding.get_first_course')
 }
 
-const getFirstBatch = async () => {
-	let firstBatch = localStorage.getItem('firstBatch')
-	if (firstBatch) return firstBatch
-	return await call('lms.lms.onboarding.get_first_batch')
-}
-
 const steps = reactive([
 	{
 		name: 'create_first_course',
@@ -521,59 +514,6 @@ const steps = reactive([
 			isSettingsOpen.value = true
 		},
 	},
-	{
-		name: 'create_first_batch',
-		title: __('Create your first batch'),
-		icon: markRaw(h(Users, iconProps)),
-		completed: false,
-		onClick: () => {
-			minimize.value = true
-			router.push({ name: 'Batches' })
-		},
-	},
-	{
-		name: 'add_batch_student',
-		title: __('Add students to your batch'),
-		icon: markRaw(h(UserPlus, iconProps)),
-		completed: false,
-		dependsOn: 'create_first_batch',
-		onClick: async () => {
-			minimize.value = true
-			let batch = await getFirstBatch()
-			if (batch) {
-				router.push({
-					name: 'Batch',
-					params: {
-						batchName: batch,
-					},
-				})
-			} else {
-				router.push({ name: 'Batch' })
-			}
-		},
-	},
-	{
-		name: 'add_batch_course',
-		title: __('Add courses to your batch'),
-		icon: markRaw(h(BookText, iconProps)),
-		completed: false,
-		dependsOn: 'create_first_batch',
-		onClick: async () => {
-			minimize.value = true
-			let batch = await getFirstBatch()
-			if (batch) {
-				router.push({
-					name: 'Batch',
-					params: {
-						batchName: batch,
-					},
-					hash: '#courses',
-				})
-			} else {
-				router.push({ name: 'Batch' })
-			}
-		},
-	},
 ])
 
 const articles = ref([
@@ -592,14 +532,6 @@ const articles = ref([
 			{ name: 'create-a-course', title: __('Create a course') },
 			{ name: 'add-a-chapter', title: __('Add a chapter') },
 			{ name: 'add-a-lesson', title: __('Add a lesson') },
-		],
-	},
-	{
-		title: __('Creating a batch'),
-		opened: false,
-		subArticles: [
-			{ name: 'create-a-batch', title: __('Create a batch') },
-			{ name: 'create-a-live-class', title: __('Create a live class') },
 		],
 	},
 	{
@@ -656,7 +588,6 @@ watch(userResource, async () => {
 	await userResource.promise
 	if (userResource.data) {
 		isModerator.value = userResource.data.is_moderator
-		isInstructor.value = userResource.data.is_instructor
 		await programs.reload()
 		setUpOnboarding()
 	}

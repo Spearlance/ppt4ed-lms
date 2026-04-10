@@ -163,11 +163,7 @@ const showForm = ref(false)
 const title = ref('')
 
 onMounted(() => {
-	if (
-		!user.data?.is_moderator &&
-		!user.data?.is_instructor &&
-		!user.data?.is_evaluator
-	) {
+	if (!user.data?.is_moderator) {
 		router.push({ name: 'Courses' })
 	}
 	if (route.query.new === 'true') {

@@ -267,12 +267,7 @@ const checkIfUserIsPermitted = (doc: any = null) => {
 	}
 
 	if (!doc) return
-	if (
-		doc.owner != user.data?.name &&
-		!user.data?.is_instructor &&
-		!user.data?.is_moderator &&
-		!user.data.is_evaluator
-	) {
+	if (doc.owner != user.data?.name && !user.data?.is_moderator) {
 		router.push({
 			name: 'Courses',
 		})

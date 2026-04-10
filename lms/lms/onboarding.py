@@ -11,11 +11,11 @@ def get_first_course():
 	return course[0].name if course else None
 
 
-def get_first_batch():
-	batch = frappe.get_all(
-		"LMS Batch",
+def get_first_event():
+	event = frappe.get_all(
+		"LMS Event",
 		fields=["name"],
 		order_by="creation",
 		limit=1,
 	)
-	return batch[0].name if batch else None
+	return event[0].name if event else None

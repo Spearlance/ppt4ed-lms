@@ -95,7 +95,7 @@ permission_query_conditions = {
 
 has_permission = {
 	"LMS Live Class": "lms.lms.doctype.lms_live_class.lms_live_class.has_permission",
-	"LMS Batch": "lms.lms.doctype.lms_batch.lms_batch.has_permission",
+	"LMS Event": "lms.lms.doctype.lms_event.lms_event.has_permission",
 	"LMS Program": "lms.lms.doctype.lms_program.lms_program.has_permission",
 	"LMS Certificate": "lms.lms.doctype.lms_certificate.lms_certificate.has_permission",
 }
@@ -136,21 +136,18 @@ scheduler_events = {
 		"lms.sqlite.build_index_in_background",
 	],
 	"hourly": [
-		"lms.lms.doctype.lms_certificate_request.lms_certificate_request.schedule_evals",
 		"lms.lms.doctype.lms_course.lms_course.update_course_statistics",
-		"lms.lms.doctype.lms_certificate_request.lms_certificate_request.mark_eval_as_completed",
 		"lms.lms.doctype.lms_live_class.lms_live_class.update_attendance",
 	],
 	"daily": [
 		# "lms.job.doctype.job_opportunity.job_opportunity.update_job_openings",  # PPT4ed: hidden
 		"lms.lms.doctype.lms_payment.lms_payment.send_payment_reminder",
-		"lms.lms.doctype.lms_batch.lms_batch.send_batch_start_reminder",
 		"lms.lms.doctype.lms_live_class.lms_live_class.send_live_class_reminder",
 		"lms.lms.doctype.lms_course.lms_course.send_notification_for_published_courses",
 	],
 }
 
-fixtures = ["Custom Field", "Function", "Industry", "LMS Category"]
+fixtures = ["Custom Field", "Function", "Industry", "LMS Category", "CEU Membership Plan"]
 
 # Testing
 # -------
@@ -192,12 +189,13 @@ website_redirects = [
 		"source": r"^/courses/.*$",
 		"target": f"/{get_lms_path()}/courses",
 	},
-	{"source": "/batches", "target": f"/{get_lms_path()}/batches"},
+	{"source": "/events", "target": f"/{get_lms_path()}/events"},
 	{
-		"source": r"/batches/(.*)",
-		"target": f"/{get_lms_path()}/batches",
+		"source": r"/events/(.*)",
+		"target": f"/{get_lms_path()}/events",
 		"match_with_query_string": True,
 	},
+	{"source": "/batches", "target": f"/{get_lms_path()}/events"},
 	# {"source": "/job-openings", "target": f"/{get_lms_path()}/job-openings"},  # PPT4ed: hidden
 	# {  # PPT4ed: hidden
 	# 	"source": r"/job-openings/(.*)",
@@ -242,7 +240,6 @@ extend_bootinfo = [
 # ]
 
 has_website_permission = {
-	"LMS Certificate Evaluation": "lms.lms.doctype.lms_certificate_evaluation.lms_certificate_evaluation.has_website_permission",
 	"LMS Certificate": "lms.lms.doctype.lms_certificate.lms_certificate.has_website_permission",
 }
 

@@ -9,7 +9,7 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.utils import cint, format_date, format_time, get_datetime, nowdate
 
-from lms.lms.doctype.lms_batch.lms_batch import authenticate
+from lms.lms.doctype.lms_event.lms_event import authenticate
 
 
 class LMSLiveClass(Document):
@@ -35,9 +35,9 @@ class LMSLiveClass(Document):
 			frappe.delete_doc("Event", self.event, force=True)
 
 	def get_participants(self):
-		participants = frappe.get_all("LMS Batch Enrollment", {"batch": self.batch_name}, pluck="member")
+		participants = frappe.get_all("LMS Event Registration", {"event": self.event_name}, pluck="member")
 		instructors = frappe.get_all(
-			"Course Instructor", {"parenttype": "LMS Batch", "parent": self.batch_name}, pluck="instructor"
+			"Course Instructor", {"parenttype": "LMS Event", "parent": self.event_name}, pluck="instructor"
 		)
 		participants.append(frappe.session.user)
 		participants.extend(instructors)
@@ -156,13 +156,13 @@ def send_live_class_reminder():
 		{
 			"date": nowdate(),
 		},
-		["name", "batch_name", "title", "date", "time"],
+		["name", "event_name", "title", "date", "time"],
 	)
 
 	for live_class in classes:
 		students = frappe.get_all(
-			"LMS Batch Enrollment",
-			{"batch": live_class.batch_name},
+			"LMS Event Registration",
+			{"event": live_class.event_name},
 			["member", "member_name"],
 		)
 		for student in students:
@@ -178,7 +178,7 @@ def send_mail(live_class, student):
 		"title": live_class.title,
 		"date": live_class.date,
 		"time": live_class.time,
-		"batch_name": live_class.batch_name,
+		"event_name": live_class.event_name,
 	}
 
 	frappe.sendmail(
@@ -253,13 +253,13 @@ def get_minutes(duration_in_seconds):
 def has_permission(doc, ptype="read", user=None):
 	user = user or frappe.session.user
 	roles = frappe.get_roles(user)
-	if "Moderator" in roles or "Batch Evaluator" in roles:
+	if "Moderator" in roles:
 		return True
 
 	if ptype not in ("read", "select", "print"):
 		return False
 
 	return frappe.db.exists(
-		"LMS Batch Enrollment",
-		{"batch": doc.batch_name, "member": user},
+		"LMS Event Registration",
+		{"event": doc.event_name, "member": user},
 	)

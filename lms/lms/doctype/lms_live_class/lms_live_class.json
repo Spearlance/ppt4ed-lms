@@ -13,7 +13,7 @@
   "conferencing_provider",
   "zoom_account",
   "google_meet_account",
-  "batch_name",
+  "event_name",
   "column_break_astv",
   "date",
   "time",
@@ -121,10 +121,10 @@
    "reqd": 1
   },
   {
-   "fieldname": "batch_name",
+   "fieldname": "event_name",
    "fieldtype": "Link",
-   "label": "Batch",
-   "options": "LMS Batch"
+   "label": "Event",
+   "options": "LMS Event"
   },
   {
    "default": "No Recording",
@@ -238,19 +238,6 @@
    "report": 1,
    "role": "LMS Student",
    "share": 1
-  },
-  {
-   "create": 1,
-   "delete": 1,
-   "email": 1,
-   "export": 1,
-   "import": 1,
-   "print": 1,
-   "read": 1,
-   "report": 1,
-   "role": "Batch Evaluator",
-   "share": 1,
-   "write": 1
   }
  ],
  "row_format": "Dynamic",
