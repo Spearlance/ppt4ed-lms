@@ -77,6 +77,7 @@ import ZoomSettings from '@/components/Settings/ZoomSettings.vue'
 import GoogleMeetSettings from '@/components/Settings/GoogleMeetSettings.vue'
 import Badges from '@/components/Settings/Badges.vue'
 import Companies from '@/components/Settings/Companies.vue'
+import MembershipPlans from '@/components/Settings/MembershipPlans.vue'
 
 const show = defineModel()
 const doctype = ref('LMS Settings')
@@ -376,6 +377,12 @@ const tabsStructure = computed(() => {
 					icon: 'Ticket',
 					template: markRaw(Coupons),
 					description: 'Manage discount coupons for courses and events',
+				},
+				{
+					label: 'Membership Plans',
+					icon: 'Crown',
+					template: markRaw(MembershipPlans),
+					description: 'Create and manage membership plans with Stripe pricing',
 				},
 			],
 		},
