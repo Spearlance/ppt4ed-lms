@@ -76,6 +76,10 @@ class TestPPTEmployee(UnitTestCase):
 
         course_name = courses[0].name
 
+        # Clean up any existing enrollment from prior test runs
+        for e in frappe.db.get_all("LMS Enrollment", {"course": course_name, "member": "Administrator"}):
+            frappe.delete_doc("LMS Enrollment", e.name, force=True, ignore_permissions=True)
+
         result = enroll_ppt_employee(course_name, membership.name)
 
         # Should create enrollment
