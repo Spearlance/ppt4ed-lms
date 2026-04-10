@@ -5,9 +5,11 @@
     "title": "Therapist Partner",
     "plan_type": "Company",
     "ceu_hours": 8.0,
-    "price": 300.00,
+    "price": 300.0,
     "stripe_price_id": "price_1TKTTiLt1Or5vlf4HRyxoIM5",
-    "active": 1
+    "active": 1,
+    "display_order": 1,
+    "is_recommended": 0
   },
   {
     "doctype": "CEU Membership Plan",
@@ -15,9 +17,11 @@
     "title": "Practice Partner",
     "plan_type": "Company",
     "ceu_hours": 35.0,
-    "price": 1500.00,
+    "price": 1500.0,
     "stripe_price_id": "price_1TKTTjLt1Or5vlf4JaOaOYNT",
-    "active": 1
+    "active": 1,
+    "display_order": 2,
+    "is_recommended": 0
   },
   {
     "doctype": "CEU Membership Plan",
@@ -25,9 +29,11 @@
     "title": "Growth Partner",
     "plan_type": "Company",
     "ceu_hours": 80.0,
-    "price": 4000.00,
+    "price": 4000.0,
     "stripe_price_id": "price_1TKTTkLt1Or5vlf4kKZcXkq3",
-    "active": 1
+    "active": 1,
+    "display_order": 3,
+    "is_recommended": 1
   },
   {
     "doctype": "CEU Membership Plan",
@@ -35,9 +41,11 @@
     "title": "Leadership Partner",
     "plan_type": "Company",
     "ceu_hours": 160.0,
-    "price": 7500.00,
+    "price": 7500.0,
     "stripe_price_id": "price_1TKTTmLt1Or5vlf4i3nppfH1",
-    "active": 1
+    "active": 1,
+    "display_order": 4,
+    "is_recommended": 0
   },
   {
     "doctype": "CEU Membership Plan",
@@ -45,9 +53,11 @@
     "title": "Professional Membership",
     "plan_type": "Professional",
     "ceu_hours": 0,
-    "price": 100.00,
+    "price": 100.0,
     "stripe_price_id": "price_1TKTTnLt1Or5vlf4m1Pkpbw7",
-    "active": 1
+    "active": 1,
+    "display_order": 1,
+    "is_recommended": 0
   },
   {
     "doctype": "CEU Membership Plan",
@@ -55,8 +65,10 @@
     "title": "Individual Business Membership",
     "plan_type": "Individual-Business",
     "ceu_hours": 0,
-    "price": 500.00,
+    "price": 500.0,
     "stripe_price_id": "price_1TKTTrLt1Or5vlf473CFAlKS",
-    "active": 1
+    "active": 1,
+    "display_order": 2,
+    "is_recommended": 0
   }
 ]

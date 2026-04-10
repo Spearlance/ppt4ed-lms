@@ -97,17 +97,36 @@
                                     type="text"
                                 />
                             </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <FormControl
+                                    v-model="editForm.display_order"
+                                    :label="__('Display Order')"
+                                    type="number"
+                                />
+                            </div>
                             <div class="flex items-center justify-between">
-                                <label class="flex items-center gap-2 text-sm text-ink-gray-7 cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        v-model="editForm.active"
-                                        :true-value="1"
-                                        :false-value="0"
-                                        class="rounded"
-                                    />
-                                    {{ __('Active') }}
-                                </label>
+                                <div class="flex items-center gap-4">
+                                    <label class="flex items-center gap-2 text-sm text-ink-gray-7 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            v-model="editForm.active"
+                                            :true-value="1"
+                                            :false-value="0"
+                                            class="rounded"
+                                        />
+                                        {{ __('Active') }}
+                                    </label>
+                                    <label class="flex items-center gap-2 text-sm text-ink-gray-7 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            v-model="editForm.is_recommended"
+                                            :true-value="1"
+                                            :false-value="0"
+                                            class="rounded"
+                                        />
+                                        {{ __('Recommended') }}
+                                    </label>
+                                </div>
                                 <div class="flex gap-2">
                                     <Button @click="cancelEdit">{{ __('Cancel') }}</Button>
                                     <Button variant="solid" :loading="saving" @click="saveEdit">
@@ -201,6 +220,8 @@ const editForm = reactive({
     ceu_hours: 0,
     stripe_price_id: '',
     active: 1,
+    display_order: 0,
+    is_recommended: 0,
 })
 
 const createForm = reactive({
@@ -216,7 +237,7 @@ const plans = ref({ data: [], loading: true })
 const loadPlans = async () => {
     plans.value.loading = true
     try {
-        plans.value.data = await call('lms.lms.lms.api.get_all_membership_plans')
+        plans.value.data = await call('lms.lms.api.get_all_membership_plans')
     } catch (err) {
         toast.error(err.messages?.[0] || 'Failed to load plans')
     }
@@ -244,6 +265,8 @@ const startEdit = (plan) => {
         ceu_hours: plan.ceu_hours,
         stripe_price_id: plan.stripe_price_id || '',
         active: plan.active,
+        display_order: plan.display_order || 0,
+        is_recommended: plan.is_recommended || 0,
     })
 }
 
@@ -254,7 +277,7 @@ const cancelEdit = () => {
 const saveEdit = async () => {
     saving.value = true
     try {
-        await call('lms.lms.lms.api.update_membership_plan', {
+        await call('lms.lms.api.update_membership_plan', {
             plan_name: editing.value,
             title: editForm.title,
             plan_type: editForm.plan_type,
@@ -262,6 +285,8 @@ const saveEdit = async () => {
             ceu_hours: editForm.ceu_hours,
             stripe_price_id: editForm.stripe_price_id,
             active: editForm.active,
+            display_order: editForm.display_order,
+            is_recommended: editForm.is_recommended,
         })
         toast.success(__('Plan updated'))
         editing.value = null
@@ -294,7 +319,7 @@ const doCreate = async (close) => {
     }
     creating.value = true
     try {
-        await call('lms.lms.lms.api.create_membership_plan', {
+        await call('lms.lms.api.create_membership_plan', {
             title: createForm.title,
             plan_type: createForm.plan_type,
             price: createForm.price,

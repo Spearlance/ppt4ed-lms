@@ -28,7 +28,7 @@ import { Sparkles } from 'lucide-vue-next'
 const user = inject('$user')
 
 const userType = createResource({
-    url: 'lms.lms.lms.ceu_user_type.get_user_type',
+    url: 'lms.lms.ceu_user_type.get_user_type',
     auto: !!user?.data?.name,
 })
 

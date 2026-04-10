@@ -11,6 +11,15 @@ def get_stripe():
     return stripe
 
 
+@frappe.whitelist(allow_guest=True)
+def get_stripe_test_mode():
+    """Return whether Stripe is in test mode. Safe for guests — exposes no secrets."""
+    try:
+        return bool(frappe.db.get_single_value("CEU Stripe Settings", "test_mode"))
+    except Exception:
+        return False
+
+
 @frappe.whitelist()
 def create_one_off_checkout(course_name, price_amount, user_email):
     """Create a Stripe Checkout session for a one-off course purchase."""

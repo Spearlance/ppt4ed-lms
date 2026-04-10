@@ -8,7 +8,7 @@
                 :items="[{ label: __('Membership Plans'), route: { name: 'MembershipPlans' } }]"
             />
         </header>
-        <div class="p-5 pb-10 max-w-4xl mx-auto">
+        <div class="p-5 pb-10 max-w-6xl mx-auto">
             <div class="text-center mb-8">
                 <h1 class="text-2xl font-bold text-ink-gray-9">
                     {{ __('Choose Your Plan') }}
@@ -18,46 +18,115 @@
                 </p>
             </div>
 
-            <div v-if="plans.data" class="grid md:grid-cols-2 gap-6">
-                <div
-                    v-for="plan in plans.data"
-                    :key="plan.name"
-                    class="border rounded-lg p-6 flex flex-col"
-                    :class="plan.plan_type === 'Company' ? 'border-blue-300 bg-surface-blue-2' : 'border-outline-gray-3'"
-                >
-                    <div class="flex items-center justify-between mb-2">
-                        <h2 class="text-lg font-semibold text-ink-gray-9">
-                            {{ plan.title }}
-                        </h2>
-                        <Badge :theme="plan.plan_type === 'Company' ? 'blue' : 'green'">
-                            {{ plan.plan_type }}
-                        </Badge>
-                    </div>
-                    <div class="text-2xl font-bold text-ink-gray-9 mb-1">
-                        ${{ plan.price }}
-                        <span class="text-sm font-normal text-ink-gray-5">/year</span>
-                    </div>
-                    <div class="text-sm text-ink-gray-5 mb-4">
-                        {{ plan.ceu_hours }} CEU hours included
-                    </div>
-
-                    <div v-if="plan.plan_type === 'Company'" class="mb-4">
-                        <FormControl
-                            v-model="companyNames[plan.name]"
-                            :label="__('Company Name')"
-                            placeholder="Your Company Name"
-                            type="text"
-                        />
-                    </div>
-
-                    <Button
-                        class="mt-auto w-full"
-                        variant="solid"
-                        :loading="checkingOut === plan.name"
-                        @click="startCheckout(plan)"
+            <div v-if="plans.data" class="flex flex-col items-center">
+                <!-- Tab toggle -->
+                <div class="flex bg-surface-gray-2 rounded-lg p-1 mb-8">
+                    <button
+                        v-for="tab in tabs"
+                        :key="tab.value"
+                        class="px-6 py-2 rounded-md text-sm font-medium transition-all"
+                        :class="activeTab === tab.value
+                            ? 'bg-surface-white text-ink-gray-9 shadow-sm'
+                            : 'text-ink-gray-5 hover:text-ink-gray-7'"
+                        @click="activeTab = tab.value"
                     >
-                        {{ plan.plan_type === 'Company' ? __('Start Company Plan') : plan.plan_type === 'Individual-Business' ? __('Start Business Plan') : __('Start Professional Plan') }}
-                    </Button>
+                        {{ tab.label }}
+                    </button>
+                </div>
+
+                <!-- Company plans: horizontal comparison -->
+                <div v-if="activeTab === 'Company'" class="w-full">
+                    <div
+                        class="grid gap-4"
+                        :style="{ gridTemplateColumns: `repeat(${companyPlans.length}, minmax(0, 1fr))` }"
+                    >
+                        <div
+                            v-for="plan in companyPlans"
+                            :key="plan.name"
+                            class="border rounded-xl p-6 flex flex-col relative"
+                            :class="plan.is_recommended
+                                ? 'border-blue-400 bg-surface-blue-2 ring-2 ring-blue-100'
+                                : 'border-outline-gray-3'"
+                        >
+                            <div
+                                v-if="plan.is_recommended"
+                                class="absolute -top-3 left-1/2 -translate-x-1/2"
+                            >
+                                <Badge theme="blue" size="lg">
+                                    {{ __('Most Popular') }}
+                                </Badge>
+                            </div>
+                            <h3 class="text-lg font-semibold text-ink-gray-9 mt-1">
+                                {{ plan.title }}
+                            </h3>
+                            <div class="mt-4">
+                                <span class="text-3xl font-bold text-ink-gray-9">
+                                    ${{ formatPrice(plan.price) }}
+                                </span>
+                                <span class="text-sm text-ink-gray-5">/year</span>
+                            </div>
+                            <div class="text-sm text-ink-gray-5 mt-2 mb-6">
+                                {{ plan.ceu_hours }} CEU hours included
+                            </div>
+                            <div class="mt-auto space-y-3">
+                                <FormControl
+                                    v-model="companyNames[plan.name]"
+                                    :label="__('Company Name')"
+                                    placeholder="Your Company Name"
+                                    type="text"
+                                />
+                                <Button
+                                    class="w-full"
+                                    :variant="plan.is_recommended ? 'solid' : 'outline'"
+                                    :theme="plan.is_recommended ? 'blue' : 'gray'"
+                                    :loading="checkingOut === plan.name"
+                                    @click="startCheckout(plan)"
+                                >
+                                    {{ __('Get Started') }}
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Individual plans: centered two-card layout -->
+                <div v-else class="w-full max-w-2xl">
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div
+                            v-for="plan in individualPlans"
+                            :key="plan.name"
+                            class="border rounded-xl p-6 flex flex-col"
+                            :class="plan.is_recommended
+                                ? 'border-blue-400 bg-surface-blue-2 ring-2 ring-blue-100'
+                                : 'border-outline-gray-3'"
+                        >
+                            <div class="flex items-center justify-between mb-2">
+                                <h3 class="text-lg font-semibold text-ink-gray-9">
+                                    {{ plan.title }}
+                                </h3>
+                                <Badge :theme="plan.plan_type === 'Individual-Business' ? 'orange' : 'green'">
+                                    {{ plan.plan_type === 'Individual-Business' ? __('Business') : __('Professional') }}
+                                </Badge>
+                            </div>
+                            <div class="mt-2">
+                                <span class="text-3xl font-bold text-ink-gray-9">
+                                    ${{ formatPrice(plan.price) }}
+                                </span>
+                                <span class="text-sm text-ink-gray-5">/year</span>
+                            </div>
+                            <div class="text-sm text-ink-gray-5 mt-2 mb-6">
+                                {{ plan.ceu_hours }} CEU hours included
+                            </div>
+                            <Button
+                                class="mt-auto w-full"
+                                variant="solid"
+                                :loading="checkingOut === plan.name"
+                                @click="startCheckout(plan)"
+                            >
+                                {{ __('Get Started') }}
+                            </Button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -95,21 +164,39 @@
 
 <script setup>
 import { Badge, Breadcrumbs, Button, createResource, Dialog, FormControl, toast, usePageMeta, call } from 'frappe-ui'
-import { inject, reactive, ref } from 'vue'
+import { computed, inject, reactive, ref } from 'vue'
 import { sessionStore } from '@/stores/session'
 
 const user = inject('$user')
 const { brand } = sessionStore()
+const activeTab = ref('Company')
 const checkingOut = ref(null)
 const companyNames = reactive({})
 const showCompanyDialog = ref(false)
 const pendingCompanyName = ref('')
 const pendingPlan = ref(null)
 
+const tabs = [
+    { label: __('Company'), value: 'Company' },
+    { label: __('Individual'), value: 'Individual' },
+]
+
 const plans = createResource({
     url: 'lms.lms.api.get_membership_plans',
     auto: true,
 })
+
+const companyPlans = computed(() =>
+    (plans.data || []).filter(p => p.plan_type === 'Company')
+)
+
+const individualPlans = computed(() =>
+    (plans.data || []).filter(p => p.plan_type !== 'Company')
+)
+
+const formatPrice = (price) => {
+    return Number(price).toLocaleString('en-US', { maximumFractionDigits: 0 })
+}
 
 const startCheckout = async (plan) => {
     if (!user?.data?.name) {
@@ -145,7 +232,7 @@ const doCheckout = async (plan, companyName) => {
 
     checkingOut.value = plan.name
     try {
-        const result = await call('lms.lms.lms.ceu_stripe.create_subscription_checkout', {
+        const result = await call('lms.lms.ceu_stripe.create_subscription_checkout', {
             plan_name: plan.name,
             stripe_price_id: plan.stripe_price_id,
             user_email: user.data.email,

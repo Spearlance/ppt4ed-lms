@@ -2443,8 +2443,8 @@ def get_membership_plans():
 	plans = frappe.get_all(
 		"CEU Membership Plan",
 		filters={"active": 1},
-		fields=["name", "title", "plan_type", "ceu_hours", "price", "stripe_price_id"],
-		order_by="price asc"
+		fields=["name", "title", "plan_type", "ceu_hours", "price", "stripe_price_id", "display_order", "is_recommended"],
+		order_by="display_order asc, price asc"
 	)
 	return plans
 
@@ -2462,7 +2462,7 @@ def get_all_membership_plans():
 
 
 @frappe.whitelist()
-def create_membership_plan(title, plan_type, price, ceu_hours=0, stripe_price_id=None):
+def create_membership_plan(title, plan_type, price, ceu_hours=0, stripe_price_id=None, display_order=0, is_recommended=0):
 	"""Create a new membership plan."""
 	frappe.only_for(["System Manager"])
 
@@ -2473,7 +2473,9 @@ def create_membership_plan(title, plan_type, price, ceu_hours=0, stripe_price_id
 		"price": float(price),
 		"ceu_hours": float(ceu_hours) if ceu_hours else 0,
 		"stripe_price_id": stripe_price_id or "",
-		"active": 1
+				"active": 1,
+		"display_order": int(display_order) if display_order else 0,
+		"is_recommended": int(is_recommended) if is_recommended else 0
 	})
 	doc.insert(ignore_permissions=True)
 	return doc.as_dict()
@@ -2484,7 +2486,7 @@ def update_membership_plan(plan_name, **kwargs):
 	"""Update an existing membership plan."""
 	frappe.only_for(["System Manager"])
 
-	allowed_fields = {"title", "plan_type", "price", "ceu_hours", "stripe_price_id", "active"}
+	allowed_fields = {"title", "plan_type", "price", "ceu_hours", "stripe_price_id", "active", "display_order", "is_recommended"}
 	doc = frappe.get_doc("CEU Membership Plan", plan_name)
 
 	for field, value in kwargs.items():

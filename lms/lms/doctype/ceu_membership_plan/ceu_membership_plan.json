@@ -7,7 +7,7 @@
     "engine": "InnoDB",
     "field_order": [
         "title", "plan_type", "ceu_hours", "price",
-        "stripe_price_id", "active"
+        "stripe_price_id", "active", "display_order", "is_recommended"
     ],
     "fields": [
         {
@@ -52,6 +52,21 @@
             "fieldtype": "Check",
             "in_list_view": 1,
             "label": "Active"
+        },
+        {
+            "default": "0",
+            "fieldname": "display_order",
+            "fieldtype": "Int",
+            "in_list_view": 1,
+            "label": "Display Order",
+            "description": "Controls column order on pricing page (lower = first)"
+        },
+        {
+            "default": "0",
+            "fieldname": "is_recommended",
+            "fieldtype": "Check",
+            "label": "Recommended",
+            "description": "Highlights this plan as Most Popular on pricing page"
         }
     ],
     "index_web_pages_for_search": 1,

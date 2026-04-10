@@ -332,6 +332,8 @@ onMounted(() => {
 	setUpOnboarding()
 	addKeyboardShortcut()
 	updateSidebarLinks()
+	// Ensure sidebar settings load even if userResource is already cached
+	sidebarSettings.reload()
 	socket.on('publish_lms_notifications', (data) => {
 		unreadNotifications.reload()
 	})
