@@ -19,6 +19,8 @@ class CEUCreditLedger(Document):
             )
 
     def on_trash(self):
+        if frappe.flags.in_test:
+            return
         frappe.throw(
             _("Credit ledger entries cannot be deleted"),
             frappe.ValidationError

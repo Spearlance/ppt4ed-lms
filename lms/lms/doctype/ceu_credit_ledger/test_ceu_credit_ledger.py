@@ -56,8 +56,13 @@ class TestCEUCreditLedger(UnitTestCase):
         })
         doc.insert(ignore_permissions=True)
 
-        with self.assertRaises(frappe.ValidationError):
-            doc.delete(ignore_permissions=True)
+        # Temporarily clear in_test flag to verify production behavior
+        frappe.flags.in_test = False
+        try:
+            with self.assertRaises(frappe.ValidationError):
+                doc.delete(ignore_permissions=True)
+        finally:
+            frappe.flags.in_test = True
 
     def test_ledger_accepts_stripe_payment_id(self):
         doc = frappe.get_doc({
