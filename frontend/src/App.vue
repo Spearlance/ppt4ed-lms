@@ -1,5 +1,17 @@
 <template>
 	<FrappeUIProvider>
+		<div
+			v-if="isTestMode"
+			class="bg-amber-400 text-amber-900 text-center text-xs font-medium py-1 px-4"
+		>
+			DEV MODE — Payments are test-only. Use
+			<a
+				href="https://docs.stripe.com/testing#cards"
+				target="_blank"
+				class="underline hover:text-amber-950"
+			>test cards</a>
+			for checkout.
+		</div>
 		<Layout class="isolate text-p-base">
 			<router-view />
 		</Layout>
@@ -8,7 +20,7 @@
 	</FrappeUIProvider>
 </template>
 <script setup>
-import { FrappeUIProvider } from 'frappe-ui'
+import { FrappeUIProvider, createResource } from 'frappe-ui'
 import { Dialogs } from '@/utils/dialogs'
 import { computed, onUnmounted, ref } from 'vue'
 import { useScreenSize } from './utils/composables'
@@ -18,6 +30,12 @@ import DesktopLayout from './components/DesktopLayout.vue'
 import MobileLayout from './components/MobileLayout.vue'
 import NoSidebarLayout from './components/NoSidebarLayout.vue'
 import InstallPrompt from './components/InstallPrompt.vue'
+
+const testMode = createResource({
+	url: 'lms.lms.ceu_stripe.get_stripe_test_mode',
+	auto: true,
+})
+const isTestMode = computed(() => testMode.data === true)
 
 const { isMobile } = useScreenSize()
 const router = useRouter()
