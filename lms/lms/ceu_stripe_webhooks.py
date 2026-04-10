@@ -1,6 +1,6 @@
 import frappe
 from frappe import _
-from frappe.utils import add_years, today
+from frappe.utils import add_years, today, now_datetime
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
@@ -47,7 +47,8 @@ def handle_checkout_completed(data):
     if checkout_type == "one_off":
         _create_one_off_enrollment(
             course=metadata.get("course"),
-            user=metadata.get("user")
+            user=metadata.get("user"),
+            stripe_payment_id=data.get("payment_intent")
         )
     elif checkout_type == "subscription":
         _activate_subscription(
@@ -127,10 +128,23 @@ def handle_payment_failed(data):
         frappe.db.set_value("CEU Membership", membership_name, "status", "Past Due")
 
 
-def _create_one_off_enrollment(course, user):
-    """Create an LMS Enrollment for a one-off purchase."""
+def _create_one_off_enrollment(course, user, stripe_payment_id=None):
+    """Create an LMS Enrollment for a one-off purchase with ledger entry."""
     if frappe.db.exists("LMS Enrollment", {"course": course, "member": user}):
         return
+
+    # Write ledger entry for audit trail
+    frappe.get_doc({
+        "doctype": "CEU Credit Ledger",
+        "user": user,
+        "course": course,
+        "transaction_type": "Direct Purchase",
+        "hours": 0,
+        "balance_after": 0,
+        "timestamp": now_datetime(),
+        "stripe_payment_id": stripe_payment_id,
+    }).insert(ignore_permissions=True)
+
     frappe.get_doc({
         "doctype": "LMS Enrollment",
         "member": user,

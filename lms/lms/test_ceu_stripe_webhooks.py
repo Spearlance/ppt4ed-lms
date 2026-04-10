@@ -88,3 +88,40 @@ class TestCEUStripeWebhooks(UnitTestCase):
 
         membership.reload()
         self.assertEqual(membership.credit_balance, 20.0)
+
+    def test_one_off_purchase_creates_ledger_entry(self):
+        from lms.lms.ceu_stripe_webhooks import _create_one_off_enrollment
+
+        # Need a real course
+        courses = frappe.db.get_all("LMS Course", limit=1)
+        if not courses:
+            self.skipTest("No LMS Course exists for testing")
+
+        course_name = courses[0].name
+        user = "Administrator"
+
+        # Delete any existing enrollment for this test
+        for e in frappe.db.get_all("LMS Enrollment", {"course": course_name, "member": user}):
+            frappe.delete_doc("LMS Enrollment", e.name, force=True, ignore_permissions=True)
+
+        _create_one_off_enrollment(
+            course=course_name,
+            user=user,
+            stripe_payment_id="cs_test_oneoff_789"
+        )
+
+        # Should have created a ledger entry
+        ledger = frappe.get_last_doc("CEU Credit Ledger", filters={
+            "user": user,
+            "transaction_type": "Direct Purchase",
+            "course": course_name
+        })
+        self.assertEqual(ledger.stripe_payment_id, "cs_test_oneoff_789")
+        self.assertEqual(ledger.hours, 0)
+
+        # Should have created enrollment with credit_source
+        enrollment = frappe.get_last_doc("LMS Enrollment", filters={
+            "member": user,
+            "course": course_name
+        })
+        self.assertEqual(enrollment.credit_source, "One-Off")
