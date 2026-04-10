@@ -2447,3 +2447,49 @@ def get_membership_plans():
 		order_by="price asc"
 	)
 	return plans
+
+
+@frappe.whitelist()
+def get_all_membership_plans():
+	"""Get all membership plans for admin settings view (includes inactive)."""
+	frappe.only_for(["Moderator", "System Manager"])
+
+	return frappe.get_all(
+		"CEU Membership Plan",
+		fields=["name", "title", "plan_type", "ceu_hours", "price", "stripe_price_id", "active"],
+		order_by="price asc"
+	)
+
+
+@frappe.whitelist()
+def create_membership_plan(title, plan_type, price, ceu_hours=0, stripe_price_id=None):
+	"""Create a new membership plan."""
+	frappe.only_for(["System Manager"])
+
+	doc = frappe.get_doc({
+		"doctype": "CEU Membership Plan",
+		"title": title,
+		"plan_type": plan_type,
+		"price": float(price),
+		"ceu_hours": float(ceu_hours) if ceu_hours else 0,
+		"stripe_price_id": stripe_price_id or "",
+		"active": 1
+	})
+	doc.insert(ignore_permissions=True)
+	return doc.as_dict()
+
+
+@frappe.whitelist()
+def update_membership_plan(plan_name, **kwargs):
+	"""Update an existing membership plan."""
+	frappe.only_for(["System Manager"])
+
+	allowed_fields = {"title", "plan_type", "price", "ceu_hours", "stripe_price_id", "active"}
+	doc = frappe.get_doc("CEU Membership Plan", plan_name)
+
+	for field, value in kwargs.items():
+		if field in allowed_fields:
+			doc.set(field, value)
+
+	doc.save(ignore_permissions=True)
+	return doc.as_dict()
