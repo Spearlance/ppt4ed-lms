@@ -4,11 +4,11 @@
 	if (window.location.pathname !== '/login') return;
 
 	var PERSONAS = [
-		{ email: 'pro@test.com', password: 'password123', name: 'Sarah Professional', tag: 'Professional — 20 CEU credits' },
-		{ email: 'company-admin@test.com', password: 'password123', name: 'Mike Manager', tag: 'Company Admin — 80 pool credits' },
-		{ email: 'company-employee@test.com', password: 'password123', name: 'Lisa Employee', tag: 'Company Employee — uses pool' },
-		{ email: 'ppt@test.com', password: 'password123', name: 'Pat PPTEmployee', tag: 'PPT Employee — free access' },
-		{ email: 'broke@test.com', password: 'password123', name: 'Brooke Nocredits', tag: 'Professional — 0.5 credits (low)' },
+		{ email: 'pro@test.com', password: 'TestUser@2026!', name: 'Sarah Professional', tag: 'Professional — 20 CEU credits' },
+		{ email: 'company-admin@test.com', password: 'TestUser@2026!', name: 'Mike Manager', tag: 'Company Admin — 80 pool credits' },
+		{ email: 'company-employee@test.com', password: 'TestUser@2026!', name: 'Lisa Employee', tag: 'Company Employee — uses pool' },
+		{ email: 'ppt@test.com', password: 'TestUser@2026!', name: 'Pat PPTEmployee', tag: 'PPT Employee — free access' },
+		{ email: 'broke@test.com', password: 'TestUser@2026!', name: 'Brooke Nocredits', tag: 'Professional — 0.5 credits (low)' },
 	];
 
 	function loginAs(email, password) {

@@ -107,7 +107,7 @@ def _ensure_user(email, first_name, last_name):
         "first_name": first_name,
         "last_name": last_name,
         "enabled": 1,
-        "new_password": "password123",
+        "new_password": "TestUser@2026!",
         "send_welcome_email": 0,
         "roles": [{"role": "LMS Student"}],
     })
