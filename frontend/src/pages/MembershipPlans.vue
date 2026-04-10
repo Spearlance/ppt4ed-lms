@@ -232,7 +232,7 @@ const doCheckout = async (plan, companyName) => {
 
     checkingOut.value = plan.name
     try {
-        const result = await call('lms.lms.lms.ceu_stripe.create_subscription_checkout', {
+        const result = await call('lms.lms.ceu_stripe.create_subscription_checkout', {
             plan_name: plan.name,
             stripe_price_id: plan.stripe_price_id,
             user_email: user.data.email,
