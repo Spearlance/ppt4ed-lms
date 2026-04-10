@@ -1,6 +1,7 @@
 [
   {
     "doctype": "CEU Membership Plan",
+    "name": "Therapist Partner",
     "title": "Therapist Partner",
     "plan_type": "Company",
     "ceu_hours": 8.0,
@@ -10,6 +11,7 @@
   },
   {
     "doctype": "CEU Membership Plan",
+    "name": "Practice Partner",
     "title": "Practice Partner",
     "plan_type": "Company",
     "ceu_hours": 35.0,
@@ -19,6 +21,7 @@
   },
   {
     "doctype": "CEU Membership Plan",
+    "name": "Growth Partner",
     "title": "Growth Partner",
     "plan_type": "Company",
     "ceu_hours": 80.0,
@@ -28,6 +31,7 @@
   },
   {
     "doctype": "CEU Membership Plan",
+    "name": "Leadership Partner",
     "title": "Leadership Partner",
     "plan_type": "Company",
     "ceu_hours": 160.0,
@@ -37,6 +41,7 @@
   },
   {
     "doctype": "CEU Membership Plan",
+    "name": "Professional Membership",
     "title": "Professional Membership",
     "plan_type": "Professional",
     "ceu_hours": 0,
@@ -46,6 +51,7 @@
   },
   {
     "doctype": "CEU Membership Plan",
+    "name": "Individual Business Membership",
     "title": "Individual Business Membership",
     "plan_type": "Individual-Business",
     "ceu_hours": 0,
