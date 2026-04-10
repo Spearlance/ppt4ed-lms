@@ -75,6 +75,26 @@ COMPANY = {
 }
 
 
+def _ensure_ppt_employee_plan():
+    """Create the PPT Employee Plan if it doesn't exist in the DB."""
+    if frappe.db.exists("CEU Membership Plan", "PPT Employee Plan"):
+        print("  [skip] CEU Membership Plan 'PPT Employee Plan' already exists")
+        return
+
+    frappe.get_doc({
+        "doctype": "CEU Membership Plan",
+        "title": "PPT Employee Plan",
+        "plan_type": "PPT Employee",
+        "ceu_hours": 0,
+        "price": 0.0,
+        "stripe_price_id": "",
+        "active": 1,
+        "display_order": 99,
+        "is_recommended": 0,
+    }).insert(ignore_permissions=True)
+    print("  [created] CEU Membership Plan 'PPT Employee Plan'")
+
+
 def _ensure_user(email, first_name, last_name):
     """Create User if it doesn't exist. Returns the email (Frappe User name)."""
     if frappe.db.exists("User", email):
@@ -179,6 +199,9 @@ def seed():
     frappe.flags.ignore_permissions = True
 
     print("\n=== Seeding test users ===\n")
+
+    print("→ PPT Employee Plan")
+    _ensure_ppt_employee_plan()
 
     membership_map = {}
 
