@@ -28,6 +28,19 @@ class TestCEUMembershipPlan(UnitTestCase):
         doc.insert(ignore_permissions=True)
         self.assertEqual(doc.plan_type, "Company")
 
+    def test_create_individual_business_plan(self):
+        doc = frappe.get_doc({
+            "doctype": "CEU Membership Plan",
+            "title": "Individual Business 0hr",
+            "plan_type": "Individual-Business",
+            "ceu_hours": 0,
+            "price": 500.00,
+            "active": 1
+        })
+        doc.insert(ignore_permissions=True)
+        self.assertEqual(doc.plan_type, "Individual-Business")
+        self.assertEqual(doc.price, 500.00)
+
     def test_plan_type_required(self):
         doc = frappe.get_doc({
             "doctype": "CEU Membership Plan",
