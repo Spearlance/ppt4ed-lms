@@ -128,6 +128,13 @@
                                     </label>
                                 </div>
                                 <div class="flex gap-2">
+                                    <Button
+                                        theme="red"
+                                        :loading="deleting"
+                                        @click="confirmDelete(plan)"
+                                    >
+                                        {{ __('Delete') }}
+                                    </Button>
                                     <Button @click="cancelEdit">{{ __('Cancel') }}</Button>
                                     <Button variant="solid" :loading="saving" @click="saveEdit">
                                         {{ __('Save') }}
@@ -211,6 +218,7 @@ const search = ref('')
 const editing = ref(null)
 const saving = ref(false)
 const creating = ref(false)
+const deleting = ref(false)
 const showCreate = ref(false)
 
 const editForm = reactive({
@@ -295,6 +303,22 @@ const saveEdit = async () => {
         toast.error(err.messages?.[0] || 'Failed to update plan')
     }
     saving.value = false
+}
+
+const confirmDelete = async (plan) => {
+    if (!confirm(`Delete "${plan.title}"? This cannot be undone.`)) return
+    deleting.value = true
+    try {
+        await call('lms.lms.api.delete_membership_plan', {
+            plan_name: plan.name,
+        })
+        toast.success(__('Plan deleted'))
+        editing.value = null
+        await loadPlans()
+    } catch (err) {
+        toast.error(err.messages?.[0] || 'Failed to delete plan')
+    }
+    deleting.value = false
 }
 
 const startCreate = () => {
