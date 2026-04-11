@@ -384,12 +384,6 @@ const tabsStructure = computed(() => {
 					template: markRaw(MembershipPlans),
 					description: 'Create and manage membership plans with Stripe pricing',
 				},
-				{
-					label: 'Membership Plans',
-					icon: 'Crown',
-					template: markRaw(MembershipPlans),
-					description: 'Create and manage membership plans with Stripe pricing',
-				},
 			],
 		},
 		{

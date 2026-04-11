@@ -2456,8 +2456,8 @@ def get_all_membership_plans():
 
 	return frappe.get_all(
 		"CEU Membership Plan",
-		fields=["name", "title", "plan_type", "ceu_hours", "price", "stripe_price_id", "active"],
-		order_by="price asc"
+		fields=["name", "title", "plan_type", "ceu_hours", "price", "stripe_price_id", "active", "display_order", "is_recommended"],
+		order_by="display_order asc, price asc"
 	)
 
 
@@ -2495,3 +2495,20 @@ def update_membership_plan(plan_name, **kwargs):
 
 	doc.save(ignore_permissions=True)
 	return doc.as_dict()
+
+
+@frappe.whitelist()
+def delete_membership_plan(plan_name):
+	"""Delete a membership plan. Fails if any membership references it."""
+	frappe.only_for(["System Manager"])
+
+	linked = frappe.db.count("CEU Membership", {"plan": plan_name})
+	if linked:
+		frappe.throw(
+			_("Cannot delete plan '{0}' — {1} membership(s) still reference it. Deactivate it instead.").format(
+				plan_name, linked
+			)
+		)
+
+	frappe.delete_doc("CEU Membership Plan", plan_name, ignore_permissions=True)
+	return {"status": "deleted"}
