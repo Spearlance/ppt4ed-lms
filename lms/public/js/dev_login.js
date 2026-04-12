@@ -12,18 +12,15 @@
 	];
 
 	function loginAs(email, password) {
-		var emailInput = document.getElementById('login_email');
-		var passwordInput = document.getElementById('login_password');
-		var loginBtn = document.querySelector('.btn-login');
-
-		if (emailInput) emailInput.value = email;
-		if (passwordInput) passwordInput.value = password;
-
-		// Trigger change events so Frappe picks up the values
-		if (emailInput) emailInput.dispatchEvent(new Event('change', { bubbles: true }));
-		if (passwordInput) passwordInput.dispatchEvent(new Event('change', { bubbles: true }));
-
-		if (loginBtn) loginBtn.click();
+		frappe.call({
+			method: 'login',
+			args: { usr: email, pwd: password },
+			freeze: true,
+			freeze_message: 'Logging in…',
+			callback: function () {
+				window.location.href = '/';
+			},
+		});
 	}
 
 	function createDevLoginCard() {
