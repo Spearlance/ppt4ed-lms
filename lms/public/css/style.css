@@ -2474,3 +2474,56 @@ select {
 .toastui-calendar-weekday-event-block {
 	box-shadow: none !important;
 }
+
+/* ── Login Page ────────────────────────────────────────────────── */
+
+/* Hide "Forgot Password?" link */
+.page-card .for-forgot {
+	display: none;
+}
+
+/* Hide "Login with Email Link" section */
+.page-card .for-login-with-email-link,
+.page-card .for-email-login {
+	display: none;
+}
+
+/* Hide signup section (already shows "disabled" message) */
+.page-card .for-signup {
+	display: none;
+}
+
+/* Hide "Built on Frappe" footer on login page */
+body[data-page="login"] .web-footer,
+.login-content ~ .web-footer {
+	display: none;
+}
+
+/* Remove duplicate logo — Frappe shows one in navbar + one in card */
+.login-content .page-card .page-card-head .navbar-brand,
+.login-content .page-card-head img[src*="ppt4ed-logo"]:first-of-type {
+	display: none;
+}
+
+/* Login card branding */
+.login-content .page-card {
+	border: 1px solid #cce5f0;
+	border-radius: 12px;
+	box-shadow: 0 4px 24px rgba(11, 102, 133, 0.08);
+}
+
+.login-content .page-card-head .title {
+	color: #0b6685;
+}
+
+.login-content .btn-primary,
+.login-content .btn-primary-dark {
+	background-color: #0b6685;
+	border-color: #0b6685;
+}
+
+.login-content .btn-primary:hover,
+.login-content .btn-primary-dark:hover {
+	background-color: #094e65;
+	border-color: #094e65;
+}
