@@ -11,16 +11,17 @@
 		{ email: 'broke@test.com', password: 'TestUser@2026!', name: 'Brooke Nocredits', tag: 'Professional — 0.5 credits (low)' },
 	];
 
-	function loginAs(email, password) {
-		frappe.call({
-			method: 'login',
-			args: { usr: email, pwd: password },
-			freeze: true,
-			freeze_message: 'Logging in…',
-			callback: function () {
-				window.location.href = '/';
-			},
-		});
+	function fillCredentials(email, password) {
+		var emailInput = document.getElementById('login_email');
+		var passwordInput = document.getElementById('login_password');
+		if (emailInput) {
+			emailInput.value = email;
+			emailInput.dispatchEvent(new Event('change', { bubbles: true }));
+		}
+		if (passwordInput) {
+			passwordInput.value = password;
+			passwordInput.dispatchEvent(new Event('change', { bubbles: true }));
+		}
 	}
 
 	function createDevLoginCard() {
@@ -84,7 +85,7 @@
 			});
 			buttons[j].addEventListener('click', function () {
 				var idx = parseInt(this.getAttribute('data-index'), 10);
-				loginAs(PERSONAS[idx].email, PERSONAS[idx].password);
+				fillCredentials(PERSONAS[idx].email, PERSONAS[idx].password);
 			});
 		}
 	}
