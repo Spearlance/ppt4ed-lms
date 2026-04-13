@@ -93,7 +93,7 @@ const subtitleClass = computed(() => isZero.value ? 'text-ink-red-2' : 'text-ink
 const title = computed(() => {
     if (isZero.value) return __('No credits remaining')
     const b = balance.value
-    return __('Low credit balance — {0} CEU hours remaining', [b])
+    return __('Low credit balance — {0} CEU hours remaining').format(b)
 })
 
 const subtitle = computed(() => {
