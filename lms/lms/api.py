@@ -66,6 +66,28 @@ def get_user_info():
 		"Company Admin",
 		{"user": frappe.session.user, "parenttype": "Company Account"}
 	)
+
+	# Company member context
+	from lms.lms.ceu_user_type import get_user_type
+	user_type = get_user_type(frappe.session.user)
+	if user_type.get("type") == "company":
+		user.is_company_member = True
+		user.company_account = user_type["company"]
+		user.company_name = frappe.db.get_value("Company Account", user_type["company"], "company_name")
+		membership = user_type.get("membership")
+		if membership:
+			mem_data = frappe.db.get_value(
+				"CEU Membership", membership,
+				["credit_balance", "status"], as_dict=True
+			)
+			user.company_credit_balance = mem_data.credit_balance if mem_data else 0
+			user.company_membership_status = mem_data.status if mem_data else None
+		else:
+			user.company_credit_balance = 0
+			user.company_membership_status = None
+	else:
+		user.is_company_member = False
+
 	user.sitename = frappe.local.site
 	user.developer_mode = frappe.conf.developer_mode
 	if user.is_fc_site and user.is_system_manager:

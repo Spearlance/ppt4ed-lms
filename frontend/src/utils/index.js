@@ -503,6 +503,16 @@ const getSidebarItems = () => {
 					activeFor: ['Statistics'],
 				},
 				{
+					label: 'My Credits',
+					icon: 'Wallet',
+					to: 'MyCredits',
+					activeFor: ['MyCredits'],
+					await: true,
+					condition: () => {
+						return userResource?.data?.is_company_member
+					},
+				},
+				{
 					label: 'Company',
 					icon: 'Building2',
 					to: 'CompanyDashboard',

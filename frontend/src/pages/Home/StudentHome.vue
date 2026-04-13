@@ -1,5 +1,23 @@
 <template>
 	<div>
+		<div
+			v-if="user.data?.is_company_member"
+			class="mt-5 border rounded-md p-4 bg-surface-gray-1 flex items-center justify-between"
+		>
+			<div>
+				<div class="text-sm text-ink-gray-5">
+					{{ user.data.company_name }}
+				</div>
+				<div class="text-xl font-semibold text-ink-gray-9">
+					{{ user.data.company_credit_balance }} {{ __('CEU hours available') }}
+				</div>
+			</div>
+			<router-link :to="{ name: 'MyCredits' }">
+				<Button variant="subtle" size="sm">
+					{{ __('View Credits') }}
+				</Button>
+			</router-link>
+		</div>
 		<div class="mt-10 space-y-10">
 			<div v-if="myLiveClasses.data?.length">
 				<div class="font-semibold text-lg mb-3 text-ink-gray-9">
@@ -138,7 +156,7 @@
 </template>
 <script setup lang="ts">
 import { inject } from 'vue'
-import { createResource, Tooltip } from 'frappe-ui'
+import { Button, createResource, Tooltip } from 'frappe-ui'
 import { formatTime } from '@/utils'
 import {
 	Calendar,

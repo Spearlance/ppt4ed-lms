@@ -4,6 +4,12 @@
 			<div class="flex items-center justify-between">
 				<div class="text-xl font-bold text-ink-gray-9">
 					{{ __('Hey') }}, {{ user.data?.full_name }} 👋
+					<span
+						v-if="user.data?.is_company_member"
+						class="text-sm font-normal text-ink-gray-5 ml-1"
+					>
+						— {{ user.data.company_name }}
+					</span>
 				</div>
 				<div>
 					<div
@@ -143,6 +149,12 @@ const subtitle = computed(() => {
 			return __('You have {0} {1} scheduled.').format(
 				evalCount.value,
 				evalSuffix
+			)
+		}
+		if (user.data?.is_company_member && user.data?.company_membership_status === 'Active') {
+			return __('You have {0} CEU hours available through {1}').format(
+				user.data.company_credit_balance,
+				user.data.company_name
 			)
 		}
 		return __('Resume where you left off')

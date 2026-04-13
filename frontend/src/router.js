@@ -184,6 +184,11 @@ const routes = [
 		component: () => import('@/pages/Search/Search.vue'),
 	},
 	{
+		path: '/my-credits',
+		name: 'MyCredits',
+		component: () => import('@/pages/MyCredits.vue'),
+	},
+	{
 		path: '/company-dashboard',
 		name: 'CompanyDashboard',
 		component: () => import('@/pages/CompanyDashboard.vue'),

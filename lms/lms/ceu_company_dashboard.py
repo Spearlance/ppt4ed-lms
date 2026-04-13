@@ -16,6 +16,18 @@ def _get_user_company():
     return companies[0].parent
 
 
+def _get_member_company():
+    """Get the Company Account where the current user is an active member."""
+    member = frappe.db.get_value(
+        "Company Member",
+        {"user": frappe.session.user, "status": "Active", "parenttype": "Company Account"},
+        "parent"
+    )
+    if not member:
+        frappe.throw(_("You are not a company member"), frappe.PermissionError)
+    return member
+
+
 @frappe.whitelist()
 def get_company_dashboard():
     """Get company overview data for the logged-in company admin."""
@@ -179,3 +191,46 @@ def get_enrollment_requests():
         ) or req.course
 
     return requests
+
+
+@frappe.whitelist()
+def get_my_company_credits():
+    """Get credit info for the current user as a company member."""
+    company_name = _get_member_company()
+    company = frappe.get_doc("Company Account", company_name)
+
+    if not company.membership:
+        return {
+            "company_name": company.company_name,
+            "credit_balance": 0,
+            "membership_status": None,
+            "my_transactions": [],
+        }
+
+    membership = frappe.get_doc("CEU Membership", company.membership)
+
+    entries = frappe.get_all(
+        "CEU Credit Ledger",
+        filters={
+            "membership": company.membership,
+            "user": frappe.session.user,
+        },
+        fields=[
+            "name", "transaction_type", "hours",
+            "balance_after", "course", "timestamp"
+        ],
+        order_by="timestamp desc",
+        limit=50
+    )
+
+    for entry in entries:
+        entry["course_title"] = frappe.db.get_value(
+            "LMS Course", entry.course, "title"
+        ) if entry.course else None
+
+    return {
+        "company_name": company.company_name,
+        "credit_balance": membership.credit_balance,
+        "membership_status": membership.status,
+        "my_transactions": entries,
+    }

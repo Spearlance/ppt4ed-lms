@@ -856,6 +856,7 @@ def get_course_fields():
 		"lessons",
 		"enrollments",
 		"rating",
+		"ceu_hours",
 	]
 
 

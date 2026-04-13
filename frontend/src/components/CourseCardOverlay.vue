@@ -36,6 +36,35 @@
 					</router-link>
 					<CertificationLinks :courseName="course.data.name" class="w-full" />
 				</div>
+				<div
+					v-else-if="isCompanyMember && courseCeuHours > 0 && !isAdmin"
+					class="space-y-2 mb-8"
+				>
+					<Button
+						@click="enrollViaCompany()"
+						variant="solid"
+						size="md"
+						class="w-full"
+						:disabled="insufficientCredits"
+					>
+						<template #prefix>
+							<BookText class="size-4 stroke-1.5" />
+						</template>
+						<span>
+							{{ __('Enroll') }} — {{ courseCeuHours }} CEU
+							{{ courseCeuHours === 1 ? __('hour') : __('hours') }}
+						</span>
+					</Button>
+					<div class="text-xs text-ink-gray-5 text-center">
+						{{ __('From your {0} account').replace('{0}', user.data.company_name) }}
+						<span
+							v-if="insufficientCredits"
+							class="text-red-600 block mt-1"
+						>
+							{{ __('Insufficient credits ({0} available)').replace('{0}', user.data.company_credit_balance) }}
+						</span>
+					</div>
+				</div>
 				<router-link
 					v-else-if="course.data.paid_course && !isAdmin"
 					:to="{
@@ -264,4 +293,51 @@ const fetchCertificate = () => {
 const isAdmin = computed(() => {
 	return user.data?.is_moderator || is_instructor()
 })
+
+const isCompanyMember = computed(() => user.data?.is_company_member)
+
+const courseCeuHours = computed(() => props.course.data?.ceu_hours || 0)
+
+const insufficientCredits = computed(() => {
+	return (user.data?.company_credit_balance || 0) < courseCeuHours.value
+})
+
+async function enrollViaCompany() {
+	if (!user.data) {
+		toast.warning(__('You need to login first to enroll for this course'))
+		setTimeout(() => {
+			window.location.href = `/login?redirect-to=${window.location.pathname}`
+		}, 500)
+		return
+	}
+	try {
+		const result = await call(
+			'lms.lms.ceu_enrollment.enroll_company_member',
+			{
+				course_name: props.course.data.name,
+				company_name: user.data.company_account,
+			}
+		)
+		if (result.status === 'enrolled') {
+			capture('enrolled_in_course', {
+				course: props.course.data.name,
+				source: 'company_credits',
+			})
+			toast.success(__('You have been enrolled in this course'))
+			setTimeout(() => {
+				router.push({
+					name: 'Lesson',
+					params: {
+						courseName: props.course.data.name,
+						chapterNumber: 1,
+						lessonNumber: 1,
+					},
+				})
+			}, 1000)
+		}
+	} catch (err) {
+		toast.warning(__(err.messages?.[0] || err))
+		console.error(err)
+	}
+}
 </script>
