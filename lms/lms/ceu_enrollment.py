@@ -138,7 +138,11 @@ def deny_enrollment_request(request_name):
 
 @frappe.whitelist()
 def enroll_ppt_employee(course_name: str, membership_name: str):
-    """Enroll a PPT employee — no credit deduction, but always log to ledger."""
+    """Initiate PPT employee enrollment by sending a verification email.
+
+    PPT employees get free courses, so we verify they still control their
+    @ppt4kids.com inbox before each enrollment.
+    """
     membership = frappe.get_doc("CEU Membership", membership_name)
 
     if membership.membership_type != "PPT Employee":
@@ -147,16 +151,80 @@ def enroll_ppt_employee(course_name: str, membership_name: str):
     if membership.status != "Active":
         frappe.throw(_("Membership is not active"))
 
-    # Check for existing enrollment
     if frappe.db.exists("LMS Enrollment", {"course": course_name, "member": frappe.session.user}):
         frappe.throw(_("Already enrolled in this course"))
+
+    # Expire any existing pending verifications for this user + course
+    for old in frappe.get_all(
+        "PPT Enrollment Verification",
+        filters={"user": frappe.session.user, "course": course_name, "status": "Pending"},
+        pluck="name",
+    ):
+        frappe.db.set_value("PPT Enrollment Verification", old, "status", "Expired")
+
+    verification = frappe.get_doc({
+        "doctype": "PPT Enrollment Verification",
+        "user": frappe.session.user,
+        "course": course_name,
+        "membership": membership_name,
+        "status": "Pending",
+    }).insert(ignore_permissions=True)
+
+    course_title = frappe.db.get_value("LMS Course", course_name, "title") or course_name
+    verify_url = frappe.utils.get_url(
+        f"/api/method/lms.lms.ceu_enrollment.verify_ppt_enrollment?token={verification.token}"
+    )
+
+    frappe.sendmail(
+        recipients=[frappe.session.user],
+        subject=f"Confirm your enrollment in {course_title}",
+        message=(
+            f"<p>Click the link below to confirm your enrollment in <strong>{course_title}</strong>.</p>"
+            f'<p><a href="{verify_url}">Confirm Enrollment</a></p>'
+            f"<p>This link expires in 15 minutes.</p>"
+        ),
+    )
+
+    return {"status": "verification_sent"}
+
+
+@frappe.whitelist(allow_guest=True)
+def verify_ppt_enrollment(token: str):
+    """Verify a PPT enrollment token and complete the enrollment."""
+    verification = frappe.db.get_value(
+        "PPT Enrollment Verification",
+        {"token": token},
+        ["name", "user", "course", "membership", "status", "expires_on"],
+        as_dict=True,
+    )
+
+    if not verification:
+        frappe.throw(_("Invalid verification link"))
+
+    if verification.status != "Pending":
+        frappe.throw(_("This verification link has already been used"))
+
+    if now_datetime() > verification.expires_on:
+        frappe.db.set_value("PPT Enrollment Verification", verification.name, "status", "Expired")
+        frappe.throw(_("This verification link has expired. Please try enrolling again."))
+
+    membership = frappe.get_doc("CEU Membership", verification.membership)
+
+    if membership.status != "Active":
+        frappe.throw(_("Membership is no longer active"))
+
+    if frappe.db.exists("LMS Enrollment", {"course": verification.course, "member": verification.user}):
+        frappe.db.set_value("PPT Enrollment Verification", verification.name, "status", "Verified")
+        frappe.local.response["type"] = "redirect"
+        frappe.local.response["location"] = f"/lms/courses/{verification.course}"
+        return
 
     # Write ledger entry (hours=0, no deduction)
     frappe.get_doc({
         "doctype": "CEU Credit Ledger",
-        "membership": membership_name,
-        "user": frappe.session.user,
-        "course": course_name,
+        "membership": verification.membership,
+        "user": verification.user,
+        "course": verification.course,
         "transaction_type": "Enrollment",
         "hours": 0,
         "balance_after": membership.credit_balance,
@@ -164,13 +232,16 @@ def enroll_ppt_employee(course_name: str, membership_name: str):
         "notes": "PPT Employee — no charge"
     }).insert(ignore_permissions=True)
 
-    # Create enrollment
-    enrollment = frappe.get_doc({
+    frappe.get_doc({
         "doctype": "LMS Enrollment",
-        "member": frappe.session.user,
-        "course": course_name,
+        "member": verification.user,
+        "course": verification.course,
         "credit_source": "PPT Employee",
-        "membership": membership_name,
+        "membership": verification.membership,
     }).insert(ignore_permissions=True)
 
-    return enrollment.name
+    frappe.db.set_value("PPT Enrollment Verification", verification.name, "status", "Verified")
+    frappe.db.commit()
+
+    frappe.local.response["type"] = "redirect"
+    frappe.local.response["location"] = f"/lms/courses/{verification.course}"

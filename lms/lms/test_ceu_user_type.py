@@ -99,7 +99,27 @@ class TestGetUserType(IntegrationTestCase):
         # Administrator is the session user in test context
         result = get_user_type()
         # Should return something valid (one_off if no memberships)
-        self.assertIn(result["type"], ("one_off", "professional", "company"))
+        self.assertIn(result["type"], ("one_off", "professional", "company", "ppt_employee"))
+
+    def test_returns_ppt_employee_when_active_ppt_membership(self):
+        """User with active PPT Employee CEU Membership is ppt_employee."""
+        from lms.lms.ceu_user_type import get_user_type
+
+        plan = self._get_or_create_plan("PPT Employee")
+        frappe.get_doc({
+            "doctype": "CEU Membership",
+            "member": "Administrator",
+            "plan": plan,
+            "membership_type": "PPT Employee",
+            "status": "Active",
+            "start_date": today(),
+            "end_date": add_years(today(), 1),
+            "credit_balance": 0,
+        }).insert(ignore_permissions=True)
+
+        result = get_user_type("Administrator")
+        self.assertEqual(result["type"], "ppt_employee")
+        self.assertIn("membership", result)
 
     def _get_or_create_plan(self, plan_type):
         """Get or create a test membership plan."""

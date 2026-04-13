@@ -91,21 +91,22 @@ def get_user_info():
 		else:
 			user.company_credit_balance = 0
 			user.company_membership_status = None
+	elif user_type.get("type") == "ppt_employee":
+		user.is_company_member = False
+		user.membership_type = "ppt_employee"
+		user.membership_name = user_type.get("membership")
+		user.credit_balance = 0
 	elif user_type.get("type") == "professional":
 		user.is_company_member = False
 		membership = user_type.get("membership")
 		if membership:
 			mem_data = frappe.db.get_value(
 				"CEU Membership", membership,
-				["credit_balance", "status", "membership_type"], as_dict=True
+				["credit_balance", "status"], as_dict=True
 			)
-			if mem_data and mem_data.membership_type == "PPT Employee":
-				user.membership_type = "ppt_employee"
-				user.credit_balance = 0
-			else:
-				user.membership_type = "professional"
-				user.credit_balance = mem_data.credit_balance if mem_data else 0
-				user.membership_status = mem_data.status if mem_data else None
+			user.membership_type = "professional"
+			user.credit_balance = mem_data.credit_balance if mem_data else 0
+			user.membership_status = mem_data.status if mem_data else None
 		else:
 			user.membership_type = "professional"
 			user.credit_balance = 0
