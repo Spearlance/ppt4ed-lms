@@ -6,7 +6,7 @@
     "doctype": "DocType",
     "engine": "InnoDB",
     "field_order": [
-        "company_name", "status", "details_section", "billing_email", "max_seats",
+        "company_name", "status", "details_section", "billing_email", "max_seats", "low_credit_threshold",
         "admins_section", "admins",
         "membership_section", "membership",
         "members_section", "members"
@@ -47,6 +47,13 @@
             "label": "Max Seats",
             "default": "0",
             "description": "0 = unlimited"
+        },
+        {
+            "fieldname": "low_credit_threshold",
+            "fieldtype": "Int",
+            "label": "Low Credit Alert Threshold",
+            "default": "8",
+            "description": "Alert employees when company credit balance falls below this. 0 = disabled."
         },
         {
             "fieldname": "admins_section",

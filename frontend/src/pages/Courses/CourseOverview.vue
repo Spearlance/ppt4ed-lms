@@ -1,5 +1,6 @@
 <template>
 	<div class="p-5">
+		<LowCreditAlert class="mb-4" />
 		<div class="flex justify-between w-full space-x-5">
 			<div class="md:w-2/3">
 				<div class="text-3xl font-semibold text-ink-gray-9">
@@ -90,6 +91,7 @@
 import { Star, Users } from 'lucide-vue-next'
 import { Badge, Tooltip } from 'frappe-ui'
 import CourseCardOverlay from '@/components/CourseCardOverlay.vue'
+import LowCreditAlert from '@/components/LowCreditAlert.vue'
 import CourseOutline from '@/components/CourseOutline.vue'
 import CourseReviews from '@/components/CourseReviews.vue'
 import UserAvatar from '@/components/UserAvatar.vue'

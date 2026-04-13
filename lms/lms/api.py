@@ -67,13 +67,19 @@ def get_user_info():
 		{"user": frappe.session.user, "parenttype": "Company Account"}
 	)
 
-	# Company member context
+	# Membership and credit context
 	from lms.lms.ceu_user_type import get_user_type
 	user_type = get_user_type(frappe.session.user)
 	if user_type.get("type") == "company":
 		user.is_company_member = True
+		user.membership_type = "company"
 		user.company_account = user_type["company"]
-		user.company_name = frappe.db.get_value("Company Account", user_type["company"], "company_name")
+		company_data = frappe.db.get_value(
+			"Company Account", user_type["company"],
+			["company_name", "low_credit_threshold"], as_dict=True
+		)
+		user.company_name = company_data.company_name if company_data else None
+		user.low_credit_threshold = (company_data.low_credit_threshold or 8) if company_data else 8
 		membership = user_type.get("membership")
 		if membership:
 			mem_data = frappe.db.get_value(
@@ -85,8 +91,27 @@ def get_user_info():
 		else:
 			user.company_credit_balance = 0
 			user.company_membership_status = None
+	elif user_type.get("type") == "professional":
+		user.is_company_member = False
+		membership = user_type.get("membership")
+		if membership:
+			mem_data = frappe.db.get_value(
+				"CEU Membership", membership,
+				["credit_balance", "status", "membership_type"], as_dict=True
+			)
+			if mem_data and mem_data.membership_type == "PPT Employee":
+				user.membership_type = "ppt_employee"
+				user.credit_balance = 0
+			else:
+				user.membership_type = "professional"
+				user.credit_balance = mem_data.credit_balance if mem_data else 0
+				user.membership_status = mem_data.status if mem_data else None
+		else:
+			user.membership_type = "professional"
+			user.credit_balance = 0
 	else:
 		user.is_company_member = False
+		user.membership_type = "one_off"
 
 	user.sitename = frappe.local.site
 	user.developer_mode = frappe.conf.developer_mode

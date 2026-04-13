@@ -18,6 +18,7 @@
 				</Button>
 			</router-link>
 		</div>
+		<LowCreditAlert class="mt-5" />
 		<div class="mt-10 space-y-10">
 			<div v-if="myLiveClasses.data?.length">
 				<div class="font-semibold text-lg mb-3 text-ink-gray-9">
@@ -167,6 +168,7 @@ import {
 	Video,
 } from 'lucide-vue-next'
 import CourseCard from '@/components/CourseCard.vue'
+import LowCreditAlert from '@/components/LowCreditAlert.vue'
 import EventCard from '@/pages/Events/components/EventCard.vue'
 
 const dayjs = inject<any>('$dayjs')
