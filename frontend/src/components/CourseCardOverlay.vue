@@ -56,12 +56,12 @@
 						</span>
 					</Button>
 					<div class="text-xs text-ink-gray-5 text-center">
-						{{ __('From your {0} account').replace('{0}', user.data.company_name) }}
+						{{ __('From your {0} account').format(user.data.company_name) }}
 						<span
 							v-if="insufficientCredits"
 							class="text-red-600 block mt-1"
 						>
-							{{ __('Insufficient credits ({0} available)').replace('{0}', user.data.company_credit_balance) }}
+							{{ __('Insufficient credits ({0} available)').format(user.data.company_credit_balance) }}
 						</span>
 					</div>
 				</div>

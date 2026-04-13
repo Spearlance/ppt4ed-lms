@@ -139,31 +139,25 @@ test.describe('Non-company user sees no company UI', () => {
 
 test.describe('Course Enrollment Flow', () => {
 	test('company employee sees credit enrollment button on course with CEU hours', async ({ page }) => {
+		// Use a wide viewport so the course overlay sidebar is visible at md: breakpoint
+		await page.setViewportSize({ width: 1440, height: 900 })
 		await login(page, COMPANY_EMPLOYEE.email, COMPANY_EMPLOYEE.password)
 
-		// Navigate to courses
-		await page.goto('/lms/courses')
+		// Navigate directly to a known course with CEU hours (4 CE Hours)
+		await page.goto(
+			'/lms/courses/the-power-of-play-linking-play-to-language-cognitive-social-emotional-literacy-development'
+		)
 		await page.waitForLoadState('networkidle')
 
-		// Click on the first course card
-		const firstCourse = page.locator('a[href*="/courses/"]').first()
-		if (await firstCourse.isVisible()) {
-			await firstCourse.click()
-			await page.waitForLoadState('networkidle')
+		// The overlay renders either at md: breakpoint (desktop sidebar) or as inline (mobile).
+		// Look for any enrollment-related button, scrolling to find it.
+		const anyButton = page.locator(
+			'button:has-text("CEU"), button:has-text("Buy this course"), button:has-text("Start Learning"), button:has-text("Continue Learning")'
+		)
 
-			// If the course has CEU hours, we should see the enrollment button with CEU text
-			const ceuEnrollBtn = page.locator('button:has-text("CEU")')
-			const buyBtn = page.locator('button:has-text("Buy this course")')
-			const startBtn = page.locator('button:has-text("Start Learning")')
-			const continueBtn = page.locator('button:has-text("Continue Learning")')
+		// Scroll down in case the mobile overlay is below the fold
+		await page.evaluate(() => window.scrollTo(0, 300))
 
-			// At least one of these should be visible (depends on course config and enrollment state)
-			const anyVisible = await ceuEnrollBtn.isVisible()
-				|| await buyBtn.isVisible()
-				|| await startBtn.isVisible()
-				|| await continueBtn.isVisible()
-
-			expect(anyVisible).toBeTruthy()
-		}
+		await expect(anyButton.first()).toBeVisible({ timeout: 15000 })
 	})
 })
