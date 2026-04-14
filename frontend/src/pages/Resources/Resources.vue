@@ -3,6 +3,12 @@
 		class="sticky flex items-center justify-between top-0 z-10 border-b bg-surface-white px-3 py-2.5 sm:px-5"
 	>
 		<Breadcrumbs :items="breadcrumbs" />
+		<Button v-if="canCreate" variant="solid" @click="showResourceModal = true">
+			<template #prefix>
+				<Plus class="h-4 w-4 stroke-1.5" />
+			</template>
+			{{ __('Create Resource') }}
+		</Button>
 	</header>
 	<div class="p-5 pb-10">
 		<div
@@ -75,6 +81,11 @@
 			</Button>
 		</div>
 	</div>
+	<NewResourceModal
+		v-if="showResourceModal"
+		v-model="showResourceModal"
+		:resources="resources"
+	/>
 </template>
 <script setup>
 import {
@@ -85,11 +96,17 @@ import {
 	Select,
 	usePageMeta,
 } from 'frappe-ui'
-import { computed, onMounted, ref } from 'vue'
+import { computed, inject, onMounted, ref } from 'vue'
+import { Plus } from 'lucide-vue-next'
 import { sessionStore } from '@/stores/session'
+import { canCreateCourse } from '@/utils'
 import CourseCard from '@/components/CourseCard.vue'
+import NewResourceModal from '@/pages/Resources/NewResourceModal.vue'
 
+const user = inject('$user')
 const { brand } = sessionStore()
+const showResourceModal = ref(false)
+const canCreate = computed(() => canCreateCourse())
 const title = ref('')
 const currentCategory = ref(null)
 const currentType = ref(null)
