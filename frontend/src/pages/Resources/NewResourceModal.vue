@@ -43,7 +43,6 @@
 						:searchParams="{
 							roles: JSON.stringify(['Moderator', 'LMS Student']),
 						}"
-						:required="true"
 					/>
 					<Uploader
 						v-model="resource.image"

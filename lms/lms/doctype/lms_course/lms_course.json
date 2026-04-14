@@ -140,9 +140,9 @@
    "fieldtype": "Table MultiSelect",
    "in_standard_filter": 1,
    "label": "Instructors",
+   "mandatory_depends_on": "eval:doc.course_type!='Resource'",
    "max_height": "50px",
-   "options": "Course Instructor",
-   "reqd": 1
+   "options": "Course Instructor"
   },
   {
    "fieldname": "section_break_7",
