@@ -578,11 +578,15 @@ const articles = ref([
 ])
 
 const setUpOnboarding = () => {
-	if (userResource.data?.is_system_manager) {
-		onboardingDetails = useOnboarding('learning')
-		onboardingDetails.setUp(steps)
-		isOnboardingStepsCompleted = onboardingDetails.isOnboardingStepsCompleted
-		showOnboarding.value = true
+	try {
+		if (userResource.data?.is_system_manager) {
+			onboardingDetails = useOnboarding('learning')
+			onboardingDetails.setUp(steps)
+			isOnboardingStepsCompleted = onboardingDetails.isOnboardingStepsCompleted
+			showOnboarding.value = true
+		}
+	} catch (e) {
+		console.warn('Onboarding setup failed:', e)
 	}
 }
 
