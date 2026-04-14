@@ -307,4 +307,31 @@ def get_meta_from_document(app_path):
 			"link": get_lms_route("certified-participants"),
 		}
 
+	if app_path == "resources":
+		return {
+			"title": _("Free Resources"),
+			"keywords": "Free Resources, Templates, Videos, Downloads, Articles",
+			"link": get_lms_route("resources"),
+		}
+
+	if re.match(r"^resources/.*$", app_path):
+		resource_name = app_path.split("/")[1]
+		resource = frappe.db.get_value(
+			"LMS Course",
+			resource_name,
+			["title", "image", "description", "tags"],
+			as_dict=True,
+		)
+		if resource:
+			if resource.description:
+				soup = BeautifulSoup(resource.description, "html.parser")
+				resource.description = escape_html(soup.get_text())
+			return {
+				"title": resource.title,
+				"image": resource.image,
+				"description": resource.description,
+				"keywords": resource.tags,
+				"link": get_lms_route(f"resources/{resource_name}"),
+			}
+
 	return {}

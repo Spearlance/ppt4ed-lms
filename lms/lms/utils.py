@@ -797,6 +797,9 @@ def update_course_filters(filters: dict) -> tuple:
 		or_filters.update({"paid_certificate": 1})
 		del filters["certification"]
 
+	# Exclude resources from the course catalog
+	filters["course_type"] = ["!=", "Resource"]
+
 	return filters, or_filters, show_featured
 
 
@@ -857,6 +860,8 @@ def get_course_fields():
 		"enrollments",
 		"rating",
 		"ceu_hours",
+		"course_type",
+		"resource_type",
 	]
 
 
@@ -894,6 +899,85 @@ def get_course_details(course: str):
 	if course_details.membership and course_details.membership.current_lesson:
 		course_details.current_lesson = get_lesson_index(course_details.membership.current_lesson)
 
+	return course_details
+
+
+@frappe.whitelist(allow_guest=True)
+@rate_limit(limit=500, seconds=60 * 60)
+def get_resources(filters: dict = None, start: int = 0) -> list:
+	"""Returns the list of published resources (courses with course_type='Resource')."""
+	if not filters:
+		filters = {}
+
+	or_filters = {}
+
+	# Always filter to resources only
+	filters["course_type"] = "Resource"
+	filters["published"] = 1
+
+	# Handle resource_type filter
+	if filters.get("resource_type"):
+		pass  # Already in filters dict, will be applied directly
+	else:
+		filters.pop("resource_type", None)
+
+	# Handle text search
+	if filters.get("title"):
+		or_filters["title"] = filters["title"]
+		or_filters["short_introduction"] = filters["title"]
+		or_filters["description"] = filters["title"]
+		or_filters["tags"] = filters["title"]
+		del filters["title"]
+
+	fields = get_course_fields()
+
+	resources = frappe.get_all(
+		"LMS Course",
+		filters=filters,
+		fields=fields,
+		or_filters=or_filters,
+		order_by="creation desc",
+		start=start,
+		page_length=30,
+	)
+
+	resources = get_enrollment_details(resources)
+	resources = get_course_card_details(resources)
+	return resources
+
+
+@frappe.whitelist(allow_guest=True)
+@rate_limit(limit=500, seconds=60 * 60)
+def get_resource_details(resource: str):
+	"""Returns resource details including single-lesson detection."""
+	course_details = get_course_details(resource)
+	if not course_details:
+		return {}
+
+	# Check if this is a single-lesson resource
+	chapters = frappe.get_all(
+		"Course Chapter",
+		filters={"course": resource},
+		fields=["name", "title"],
+		order_by="idx",
+	)
+
+	is_single_lesson = False
+	single_lesson = None
+
+	if len(chapters) == 1:
+		lessons = frappe.get_all(
+			"Course Lesson",
+			filters={"chapter": chapters[0].name},
+			fields=["name", "title", "body", "youtube", "quiz_id", "content"],
+			order_by="idx",
+		)
+		if len(lessons) == 1:
+			is_single_lesson = True
+			single_lesson = lessons[0]
+
+	course_details.is_single_lesson = is_single_lesson
+	course_details.single_lesson = single_lesson
 	return course_details
 
 

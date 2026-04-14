@@ -40,6 +40,17 @@ const routes = [
 		props: true,
 	},
 	{
+		path: '/resources',
+		name: 'Resources',
+		component: () => import('@/pages/Resources/Resources.vue'),
+	},
+	{
+		path: '/resources/:resourceName',
+		name: 'ResourceDetail',
+		component: () => import('@/pages/Resources/ResourceDetail.vue'),
+		props: true,
+	},
+	{
 		path: '/events',
 		name: 'Events',
 		component: () => import('@/pages/Events/Events.vue'),
@@ -250,7 +261,8 @@ router.beforeEach(async (to, from, next) => {
 		if (to.name == 'Home') router.push({ name: 'Courses' })
 
 		await settings.promise
-		if (!settings.data.allow_guest_access) {
+		const guestAllowedRoutes = ['Resources', 'ResourceDetail']
+		if (!settings.data.allow_guest_access && !guestAllowedRoutes.includes(to.name)) {
 			window.location.href = '/login'
 			return
 		}

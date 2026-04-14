@@ -38,9 +38,13 @@ class LMSEnrollment(Document):
 		course_details = frappe.db.get_value(
 			"LMS Course",
 			self.course,
-			["published", "disable_self_learning", "paid_course", "paid_certificate"],
+			["published", "disable_self_learning", "paid_course", "paid_certificate", "course_type"],
 			as_dict=True,
 		)
+
+		# Resources are always free — skip all payment/eligibility checks
+		if course_details.course_type == "Resource":
+			return
 
 		if course_details.disable_self_learning and not is_admin():
 			frappe.throw(

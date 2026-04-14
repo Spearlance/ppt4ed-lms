@@ -482,6 +482,12 @@ const getSidebarItems = () => {
 				},
 				*/
 				{
+					label: 'Resources',
+					icon: 'FolderOpen',
+					to: 'Resources',
+					activeFor: ['Resources', 'ResourceDetail'],
+				},
+				{
 					label: 'Events',
 					icon: 'Calendar',
 					to: 'Events',

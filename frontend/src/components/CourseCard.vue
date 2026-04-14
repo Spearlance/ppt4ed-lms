@@ -5,7 +5,7 @@
 		style="min-height: 350px"
 	>
 		<div
-			class="w-[100%] h-[168px] bg-cover bg-center bg-no-repeat border-t border-x rounded-t-md"
+			class="relative w-[100%] h-[168px] bg-cover bg-center bg-no-repeat border-t border-x rounded-t-md"
 			:style="
 				course.image
 					? { backgroundImage: `url('${encodeURI(course.image)}')` }
@@ -15,6 +15,12 @@
 					  }
 			"
 		>
+			<div
+				v-if="course.resource_type"
+				class="absolute top-2 left-2 text-xs font-semibold bg-surface-white border px-2 py-0.5 rounded-md"
+			>
+				{{ course.resource_type }}
+			</div>
 			<!-- <div class="flex items-center flex-wrap relative top-4 px-2 w-fit">
 				<div
 					v-if="course.featured"

@@ -1,0 +1,171 @@
+<template>
+	<header
+		class="sticky flex items-center justify-between top-0 z-10 border-b bg-surface-white px-3 py-2.5 sm:px-5"
+	>
+		<Breadcrumbs :items="breadcrumbs" />
+	</header>
+	<div class="p-5 pb-10">
+		<div
+			class="flex flex-col lg:flex-row space-y-4 lg:space-y-0 lg:items-center justify-between mb-5"
+		>
+			<div class="text-lg text-ink-gray-9 font-semibold">
+				{{ __('Free Resources') }}
+			</div>
+			<div
+				class="flex flex-col space-y-3 lg:space-y-0 lg:flex-row lg:items-center lg:space-x-4"
+			>
+				<div class="flex flex-wrap gap-2">
+					<button
+						v-for="type in resourceTypes"
+						:key="type.value"
+						class="px-3 py-1 text-sm rounded-full border transition-colors"
+						:class="
+							currentType === type.value
+								? 'bg-ink-gray-9 text-white border-ink-gray-9'
+								: 'bg-surface-white text-ink-gray-7 border-outline-gray-2 hover:border-outline-gray-3'
+						"
+						@click="setType(type.value)"
+					>
+						{{ type.label }}
+					</button>
+				</div>
+
+				<div class="grid grid-cols-2 gap-2">
+					<FormControl
+						v-model="title"
+						:placeholder="__('Search')"
+						type="text"
+						class="w-full lg:min-w-0 lg:w-32 xl:w-40"
+						@input="updateResources()"
+					/>
+					<div class="w-full lg:min-w-0 lg:w-32 xl:w-40">
+						<Select
+							v-if="categories.length > 1"
+							v-model="currentCategory"
+							:options="categories"
+							:placeholder="__('Category')"
+							@update:modelValue="updateResources()"
+						/>
+					</div>
+				</div>
+			</div>
+		</div>
+		<div
+			v-if="resources.data?.length"
+			class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-8"
+		>
+			<router-link
+				v-for="resource in resources.data"
+				:to="{ name: 'ResourceDetail', params: { resourceName: resource.name } }"
+			>
+				<CourseCard :course="resource" />
+			</router-link>
+		</div>
+		<div v-else-if="!resources.list.loading" class="text-center py-20">
+			<div class="text-ink-gray-5 text-lg">
+				{{ __('No resources found') }}
+			</div>
+		</div>
+		<div
+			v-if="!resources.list.loading && resources.hasNextPage"
+			class="flex justify-center mt-5"
+		>
+			<Button @click="resources.next()">
+				{{ __('Load More') }}
+			</Button>
+		</div>
+	</div>
+</template>
+<script setup>
+import {
+	Breadcrumbs,
+	Button,
+	createListResource,
+	FormControl,
+	Select,
+	usePageMeta,
+} from 'frappe-ui'
+import { computed, onMounted, ref } from 'vue'
+import { sessionStore } from '@/stores/session'
+import CourseCard from '@/components/CourseCard.vue'
+
+const { brand } = sessionStore()
+const title = ref('')
+const currentCategory = ref(null)
+const currentType = ref(null)
+const categories = ref([{ label: '', value: null }])
+
+const resourceTypes = [
+	{ label: __('All'), value: null },
+	{ label: __('Video'), value: 'Video' },
+	{ label: __('Download'), value: 'Download' },
+	{ label: __('Article'), value: 'Article' },
+	{ label: __('Mini-Course'), value: 'Mini-Course' },
+	{ label: __('Template'), value: 'Template' },
+]
+
+onMounted(() => {
+	updateResources()
+})
+
+const resources = createListResource({
+	doctype: 'LMS Course',
+	url: 'lms.lms.utils.get_resources',
+	cache: ['resources'],
+	pageLength: 30,
+})
+
+const setType = (type) => {
+	currentType.value = type
+	updateResources()
+}
+
+const updateResources = () => {
+	let filters = {}
+
+	if (currentType.value) {
+		filters.resource_type = currentType.value
+	}
+	if (currentCategory.value) {
+		filters.category = currentCategory.value
+	}
+	if (title.value) {
+		filters.title = ['like', `%${title.value}%`]
+	}
+
+	resources.update({ filters })
+	resources.reload().then((data) => {
+		if (data) {
+			setCategories(data)
+		}
+	})
+}
+
+const setCategories = (data) => {
+	data.forEach((resource) => {
+		if (
+			resource.category &&
+			!categories.value.find((c) => c.value === resource.category)
+		) {
+			categories.value.push({
+				label: resource.category,
+				value: resource.category,
+			})
+		}
+	})
+}
+
+const breadcrumbs = computed(() => [
+	{
+		label: __('Resources'),
+		route: { name: 'Resources' },
+	},
+])
+
+usePageMeta(() => {
+	return {
+		title: __('Free Resources'),
+		icon: brand.favicon,
+	}
+})
+</script>

@@ -8,6 +8,8 @@
  "engine": "InnoDB",
  "field_order": [
   "title",
+  "course_type",
+  "resource_type",
   "video_link",
   "tags",
   "column_break_3",
@@ -59,6 +61,22 @@
    "label": "Title",
    "reqd": 1,
    "width": "200"
+  },
+  {
+   "default": "Course",
+   "fieldname": "course_type",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Type",
+   "options": "Course\nResource",
+   "reqd": 1
+  },
+  {
+   "depends_on": "eval:doc.course_type=='Resource'",
+   "fieldname": "resource_type",
+   "fieldtype": "Select",
+   "label": "Resource Type",
+   "options": "\nVideo\nDownload\nArticle\nMini-Course\nTemplate"
   },
   {
    "fieldname": "description",
