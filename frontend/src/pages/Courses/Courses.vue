@@ -330,7 +330,7 @@ watch(currentTab, () => {
 const courseTabs = computed(() => {
 	let tabs = [
 		{
-			label: __('Live'),
+			label: __('On Demand'),
 			value: 'live',
 		},
 		{

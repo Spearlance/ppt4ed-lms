@@ -41,7 +41,7 @@
 					class="space-y-2 mb-8"
 				>
 					<Button
-						@click="enrollViaCompany()"
+						@click="showConfirmDialog = true"
 						variant="solid"
 						size="md"
 						class="w-full"
@@ -202,6 +202,47 @@
 			</div>
 		</div>
 	</div>
+	<Dialog
+		v-model="showConfirmDialog"
+		:options="{
+			title: __('Confirm Enrollment'),
+			size: 'sm',
+		}"
+	>
+		<template #body-content>
+			<div class="space-y-3 text-ink-gray-7">
+				<div class="flex justify-between">
+					<span>{{ __('Current Balance') }}</span>
+					<span class="font-semibold text-ink-gray-9">
+						{{ user.data.company_credit_balance }} {{ __('hours') }}
+					</span>
+				</div>
+				<div class="flex justify-between">
+					<span>{{ __('Course Cost') }}</span>
+					<span class="font-semibold text-ink-gray-9">
+						{{ courseCeuHours }} {{ courseCeuHours === 1 ? __('hour') : __('hours') }}
+					</span>
+				</div>
+				<hr class="border-outline-gray-2" />
+				<div class="flex justify-between">
+					<span>{{ __('Remaining Balance') }}</span>
+					<span class="font-semibold text-ink-gray-9">
+						{{ user.data.company_credit_balance - courseCeuHours }} {{ __('hours') }}
+					</span>
+				</div>
+			</div>
+		</template>
+		<template #actions="{ close }">
+			<div class="flex justify-end space-x-2 pb-5">
+				<Button variant="subtle" @click="close()">
+					{{ __('Cancel') }}
+				</Button>
+				<Button variant="solid" @click="confirmEnroll(close)">
+					{{ __('Confirm Enrollment') }}
+				</Button>
+			</div>
+		</template>
+	</Dialog>
 </template>
 <script setup>
 import {
@@ -215,7 +256,7 @@ import {
 	Users,
 } from 'lucide-vue-next'
 import { computed, inject, ref } from 'vue'
-import { Badge, Button, call, createResource, toast } from 'frappe-ui'
+import { Badge, Button, call, createResource, Dialog, toast } from 'frappe-ui'
 import { formatAmount } from '@/utils/'
 import { useRouter } from 'vue-router'
 import CertificationLinks from '@/components/CertificationLinks.vue'
@@ -335,6 +376,11 @@ const insufficientCredits = computed(() => {
 	return (user.data?.company_credit_balance || 0) < courseCeuHours.value
 })
 
+async function confirmEnroll(close) {
+	close()
+	await enrollViaCompany()
+}
+
 async function enrollViaCompany() {
 	if (!user.data) {
 		toast.warning(__('You need to login first to enroll for this course'))
@@ -375,6 +421,7 @@ async function enrollViaCompany() {
 }
 
 const pptVerificationSent = ref(false)
+const showConfirmDialog = ref(false)
 
 async function enrollPptEmployee() {
 	if (!user.data) {
