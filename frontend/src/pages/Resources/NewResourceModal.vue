@@ -135,6 +135,8 @@ const saveResource = (close = () => {}) => {
 			...resource.value,
 			course_type: 'Resource',
 			paid_course: 0,
+			published: 1,
+			published_on: new Date().toISOString().split('T')[0],
 			instructors: resource.value.instructors.map((instructor) => ({
 				instructor: instructor,
 			})),
