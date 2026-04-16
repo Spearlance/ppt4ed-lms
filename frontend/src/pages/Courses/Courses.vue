@@ -79,7 +79,7 @@
 					</div>
 				</div>
 
-				<Tooltip :text="__('Only show courses that offer a certificate')">
+				<Tooltip v-if="!isCeuTab" :text="__('Only show courses that offer a certificate')">
 					<FormControl
 						type="checkbox"
 						v-model="certification"
@@ -90,22 +90,33 @@
 			</div>
 		</div>
 		<div
-			v-if="courses.data?.length"
-			class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-8"
+			v-if="activeResource.data?.length"
+			class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4"
+			:class="isCeuTab ? 'gap-5' : 'gap-8'"
 		>
-			<router-link
-				v-for="course in courses.data"
-				:to="{ name: 'CourseDetail', params: { courseName: course.name } }"
-			>
-				<CourseCard :course="course" />
-			</router-link>
+			<template v-if="isCeuTab">
+				<router-link
+					v-for="event in ceuEvents.data"
+					:to="{ name: 'EventDetail', params: { eventName: event.name } }"
+				>
+					<EventCard :batch="event" />
+				</router-link>
+			</template>
+			<template v-else>
+				<router-link
+					v-for="course in courses.data"
+					:to="{ name: 'CourseDetail', params: { courseName: course.name } }"
+				>
+					<CourseCard :course="course" />
+				</router-link>
+			</template>
 		</div>
-		<EmptyState v-else-if="!courses.list.loading" type="Courses" />
+		<EmptyState v-else-if="!activeResource.list.loading" :type="isCeuTab ? 'Events' : 'Courses'" />
 		<div
-			v-if="!courses.list.loading && courses.hasNextPage"
+			v-if="!activeResource.list.loading && activeResource.hasNextPage"
 			class="flex justify-center mt-5"
 		>
-			<Button @click="courses.next()">
+			<Button @click="activeResource.next()">
 				{{ __('Load More') }}
 			</Button>
 		</div>
@@ -134,6 +145,7 @@ import { ChevronDown, Plus } from 'lucide-vue-next'
 import { sessionStore } from '@/stores/session'
 import { canCreateCourse } from '@/utils'
 import CourseCard from '@/components/CourseCard.vue'
+import EventCard from '@/pages/Events/components/EventCard.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import { useRouter } from 'vue-router'
 import NewCourseModal from '@/pages/Courses/NewCourseModal.vue'
@@ -184,6 +196,17 @@ const courses = createListResource({
 	start: start.value,
 })
 
+const ceuEvents = createListResource({
+	doctype: 'LMS Event',
+	url: 'lms.lms.utils.get_events',
+	cache: ['ceu_events', user.data?.name],
+	pageLength: 20,
+	start: 0,
+})
+
+const isCeuTab = computed(() => currentTab.value === 'ceu_events')
+const activeResource = computed(() => isCeuTab.value ? ceuEvents : courses)
+
 const setCategories = (data) => {
 	let allCategories = data.map((course) => course.category)
 	allCategories = allCategories.filter(
@@ -206,12 +229,28 @@ const getCourseCount = () => {
 
 const updateCourses = () => {
 	updateFilters()
-	courses.update({
-		filters: filters.value,
-	})
-	courses.reload().then((data) => {
-		setCategories(data)
-	})
+
+	if (isCeuTab.value) {
+		let eventFilters = {
+			credit_hours: ['>', 0],
+			published: 1,
+		}
+		if (title.value) {
+			eventFilters.title = ['like', `%${title.value}%`]
+		}
+		if (currentCategory.value) {
+			eventFilters.category = currentCategory.value
+		}
+		ceuEvents.update({ filters: eventFilters })
+		ceuEvents.reload()
+	} else {
+		courses.update({
+			filters: filters.value,
+		})
+		courses.reload().then((data) => {
+			setCategories(data)
+		})
+	}
 }
 
 const updateFilters = () => {
@@ -340,6 +379,10 @@ const courseTabs = computed(() => {
 		{
 			label: __('Upcoming'),
 			value: 'upcoming',
+		},
+		{
+			label: __('CEU Events'),
+			value: 'ceu_events',
 		},
 	]
 	if (
