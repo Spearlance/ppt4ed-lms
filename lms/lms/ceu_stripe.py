@@ -21,22 +21,39 @@ def get_stripe_test_mode():
 
 
 @frappe.whitelist()
-def create_one_off_checkout(course_name, price_amount, user_email):
-    """Create a Stripe Checkout session for a one-off course purchase."""
-    s = get_stripe()
-    course = frappe.get_doc("LMS Course", course_name)
+def create_one_off_checkout(course_name):
+    """Create a Stripe Checkout session for a one-off course purchase.
 
+    Price and buyer identity are derived server-side. Never trust client input
+    for either — that would let anyone pay $0.01 for any course.
+    """
+    if frappe.session.user == "Guest":
+        frappe.throw(_("You must be logged in to purchase a course"), frappe.AuthenticationError)
+
+    course = frappe.get_doc("LMS Course", course_name)
+    if not course.paid_course:
+        frappe.throw(_("This course is not for sale"))
+
+    amount_usd = course.amount_usd or 0
+    if amount_usd <= 0:
+        frappe.throw(_("This course has no USD price configured"))
+
+    user_email = frappe.session.user
+    unit_amount_cents = int(round(float(amount_usd) * 100))
+
+    product_data = {"name": course.title}
+    if course.ceu_hours:
+        product_data["description"] = f"{course.ceu_hours} CEU Hours"
+
+    s = get_stripe()
     session = s.checkout.Session.create(
         mode="payment",
         customer_email=user_email,
         line_items=[{
             "price_data": {
                 "currency": "usd",
-                "unit_amount": int(price_amount),
-                "product_data": {
-                    "name": course.title,
-                    "description": f"{course.ceu_hours} CEU Hours"
-                }
+                "unit_amount": unit_amount_cents,
+                "product_data": product_data,
             },
             "quantity": 1
         }],
