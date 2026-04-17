@@ -127,3 +127,4 @@ lms.patches.v2_0.give_event_permission #10-03-2026
 lms.patches.v2_0.rename_batch_to_event #09-04-2026
 lms.patches.v2_0.delete_test_membership_plans #11-04-2026
 lms.patches.v2_0.set_default_course_type #13-04-2026
+lms.patches.v2_0.configure_resend_email_account #17-04-2026

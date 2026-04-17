@@ -1,0 +1,58 @@
+{
+    "actions": [],
+    "creation": "2026-04-17 00:00:00.000000",
+    "doctype": "DocType",
+    "engine": "InnoDB",
+    "issingle": 1,
+    "field_order": [
+        "enabled",
+        "api_key",
+        "from_email",
+        "from_name"
+    ],
+    "fields": [
+        {
+            "default": "0",
+            "fieldname": "enabled",
+            "fieldtype": "Check",
+            "label": "Enabled",
+            "description": "When enabled, the Resend Email Account is marked as the default outgoing server."
+        },
+        {
+            "fieldname": "api_key",
+            "fieldtype": "Password",
+            "label": "Resend API Key",
+            "description": "From https://resend.com/api-keys. Used as the SMTP password (username is 'resend')."
+        },
+        {
+            "default": "noreply@mail.ppt4ed.org",
+            "fieldname": "from_email",
+            "fieldtype": "Data",
+            "label": "From Email",
+            "description": "Must be on a verified Resend domain (e.g. mail.ppt4ed.org)."
+        },
+        {
+            "default": "PPT4ed",
+            "fieldname": "from_name",
+            "fieldtype": "Data",
+            "label": "From Name"
+        }
+    ],
+    "links": [],
+    "modified": "2026-04-17 00:00:00.000000",
+    "modified_by": "Administrator",
+    "module": "LMS",
+    "name": "Resend Settings",
+    "owner": "Administrator",
+    "permissions": [
+        {
+            "create": 1,
+            "read": 1,
+            "write": 1,
+            "role": "System Manager"
+        }
+    ],
+    "sort_field": "modified",
+    "sort_order": "DESC",
+    "states": []
+}
