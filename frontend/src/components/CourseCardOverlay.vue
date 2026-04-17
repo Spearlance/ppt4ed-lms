@@ -96,25 +96,21 @@
 						</div>
 					</template>
 				</div>
-				<router-link
+				<Button
 					v-else-if="course.data.paid_course && !isAdmin"
-					:to="{
-						name: 'Billing',
-						params: {
-							type: 'course',
-							name: course.data.name,
-						},
-					}"
+					@click="purchaseCourse()"
+					variant="solid"
+					size="md"
+					class="w-full mb-8"
+					:loading="purchasing"
 				>
-					<Button variant="solid" size="md" class="w-full mb-8">
-						<template #prefix>
-							<CreditCard class="size-4 stroke-1.5" />
-						</template>
-						<span>
-							{{ __('Buy this course') }}
-						</span>
-					</Button>
-				</router-link>
+					<template #prefix>
+						<CreditCard class="size-4 stroke-1.5" />
+					</template>
+					<span>
+						{{ __('Buy this course') }}
+					</span>
+				</Button>
 				<Badge
 					v-else-if="course.data.disable_self_learning && !isAdmin"
 					theme="blue"
@@ -422,6 +418,30 @@ async function enrollViaCompany() {
 
 const pptVerificationSent = ref(false)
 const showConfirmDialog = ref(false)
+const purchasing = ref(false)
+
+async function purchaseCourse() {
+	if (!user.data) {
+		toast.warning(__('You need to login first to purchase this course'))
+		setTimeout(() => {
+			window.location.href = `/login?redirect-to=${window.location.pathname}`
+		}, 500)
+		return
+	}
+	purchasing.value = true
+	try {
+		const result = await call(
+			'lms.lms.ceu_stripe.create_one_off_checkout',
+			{ course_name: props.course.data.name }
+		)
+		capture('stripe_checkout_started', { course: props.course.data.name })
+		window.location.href = result.url
+	} catch (err) {
+		purchasing.value = false
+		toast.warning(__(err.messages?.[0] || err.message || err))
+		console.error(err)
+	}
+}
 
 async function enrollPptEmployee() {
 	if (!user.data) {

@@ -35,6 +35,7 @@ import {
 	createResource,
 	Breadcrumbs,
 	Tabs,
+	toast,
 	usePageMeta,
 } from 'frappe-ui'
 import { computed, inject, markRaw, onMounted, ref, watch } from 'vue'
@@ -61,7 +62,20 @@ const props = defineProps({
 
 onMounted(() => {
 	updateTabIndex()
+	handlePaymentReturn()
 })
+
+function handlePaymentReturn() {
+	const status = route.query.payment
+	if (!status) return
+	if (status === 'success') {
+		toast.success(__('Payment received — enrolling you now'))
+		setTimeout(() => course.reload(), 2000)
+	} else if (status === 'cancelled') {
+		toast.info(__('Payment cancelled'))
+	}
+	router.replace({ query: { ...route.query, payment: undefined } })
+}
 
 const updateTabIndex = () => {
 	const hash = route.hash

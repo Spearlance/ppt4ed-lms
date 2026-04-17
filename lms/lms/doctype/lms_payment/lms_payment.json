@@ -32,7 +32,10 @@
   "order_id",
   "column_break_monu",
   "gstin",
-  "pan"
+  "pan",
+  "stripe_section",
+  "stripe_session_id",
+  "stripe_payment_intent_id"
  ],
  "fields": [
   {
@@ -91,8 +94,7 @@
    "fieldname": "address",
    "fieldtype": "Link",
    "label": "Address",
-   "options": "Address",
-   "reqd": 1
+   "options": "Address"
   },
   {
    "default": "0",
@@ -154,8 +156,7 @@
    "fieldname": "source",
    "fieldtype": "Link",
    "label": "Source",
-   "options": "LMS Source",
-   "reqd": 1
+   "options": "LMS Source"
   },
   {
    "default": "0",
@@ -190,6 +191,24 @@
    "fieldname": "member_consent",
    "fieldtype": "Check",
    "label": "Member Consent"
+  },
+  {
+   "fieldname": "stripe_section",
+   "fieldtype": "Section Break",
+   "label": "Stripe"
+  },
+  {
+   "fieldname": "stripe_session_id",
+   "fieldtype": "Data",
+   "label": "Stripe Checkout Session ID",
+   "read_only": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "stripe_payment_intent_id",
+   "fieldtype": "Data",
+   "label": "Stripe Payment Intent ID",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
@@ -203,7 +222,7 @@
    "link_fieldname": "payment"
   }
  ],
- "modified": "2026-03-06 17:38:02.235044",
+ "modified": "2026-04-17 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "LMS",
  "name": "LMS Payment",

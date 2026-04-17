@@ -51,7 +51,10 @@ def handle_checkout_completed(data):
         _create_one_off_enrollment(
             course=metadata.get("course"),
             user=metadata.get("user"),
-            stripe_payment_id=data.get("payment_intent")
+            stripe_session_id=data.get("id"),
+            stripe_payment_intent_id=data.get("payment_intent"),
+            amount_total=data.get("amount_total"),
+            currency=data.get("currency"),
         )
     elif checkout_type == "subscription":
         _activate_subscription(
@@ -131,12 +134,23 @@ def handle_payment_failed(data):
         frappe.db.set_value("CEU Membership", membership_name, "status", "Past Due")
 
 
-def _create_one_off_enrollment(course, user, stripe_payment_id=None):
-    """Create an LMS Enrollment for a one-off purchase with ledger entry."""
+def _create_one_off_enrollment(
+    course,
+    user,
+    stripe_session_id=None,
+    stripe_payment_intent_id=None,
+    amount_total=None,
+    currency=None,
+):
+    """Create an LMS Enrollment for a one-off purchase with ledger entry + billing receipt.
+
+    Idempotent by stripe_session_id — Stripe may deliver the same event more than once.
+    """
+    if stripe_session_id and frappe.db.exists("LMS Payment", {"stripe_session_id": stripe_session_id}):
+        return
     if frappe.db.exists("LMS Enrollment", {"course": course, "member": user}):
         return
 
-    # Write ledger entry for audit trail
     frappe.get_doc({
         "doctype": "CEU Credit Ledger",
         "user": user,
@@ -145,14 +159,30 @@ def _create_one_off_enrollment(course, user, stripe_payment_id=None):
         "hours": 0,
         "balance_after": 0,
         "timestamp": now_datetime(),
-        "stripe_payment_id": stripe_payment_id,
+        "stripe_payment_id": stripe_payment_intent_id,
+    }).insert(ignore_permissions=True)
+
+    billing_name = frappe.db.get_value("User", user, "full_name") or user
+    amount = (amount_total or 0) / 100
+    payment = frappe.get_doc({
+        "doctype": "LMS Payment",
+        "member": user,
+        "billing_name": billing_name,
+        "amount": amount,
+        "currency": (currency or "usd").upper(),
+        "payment_for_document_type": "LMS Course",
+        "payment_for_document": course,
+        "payment_received": 1,
+        "stripe_session_id": stripe_session_id,
+        "stripe_payment_intent_id": stripe_payment_intent_id,
     }).insert(ignore_permissions=True)
 
     frappe.get_doc({
         "doctype": "LMS Enrollment",
         "member": user,
         "course": course,
-        "credit_source": "One-Off"
+        "credit_source": "One-Off",
+        "payment": payment.name,
     }).insert(ignore_permissions=True)
 
 
