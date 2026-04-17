@@ -1,7 +1,29 @@
+# PPT4ed LMS
+
+This repository is a **modified copy of [Frappe Learning](https://github.com/frappe/lms)** (not a GitHub fork — the source tree was copied and is maintained independently). It is maintained by [Spearlance / PPT4ed](https://www.ppt4ed.org) and runs in production at **devlms.ppt4ed.org**.
+
+At a high level, this version of Frappe LMS adds:
+
+- **In-person and live webinar sessions** — continuing-education Events with venue, event type, and CEU/credit-hour tracking, alongside the self-paced courses already supported upstream.
+- **A company credit system** — companies can purchase credits and assign them to their team members, who can then redeem those credits to enroll in courses and events. Includes an immutable credit ledger, a "My Credits" page for employees, and a PPT Employee user type.
+- Additional operational changes: Resend email integration (SMTP relay), company-employee homepage UX, and related backend/frontend adjustments. See git history and merged PRs for the full list.
+
+## License and source availability
+
+- **License:** [GNU Affero General Public License v3](./license.txt) (AGPL v3) — inherited from upstream Frappe Learning. All modifications in this repository are also AGPL v3.
+- **Upstream project:** https://github.com/frappe/lms
+- **Modifications maintained since:** 2026 (see git history for the full commit log).
+
+Because this LMS runs as a publicly-accessible network service, AGPL v3 §13 requires that users interacting with it be offered access to the source of the running modified version. The in-app sidebar includes a **Source Code** link pointing to this repository to satisfy that requirement.
+
+If you received access to a running instance of this software and want the source code, you can obtain it from the repository linked above.
+
+---
+
 <div align="center" markdown="1">
 
 <img src=".github/lms-logo.png" alt="Frappe Learning logo" width="80" height="80"/>
-<h1>Frappe Learning</h1>
+<h1>Frappe Learning (upstream)</h1>
 
 **Easy to use, open source, Learning Management System**
 
