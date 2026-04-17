@@ -32,7 +32,7 @@
             "description": "Must be on a verified Resend domain (e.g. mail.ppt4ed.org)."
         },
         {
-            "default": "PPT4ed",
+            "default": "PPT4Ed",
             "fieldname": "from_name",
             "fieldtype": "Data",
             "label": "From Name"
