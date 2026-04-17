@@ -2,7 +2,7 @@
 	<Dialog
 		v-model="show"
 		:options="{
-			title: __('New Resource'),
+			title: __('Edit Resource'),
 			size: '3xl',
 		}"
 	>
@@ -10,13 +10,13 @@
 			<div class="text-base">
 				<div class="grid grid-cols-2 gap-5 border-b mb-5">
 					<FormControl
-						v-model="resource.title"
+						v-model="form.title"
 						:label="__('Title')"
 						:required="true"
 						autocomplete="off"
 					/>
 					<FormControl
-						v-model="resource.resource_type"
+						v-model="form.resource_type"
 						:label="__('Resource Type')"
 						type="select"
 						:options="[
@@ -29,14 +29,14 @@
 						:required="true"
 					/>
 					<Link
-						v-model="resource.category"
+						v-model="form.category"
 						doctype="LMS Category"
 						:label="__('Category')"
 						:inlineCreate="true"
 						:onCreate="createCategory"
 					/>
 					<MultiSelect
-						v-model="resource.instructors"
+						v-model="form.instructors"
 						doctype="User"
 						:label="__('Instructors')"
 						url="lms.lms.api.search_users_by_role"
@@ -45,14 +45,14 @@
 						}"
 					/>
 					<Uploader
-						v-model="resource.image"
+						v-model="form.image"
 						:label="__('Image')"
 						:required="false"
 					/>
 				</div>
 				<div class="space-y-4">
 					<FormControl
-						v-model="resource.short_introduction"
+						v-model="form.short_introduction"
 						:label="__('Short Introduction')"
 						type="textarea"
 						:required="true"
@@ -64,8 +64,8 @@
 							<span class="text-ink-red-3">*</span>
 						</div>
 						<TextEditor
-							:content="resource.description"
-							@change="(val) => (resource.description = val)"
+							:content="form.description"
+							@change="(val) => (form.description = val)"
 							:editable="true"
 							:fixedMenu="true"
 							editorClass="prose-sm max-w-none border-b border-x border-outline-gray-modals bg-surface-gray-2 rounded-b-md py-1 px-2 min-h-[10rem] max-h-[17rem] overflow-auto"
@@ -76,7 +76,7 @@
 		</template>
 		<template #actions="{ close }">
 			<div class="text-right">
-				<Button variant="solid" @click="saveResource(close)">
+				<Button variant="solid" :loading="saving" @click="saveResource(close)">
 					{{ __('Save') }}
 				</Button>
 			</div>
@@ -84,25 +84,26 @@
 	</Dialog>
 </template>
 <script setup>
-import { Button, Dialog, FormControl, TextEditor, toast } from 'frappe-ui'
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { Button, call, Dialog, FormControl, TextEditor, toast } from 'frappe-ui'
+import { ref, watch } from 'vue'
 import Link from '@/components/Controls/Link.vue'
 import { cleanError, sanitizeHTML, createLMSCategory } from '@/utils'
 import MultiSelect from '@/components/Controls/MultiSelect.vue'
 import Uploader from '@/components/Controls/Uploader.vue'
 
 const show = defineModel({ required: true, default: false })
-const router = useRouter()
+const saving = ref(false)
 
 const props = defineProps({
-	resources: {
+	resourceDoc: {
 		type: Object,
 		required: true,
 	},
 })
 
-const resource = ref({
+const emit = defineEmits(['updated'])
+
+const form = ref({
 	title: '',
 	short_introduction: '',
 	description: '',
@@ -112,49 +113,67 @@ const resource = ref({
 	image: null,
 })
 
+watch(
+	() => show.value,
+	(visible) => {
+		if (visible && props.resourceDoc) {
+			form.value = {
+				title: props.resourceDoc.title || '',
+				short_introduction: props.resourceDoc.short_introduction || '',
+				description: props.resourceDoc.description || '',
+				resource_type: props.resourceDoc.resource_type || 'Download',
+				instructors: (props.resourceDoc.instructors || []).map(
+					(i) => i.instructor || i.name || i
+				),
+				category: props.resourceDoc.category || null,
+				image: props.resourceDoc.image || null,
+			}
+		}
+	},
+	{ immediate: true }
+)
+
 const createCategory = (name, done) => {
 	createLMSCategory(name).then((categoryName) => {
 		if (!categoryName) return
-		resource.value.category = categoryName
+		form.value.category = categoryName
 		done()
 	})
 }
 
-const validateFields = () => {
-	Object.keys(resource.value).forEach((key) => {
-		if (typeof resource.value[key] === 'string') {
-			resource.value[key] = sanitizeHTML(resource.value[key])
+const saveResource = async (close = () => {}) => {
+	Object.keys(form.value).forEach((key) => {
+		if (typeof form.value[key] === 'string') {
+			form.value[key] = sanitizeHTML(form.value[key])
 		}
 	})
-}
 
-const saveResource = (close = () => {}) => {
-	validateFields()
-	props.resources.insert.submit(
-		{
-			...resource.value,
-			course_type: 'Resource',
-			paid_course: 0,
-			published: 1,
-			published_on: new Date().toISOString().split('T')[0],
-			instructors: resource.value.instructors.map((instructor) => ({
-				instructor: instructor,
-			})),
-		},
-		{
-			onSuccess(data) {
-				toast.success(__('Resource created successfully'))
-				close()
-				router.push({
-					name: 'ResourceDetail',
-					params: { resourceName: data.name },
-				})
+	saving.value = true
+	try {
+		await call('frappe.client.set_value', {
+			doctype: 'LMS Course',
+			name: props.resourceDoc.name,
+			fieldname: {
+				title: form.value.title,
+				short_introduction: form.value.short_introduction,
+				description: form.value.description,
+				resource_type: form.value.resource_type,
+				category: form.value.category,
+				image: form.value.image,
+				instructors: form.value.instructors.map((instructor) => ({
+					instructor: instructor,
+				})),
 			},
-			onError(err) {
-				toast.error(cleanError(err.messages?.[0]))
-				console.error(err)
-			},
-		}
-	)
+		})
+
+		toast.success(__('Resource updated successfully'))
+		close()
+		emit('updated')
+	} catch (err) {
+		toast.error(cleanError(err.messages?.[0] || err.message))
+		console.error(err)
+	} finally {
+		saving.value = false
+	}
 }
 </script>

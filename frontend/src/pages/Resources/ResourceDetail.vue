@@ -4,18 +4,23 @@
 			class="sticky top-0 z-10 flex items-center justify-between border-b bg-surface-white px-3 py-2.5 sm:px-5"
 		>
 			<Breadcrumbs class="h-7" :items="breadcrumbs" />
-			<router-link
+			<Button
 				v-if="user.data?.is_moderator"
-				:to="{ name: 'CourseDetail', params: { courseName: resourceName }, hash: '#settings' }"
+				@click="showEditModal = true"
 			>
-				<Button>
-					<template #prefix>
-						<Pencil class="h-4 w-4 stroke-1.5" />
-					</template>
-					{{ __('Edit') }}
-				</Button>
-			</router-link>
+				<template #prefix>
+					<Pencil class="h-4 w-4 stroke-1.5" />
+				</template>
+				{{ __('Edit') }}
+			</Button>
 		</header>
+
+		<EditResourceModal
+			v-if="resource.data"
+			v-model="showEditModal"
+			:resourceDoc="resource.data"
+			@updated="resource.reload()"
+		/>
 
 		<!-- Guest: Teaser + Email Gate -->
 		<div v-if="!user.data" class="max-w-3xl mx-auto p-5 pt-10">
@@ -187,6 +192,7 @@ import {
 import { computed, inject, ref, watch, nextTick } from 'vue'
 import { Pencil } from 'lucide-vue-next'
 import { sessionStore } from '@/stores/session'
+import EditResourceModal from '@/pages/Resources/EditResourceModal.vue'
 import UserAvatar from '@/components/UserAvatar.vue'
 import CourseInstructors from '@/components/CourseInstructors.vue'
 import CourseOutline from '@/components/CourseOutline.vue'
@@ -196,6 +202,7 @@ const user = inject('$user')
 const { brand } = sessionStore()
 const email = ref('')
 const emailSent = ref(false)
+const showEditModal = ref(false)
 
 const props = defineProps({
 	resourceName: {
