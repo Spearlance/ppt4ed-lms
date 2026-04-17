@@ -4,6 +4,17 @@
 			class="sticky top-0 z-10 flex items-center justify-between border-b bg-surface-white px-3 py-2.5 sm:px-5"
 		>
 			<Breadcrumbs class="h-7" :items="breadcrumbs" />
+			<router-link
+				v-if="user.data?.is_moderator"
+				:to="{ name: 'CourseDetail', params: { courseName: resourceName }, hash: '#settings' }"
+			>
+				<Button>
+					<template #prefix>
+						<Pencil class="h-4 w-4 stroke-1.5" />
+					</template>
+					{{ __('Edit') }}
+				</Button>
+			</router-link>
 		</header>
 
 		<!-- Guest: Teaser + Email Gate -->
@@ -174,6 +185,7 @@ import {
 	usePageMeta,
 } from 'frappe-ui'
 import { computed, inject, ref, watch, nextTick } from 'vue'
+import { Pencil } from 'lucide-vue-next'
 import { sessionStore } from '@/stores/session'
 import UserAvatar from '@/components/UserAvatar.vue'
 import CourseInstructors from '@/components/CourseInstructors.vue'
