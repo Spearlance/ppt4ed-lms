@@ -31,7 +31,6 @@ class LMSEvent(Document):
 		self.validate_event_end_date()
 		self.validate_event_time()
 		self.validate_duplicate_courses()
-		self.validate_payments_app()
 		self.validate_amount_and_currency()
 		self.validate_duplicate_assessments()
 		self.validate_timetable()
@@ -61,17 +60,6 @@ class LMSEvent(Document):
 		if len(duplicates):
 			title = frappe.db.get_value("LMS Course", next(iter(duplicates)), "title")
 			frappe.throw(_("Course {0} has already been added to this event.").format(frappe.bold(title)))
-
-	def validate_payments_app(self):
-		if self.paid_event:
-			installed_apps = frappe.get_installed_apps()
-			if "payments" not in installed_apps:
-				documentation_link = "https://docs.frappe.io/learning/setting-up-payment-gateway"
-				frappe.throw(
-					_(
-						"Please install the Payments App to create a paid event. Refer to the documentation for more details. {0}"
-					).format(documentation_link)
-				)
 
 	def validate_amount_and_currency(self):
 		if self.paid_event and (not self.amount or not self.currency):

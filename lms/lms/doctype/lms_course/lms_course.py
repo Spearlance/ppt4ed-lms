@@ -26,7 +26,6 @@ class LMSCourse(Document):
 		self.validate_instructors()
 		self.validate_video_link()
 		self.validate_status()
-		self.validate_payments_app()
 		self.validate_certification()
 		self.validate_amount_and_currency()
 		self.image = validate_image(self.image)
@@ -57,17 +56,6 @@ class LMSCourse(Document):
 	def validate_status(self):
 		if self.published:
 			self.status = "Approved"
-
-	def validate_payments_app(self):
-		if self.paid_course:
-			installed_apps = frappe.get_installed_apps()
-			if "payments" not in installed_apps:
-				documentation_link = "https://docs.frappe.io/learning/setting-up-payment-gateway"
-				frappe.throw(
-					_(
-						"Please install the Payments App to create a paid course. Refer to the documentation for more details. {0}"
-					).format(documentation_link)
-				)
 
 	def validate_certification(self):
 		if self.enable_certification and self.paid_certificate:
