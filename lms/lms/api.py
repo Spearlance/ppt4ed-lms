@@ -310,8 +310,9 @@ def get_job_opportunities(filters: dict = None, orFilters: dict = None):
 	return jobs
 
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist()
 def get_chart_details():
+	frappe.only_for("System Manager")
 	details = frappe._dict()
 	details.enrollments = frappe.db.count("LMS Enrollment")
 	details.courses = frappe.db.count(

@@ -507,6 +507,9 @@ const getSidebarItems = () => {
 					icon: 'TrendingUp',
 					to: 'Statistics',
 					activeFor: ['Statistics'],
+					condition: () => {
+						return userResource?.data?.is_system_manager
+					},
 				},
 				{
 					label: 'My Credits',

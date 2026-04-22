@@ -244,6 +244,8 @@ let router = createRouter({
 	routes,
 })
 
+const systemManagerOnlyRoutes = ['Statistics']
+
 router.beforeEach(async (to, from, next) => {
 	const { userResource } = usersStore()
 	let { isLoggedIn } = sessionStore()
@@ -267,6 +269,14 @@ router.beforeEach(async (to, from, next) => {
 			return
 		}
 	}
+
+	if (
+		systemManagerOnlyRoutes.includes(to.name) &&
+		!userResource?.data?.is_system_manager
+	) {
+		return next({ name: 'Courses' })
+	}
+
 	return next()
 })
 
