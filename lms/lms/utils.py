@@ -537,7 +537,7 @@ def get_lesson_count(course: str) -> int:
 	return lesson_count
 
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist()
 @rate_limit(limit=500, seconds=60 * 60)
 def get_chart_data(
 	chart_name: str,
@@ -545,6 +545,7 @@ def get_chart_data(
 	from_date: str = None,
 	to_date: str = None,
 ):
+	frappe.only_for("System Manager")
 	from_date, to_date = get_chart_date_range(from_date, to_date)
 	chart = frappe.get_doc("Dashboard Chart", chart_name)
 	doctype = chart.document_type
@@ -617,9 +618,10 @@ def get_chart_details(
 		)
 
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist()
 @rate_limit(limit=500, seconds=60 * 60)
 def get_course_completion_data():
+	frappe.only_for("System Manager")
 	all_membership = frappe.db.count("LMS Enrollment")
 	completed = frappe.db.count("LMS Enrollment", {"progress": ["like", "%100%"]})
 
