@@ -1172,15 +1172,15 @@ def get_event_details(batch: str):
 	if not (is_batch_published or is_batch_admin or is_student_enrolled):
 		return {}
 
-	batch_details = frappe.db.get_value(
+	event_details = frappe.db.get_value(
 		"LMS Event",
 		batch,
 		[
 			"name",
 			"title",
 			"description",
-			"batch_details",
-			"batch_details_raw",
+			"event_details",
+			"event_details_raw",
 			"start_date",
 			"end_date",
 			"start_time",
@@ -1190,7 +1190,7 @@ def get_event_details(batch: str):
 			"amount",
 			"amount_usd",
 			"currency",
-			"paid_batch",
+			"paid_event",
 			"evaluation_end_date",
 			"allow_self_enrollment",
 			"certification",
@@ -1205,38 +1205,38 @@ def get_event_details(batch: str):
 		as_dict=True,
 	)
 
-	batch_details.instructors = get_instructors("LMS Event", batch)
-	batch_details.accept_enrollments = batch_details.start_date > getdate()
+	event_details.instructors = get_instructors("LMS Event", batch)
+	event_details.accept_enrollments = event_details.start_date > getdate()
 
 	if (
-		not batch_details.accept_enrollments
-		and batch_details.start_date == getdate()
-		and str(batch_details.start_time) > nowtime()
+		not event_details.accept_enrollments
+		and event_details.start_date == getdate()
+		and str(event_details.start_time) > nowtime()
 	):
-		batch_details.accept_enrollments = True
+		event_details.accept_enrollments = True
 
-	batch_details.courses = frappe.get_all(
+	event_details.courses = frappe.get_all(
 		"Batch Course", filters={"parent": batch}, fields=["course", "title", "evaluator"]
 	)
-	batch_details.assessments = frappe.get_all(
+	event_details.assessments = frappe.get_all(
 		"LMS Assessment", {"parent": batch}, ["assessment_name", "assessment_type"]
 	)
 
 	if can_modify_event(batch):
-		batch_details.students = batch_students
+		event_details.students = batch_students
 	elif is_student_enrolled:
-		batch_details.students = [frappe.session.user]
+		event_details.students = [frappe.session.user]
 
-	if batch_details.paid_batch and batch_details.start_date >= getdate():
-		batch_details.amount, batch_details.currency = check_multicurrency(
-			batch_details.amount, batch_details.currency, None, batch_details.amount_usd
+	if event_details.paid_event and event_details.start_date >= getdate():
+		event_details.amount, event_details.currency = check_multicurrency(
+			event_details.amount, event_details.currency, None, event_details.amount_usd
 		)
-		batch_details.price = fmt_money(batch_details.amount, 0, batch_details.currency)
+		event_details.price = fmt_money(event_details.amount, 0, event_details.currency)
 
-	if batch_details.seat_count:
-		batch_details.seats_left = batch_details.seat_count - len(batch_students)
+	if event_details.seat_count:
+		event_details.seats_left = event_details.seat_count - len(batch_students)
 
-	return batch_details
+	return event_details
 
 
 def categorize_batches(batches: list) -> dict:

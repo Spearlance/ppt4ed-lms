@@ -131,18 +131,18 @@ def get_meta_from_document(app_path):
 		batch = frappe.db.get_value(
 			"LMS Event",
 			batch_name,
-			["title", "meta_image", "batch_details", "category", "medium"],
+			["title", "meta_image", "event_details", "category", "medium"],
 			as_dict=True,
 		)
 
-		if batch.batch_details:
-			soup = BeautifulSoup(batch.batch_details, "html.parser")
-			batch.batch_details = escape_html(soup.get_text())
+		if batch.event_details:
+			soup = BeautifulSoup(batch.event_details, "html.parser")
+			batch.event_details = escape_html(soup.get_text())
 
 		return {
 			"title": batch.title,
 			"image": batch.meta_image,
-			"description": batch.batch_details,
+			"description": batch.event_details,
 			"keywords": f"{batch.category} {batch.medium}",
 			"link": get_lms_route(f"events/details/{batch_name}"),
 		}
@@ -158,18 +158,18 @@ def get_meta_from_document(app_path):
 		batch = frappe.db.get_value(
 			"LMS Event",
 			batch_name,
-			["title", "meta_image", "batch_details", "category", "medium"],
+			["title", "meta_image", "event_details", "category", "medium"],
 			as_dict=True,
 		)
 
-		if batch.batch_details:
-			soup = BeautifulSoup(batch.batch_details, "html.parser")
-			batch.batch_details = escape_html(soup.get_text())
+		if batch.event_details:
+			soup = BeautifulSoup(batch.event_details, "html.parser")
+			batch.event_details = escape_html(soup.get_text())
 
 		return {
 			"title": batch.title,
 			"image": batch.meta_image,
-			"description": batch.batch_details,
+			"description": batch.event_details,
 			"keywords": f"{batch.category} {batch.medium}",
 			"link": get_lms_route(f"events/{batch_name}"),
 		}
