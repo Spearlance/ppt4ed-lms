@@ -56,6 +56,15 @@ def handle_checkout_completed(data):
             amount_total=data.get("amount_total"),
             currency=data.get("currency"),
         )
+    elif checkout_type == "event_one_off":
+        _create_event_registration(
+            event=metadata.get("event"),
+            user=metadata.get("user"),
+            stripe_session_id=data.get("id"),
+            stripe_payment_intent_id=data.get("payment_intent"),
+            amount_total=data.get("amount_total"),
+            currency=data.get("currency"),
+        )
     elif checkout_type == "subscription":
         _activate_subscription(
             plan=metadata.get("plan"),
@@ -184,6 +193,67 @@ def _create_one_off_enrollment(
         "credit_source": "One-Off",
         "payment": payment.name,
     }).insert(ignore_permissions=True)
+
+
+def _create_event_registration(
+    event,
+    user,
+    stripe_session_id=None,
+    stripe_payment_intent_id=None,
+    amount_total=None,
+    currency=None,
+):
+    """Create an LMS Event Registration for a paid event with ledger marker + billing receipt.
+
+    Idempotent by stripe_session_id — Stripe may deliver the same event more than once.
+    """
+    if stripe_session_id and frappe.db.exists("LMS Payment", {"stripe_session_id": stripe_session_id}):
+        return
+    if frappe.db.exists("LMS Event Registration", {"event": event, "member": user}):
+        return
+
+    # Audit marker — real CEU credits are issued on event completion, not purchase.
+    frappe.get_doc({
+        "doctype": "CEU Credit Ledger",
+        "user": user,
+        "transaction_type": "Direct Purchase",
+        "hours": 0,
+        "balance_after": 0,
+        "timestamp": now_datetime(),
+        "stripe_payment_id": stripe_payment_intent_id,
+        "notes": f"Event purchase: {event}",
+    }).insert(ignore_permissions=True)
+
+    billing_name = frappe.db.get_value("User", user, "full_name") or user
+    amount = (amount_total or 0) / 100
+    payment = frappe.get_doc({
+        "doctype": "LMS Payment",
+        "member": user,
+        "billing_name": billing_name,
+        "amount": amount,
+        "currency": (currency or "usd").upper(),
+        "payment_for_document_type": "LMS Event",
+        "payment_for_document": event,
+        "payment_received": 1,
+        "stripe_session_id": stripe_session_id,
+        "stripe_payment_intent_id": stripe_payment_intent_id,
+    }).insert(ignore_permissions=True)
+
+    # Impersonate the buyer so LMS Event Registration.validate_owner sees owner == member.
+    # The registration's legacy validations (validate_payment, validate_self_enrollment,
+    # validate_seat_availability, validate_duplicate_members) reference stale field names
+    # — those bugs pre-date this PR and are out of scope here.
+    original_user = frappe.session.user
+    frappe.set_user(user)
+    try:
+        frappe.get_doc({
+            "doctype": "LMS Event Registration",
+            "event": event,
+            "member": user,
+            "payment": payment.name,
+        }).insert(ignore_permissions=True)
+    finally:
+        frappe.set_user(original_user)
 
 
 def _activate_subscription(plan, user, stripe_subscription_id, stripe_customer_id, company_name=None):

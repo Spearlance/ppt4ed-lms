@@ -31,6 +31,66 @@ class TestCEUStripe(UnitTestCase):
         finally:
             frappe.set_user("Administrator")
 
+    def test_create_event_checkout_session_calls_stripe(self):
+        from lms.lms.ceu_stripe import create_event_checkout
+
+        mock_session = MagicMock()
+        mock_session.url = "https://checkout.stripe.com/event"
+        mock_session.id = "cs_test_event_123"
+
+        mock_event = MagicMock()
+        mock_event.title = "Test Event"
+        mock_event.paid_event = 1
+        mock_event.amount_usd = 79.00
+        mock_event.credit_hours = 3
+        mock_event.seat_count = 0
+
+        frappe.set_user("test@test.com")
+        try:
+            with patch("lms.lms.ceu_stripe.stripe") as mock_stripe, \
+                 patch("lms.lms.ceu_stripe.frappe.get_doc", return_value=mock_event), \
+                 patch("lms.lms.ceu_stripe.frappe.db.exists", return_value=False):
+                mock_stripe.checkout.Session.create.return_value = mock_session
+                result = create_event_checkout(event_name="test-event")
+                self.assertEqual(result["url"], "https://checkout.stripe.com/event")
+                mock_stripe.checkout.Session.create.assert_called_once()
+                call_kwargs = mock_stripe.checkout.Session.create.call_args.kwargs
+                self.assertEqual(call_kwargs["line_items"][0]["price_data"]["unit_amount"], 7900)
+                self.assertEqual(call_kwargs["customer_email"], "test@test.com")
+                self.assertEqual(call_kwargs["metadata"]["type"], "event_one_off")
+                self.assertEqual(call_kwargs["metadata"]["event"], "test-event")
+        finally:
+            frappe.set_user("Administrator")
+
+    def test_create_event_checkout_rejects_free_event(self):
+        from lms.lms.ceu_stripe import create_event_checkout
+
+        mock_event = MagicMock()
+        mock_event.paid_event = 0
+
+        frappe.set_user("test@test.com")
+        try:
+            with patch("lms.lms.ceu_stripe.frappe.get_doc", return_value=mock_event):
+                with self.assertRaises(frappe.ValidationError):
+                    create_event_checkout(event_name="free-event")
+        finally:
+            frappe.set_user("Administrator")
+
+    def test_create_event_checkout_rejects_missing_usd_price(self):
+        from lms.lms.ceu_stripe import create_event_checkout
+
+        mock_event = MagicMock()
+        mock_event.paid_event = 1
+        mock_event.amount_usd = 0
+
+        frappe.set_user("test@test.com")
+        try:
+            with patch("lms.lms.ceu_stripe.frappe.get_doc", return_value=mock_event):
+                with self.assertRaises(frappe.ValidationError):
+                    create_event_checkout(event_name="no-price-event")
+        finally:
+            frappe.set_user("Administrator")
+
     def test_create_subscription_checkout_calls_stripe(self):
         from lms.lms.ceu_stripe import create_subscription_checkout
 

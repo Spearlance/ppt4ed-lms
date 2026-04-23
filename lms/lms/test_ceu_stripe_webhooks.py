@@ -126,6 +126,44 @@ class TestCEUStripeWebhooks(UnitTestCase):
         })
         self.assertEqual(enrollment.credit_source, "One-Off")
 
+    def test_handle_checkout_completed_dispatches_event_one_off(self):
+        from lms.lms.ceu_stripe_webhooks import handle_checkout_completed
+
+        with patch("lms.lms.ceu_stripe_webhooks._create_event_registration") as mock_create:
+            handle_checkout_completed({
+                "id": "cs_test_event_dispatch",
+                "payment_intent": "pi_test_evt",
+                "amount_total": 7900,
+                "currency": "usd",
+                "metadata": {
+                    "type": "event_one_off",
+                    "event": "test-event",
+                    "user": "test@test.com",
+                },
+            })
+            mock_create.assert_called_once_with(
+                event="test-event",
+                user="test@test.com",
+                stripe_session_id="cs_test_event_dispatch",
+                stripe_payment_intent_id="pi_test_evt",
+                amount_total=7900,
+                currency="usd",
+            )
+
+    def test_create_event_registration_idempotent_on_existing_payment(self):
+        from lms.lms.ceu_stripe_webhooks import _create_event_registration
+
+        with patch("lms.lms.ceu_stripe_webhooks.frappe.db.exists", return_value=True) as mock_exists, \
+             patch("lms.lms.ceu_stripe_webhooks.frappe.get_doc") as mock_get_doc:
+            _create_event_registration(
+                event="test-event",
+                user="test@test.com",
+                stripe_session_id="cs_dup_delivery",
+            )
+            # First exists() call is the LMS Payment lookup — if it returns True, we must bail
+            # before doing any inserts.
+            mock_get_doc.assert_not_called()
+
     def test_invoice_paid_records_stripe_invoice_id(self):
         from lms.lms.ceu_stripe_webhooks import handle_invoice_paid
 
