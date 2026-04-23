@@ -70,6 +70,66 @@ def create_one_off_checkout(course_name):
 
 
 @frappe.whitelist()
+def create_event_checkout(event_name):
+    """Create a Stripe Checkout session for a paid event registration.
+
+    Price and buyer identity are derived server-side. Never trust client input
+    for either — that would let anyone pay $0.01 for any event.
+    """
+    if frappe.session.user == "Guest":
+        frappe.throw(_("You must be logged in to register for an event"), frappe.AuthenticationError)
+
+    event = frappe.get_doc("LMS Event", event_name)
+    if not event.paid_event:
+        frappe.throw(_("This event is not for sale"))
+
+    amount_usd = event.amount_usd or 0
+    if amount_usd <= 0:
+        frappe.throw(_("This event has no USD price configured"))
+
+    user_email = frappe.session.user
+
+    if frappe.db.exists("LMS Event Registration", {"event": event_name, "member": user_email}):
+        frappe.throw(_("You are already registered for this event"))
+
+    # Best-effort seat check; the webhook may still oversell under a race.
+    # Accepted risk for v1 — refund manually if it happens.
+    if event.seat_count:
+        enrolled = frappe.db.count("LMS Event Registration", {"event": event_name})
+        if enrolled >= event.seat_count:
+            frappe.throw(_("There are no seats available for this event"))
+
+    unit_amount_cents = int(round(float(amount_usd) * 100))
+
+    product_data = {"name": event.title}
+    if event.credit_hours:
+        product_data["description"] = f"{event.credit_hours} CEU Hours"
+
+    s = get_stripe()
+    session = s.checkout.Session.create(
+        mode="payment",
+        customer_email=user_email,
+        line_items=[{
+            "price_data": {
+                "currency": "usd",
+                "unit_amount": unit_amount_cents,
+                "product_data": product_data,
+            },
+            "quantity": 1
+        }],
+        metadata={
+            "type": "event_one_off",
+            "event": event_name,
+            "user": user_email
+        },
+        success_url=frappe.utils.get_url(f"/lms/events/{event_name}?payment=success"),
+        cancel_url=frappe.utils.get_url(f"/lms/events/{event_name}?payment=cancelled")
+    )
+
+    return {"url": session.url, "session_id": session.id}
+
+
+@frappe.whitelist()
 def create_subscription_checkout(plan_name, stripe_price_id, user_email, company_name=None):
     """Create a Stripe Checkout session for a membership subscription."""
     s = get_stripe()
