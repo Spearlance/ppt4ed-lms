@@ -96,7 +96,7 @@
 				v-for="event in events.data"
 				:to="{ name: 'EventDetail', params: { eventName: event.name } }"
 			>
-				<EventCard :event="event" />
+				<EventCard :batch="event" />
 			</router-link>
 		</div>
 		<EmptyState v-else-if="!events.list.loading" type="Events" />
