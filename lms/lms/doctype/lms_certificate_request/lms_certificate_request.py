@@ -36,7 +36,7 @@ class LMSCertificateRequest(Document):
 
 	def set_evaluator(self):
 		if not self.evaluator:
-			self.evaluator = get_evaluator(self.course, self.batch_name)
+			self.evaluator = get_evaluator(self.course, self.event_name)
 			self.evaluator_name = get_fullname(self.evaluator)
 
 	def validate_unavailability(self):
@@ -105,8 +105,8 @@ class LMSCertificateRequest(Document):
 			frappe.throw(_("You cannot schedule evaluations for past slots."))
 
 	def validate_evaluation_end_date(self):
-		if self.batch_name:
-			evaluation_end_date = frappe.db.get_value("LMS Event", self.batch_name, "evaluation_end_date")
+		if self.event_name:
+			evaluation_end_date = frappe.db.get_value("LMS Event", self.event_name, "evaluation_end_date")
 
 			if evaluation_end_date:
 				if getdate(self.date) > getdate(evaluation_end_date):
@@ -131,7 +131,7 @@ class LMSCertificateRequest(Document):
 
 			args = {
 				"course": self.course_title,
-				"timezone": self.timezone if self.batch_name else "",
+				"timezone": self.timezone if self.event_name else "",
 				"date": format_date(self.date, "medium"),
 				"member_name": self.member_name,
 				"start_time": format_time(self.start_time, "short"),

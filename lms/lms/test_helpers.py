@@ -196,7 +196,7 @@ class BaseTestUtils(UnitTestCase):
 				"timezone": "Asia/Kolkata",
 				"published": 1,
 				"description": "Batch for Utility Course Training",
-				"batch_details": "This batch is created to test utility functions.",
+				"event_details": "This batch is created to test utility functions.",
 				"evaluation_end_date": add_days(nowdate(), 120),
 				"instructors": [{"instructor": instructor}],
 				"courses": [{"course": course, "evaluator": evaluator}],

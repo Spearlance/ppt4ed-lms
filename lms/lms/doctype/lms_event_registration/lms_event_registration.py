@@ -84,7 +84,7 @@ class LMSEventRegistration(Document):
 				enrollment = frappe.new_doc("LMS Enrollment")
 				enrollment.course = course.course
 				enrollment.member = self.member
-				enrollment.enrollment_from_batch = self.event
+				enrollment.enrollment_from_event = self.event
 				enrollment.save()
 
 	def add_member_to_live_class(self):

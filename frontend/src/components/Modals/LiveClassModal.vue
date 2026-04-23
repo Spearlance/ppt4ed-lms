@@ -146,7 +146,7 @@ const getRecordingOptions = () => {
 }
 
 const createLiveClass = createResource({
-	url: 'lms.lms.doctype.lms_batch.lms_batch.create_live_class',
+	url: 'lms.lms.doctype.lms_event.lms_event.create_live_class',
 	makeParams(values) {
 		return {
 			doctype: 'LMS Live Class',
@@ -158,7 +158,7 @@ const createLiveClass = createResource({
 })
 
 const createGoogleMeetLiveClass = createResource({
-	url: 'lms.lms.doctype.lms_batch.lms_batch.create_google_meet_live_class',
+	url: 'lms.lms.doctype.lms_event.lms_event.create_google_meet_live_class',
 	makeParams(values) {
 		return {
 			batch_name: values.batch,
