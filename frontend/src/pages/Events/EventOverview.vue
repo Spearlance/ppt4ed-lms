@@ -22,14 +22,14 @@
 					</div>
 					<CourseInstructors :instructors="batch.data.instructors" />
 				</div>
-				<EventOverlay :event="event" class="md:hidden mt-5" />
+				<EventOverlay :batch="batch" class="md:hidden mt-5" />
 				<div
 					class="ProseMirror prose prose-table:table-fixed prose-td:p-2 prose-th:p-2 prose-td:border prose-th:border prose-td:border-outline-gray-2 prose-th:border-outline-gray-2 prose-td:relative prose-th:relative prose-th:bg-surface-gray-2 prose-sm max-w-none !whitespace-normal mt-10"
 					v-html="batch.data.event_details"
 				></div>
 			</div>
 			<div class="hidden md:block">
-				<EventOverlay :event="event" />
+				<EventOverlay :batch="batch" />
 			</div>
 		</div>
 		<div v-if="courses.data?.length">
@@ -82,7 +82,7 @@ const props = defineProps({
 const courses = createResource({
 	url: 'lms.lms.utils.get_event_courses',
 	params: {
-		event: props.event?.data?.name,
+		batch: props.batch?.data?.name,
 	},
 	cache: ['eventCourses', props.batch?.data?.name],
 	auto: true,
