@@ -436,7 +436,7 @@ def get_certification_query(filters: dict = None):
 		for field, value in filters.items():
 			if field == "category":
 				query = query.where(
-					Certificate.course_title.like(f"%{value}%") | Certificate.batch_title.like(f"%{value}%")
+					Certificate.course_title.like(f"%{value}%") | Certificate.event_title.like(f"%{value}%")
 				)
 			if field == "member_name":
 				query = query.where(Certificate.member_name.like(value[1]))
@@ -463,11 +463,11 @@ def get_certification_categories():
 		filters={
 			"published": 1,
 		},
-		fields=["course_title", "batch_title"],
+		fields=["course_title", "event_title"],
 	)
 
 	for doc in docs:
-		category = doc.course_title if doc.course_title else doc.batch_title
+		category = doc.course_title if doc.course_title else doc.event_title
 		if not category or category in seen:
 			continue
 
@@ -773,7 +773,7 @@ def save_certificate_details(
 		"issue_date": issue_date,
 		"expiry_date": expiry_date,
 		"template": template,
-		"batch_name": batch_name,
+		"event_name": batch_name,
 	}
 
 	if certificate:
@@ -1926,7 +1926,7 @@ def get_my_live_classes():
 		"LMS Live Class",
 		filters={
 			"date": [">=", getdate()],
-			"batch_name": ["in", batches],
+			"event_name": ["in", batches],
 		},
 		fields=[
 			"name",
@@ -2020,7 +2020,7 @@ def get_admin_live_classes():
 	query = (
 		frappe.qb.from_(CourseInstructor)
 		.join(LMSLiveClass)
-		.on(CourseInstructor.parent == LMSLiveClass.batch_name)
+		.on(CourseInstructor.parent == LMSLiveClass.event_name)
 		.select(
 			LMSLiveClass.name,
 			LMSLiveClass.title,
