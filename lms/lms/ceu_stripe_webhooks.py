@@ -17,10 +17,23 @@ def stripe_webhook():
         event = stripe.Webhook.construct_event(
             payload, sig_header, settings["webhook_secret"]
         )
-    except (ValueError, stripe.error.SignatureVerificationError):
+    except (ValueError, stripe.error.SignatureVerificationError) as e:
+        # frappe.AuthenticationError is not written to Error Log by Frappe's default
+        # handler, so log it explicitly before throwing. Record only metadata — never
+        # the raw payload, which carries customer + payment identifiers.
+        frappe.log_error(
+            title="Stripe webhook signature verification failed",
+            message=(
+                f"exception: {type(e).__name__}: {e}\n"
+                f"signature_header_present: {bool(sig_header)}\n"
+                f"payload_bytes: {len(payload) if payload else 0}\n"
+                f"webhook_secret_configured: {bool(settings.get('webhook_secret'))}\n"
+            ),
+        )
         frappe.throw(_("Invalid webhook signature"), frappe.AuthenticationError)
 
     event_type = event["type"]
+    event_id = event.get("id")
     data = event["data"]["object"]
 
     handlers = {
@@ -35,9 +48,23 @@ def stripe_webhook():
     }
 
     handler = handlers.get(event_type)
-    if handler:
+    if not handler:
+        return {"status": "ok"}
+
+    try:
         handler(data)
         frappe.db.commit()
+    except Exception:
+        # Roll back first so the Error Log insert runs on a clean connection —
+        # a poisoned transaction (e.g. from a prior "Unknown column" error)
+        # would otherwise cause the log insert itself to fail silently.
+        frappe.db.rollback()
+        frappe.log_error(
+            title=f"Stripe webhook handler failed: {event_type}",
+            message=f"stripe_event_id: {event_id}\nstripe_event_type: {event_type}\n\n{frappe.get_traceback()}",
+        )
+        # Re-raise so Stripe sees a 5xx and retries per its backoff schedule.
+        raise
 
     return {"status": "ok"}
 
