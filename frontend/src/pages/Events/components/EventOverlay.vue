@@ -116,6 +116,17 @@
 					{{ __('Enroll Now') }}
 				</Button>
 			</div>
+			<Badge
+				v-else-if="!readOnlyMode && isStudent"
+				theme="green"
+				size="lg"
+				class="w-full mt-4"
+			>
+				<template #prefix>
+					<CircleCheck class="size-4 stroke-1.5" />
+				</template>
+				{{ __('Registered') }}
+			</Badge>
 		</div>
 	</div>
 </template>
@@ -126,6 +137,7 @@ import { useTelemetry } from 'frappe-ui/frappe'
 import {
 	Award,
 	BookOpen,
+	CircleCheck,
 	Clock,
 	CreditCard,
 	Globe,
