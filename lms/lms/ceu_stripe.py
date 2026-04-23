@@ -83,7 +83,12 @@ def create_event_checkout(event_name):
     if not event.paid_event:
         frappe.throw(_("This event is not for sale"))
 
-    amount_usd = event.amount_usd or 0
+    # Stripe is USD-only for now. If the event is priced in USD, the `amount`
+    # field is authoritative; `amount_usd` is the USD equivalent for non-USD events.
+    if (event.currency or "").upper() == "USD":
+        amount_usd = event.amount_usd or event.amount or 0
+    else:
+        amount_usd = event.amount_usd or 0
     if amount_usd <= 0:
         frappe.throw(_("This event has no USD price configured"))
 

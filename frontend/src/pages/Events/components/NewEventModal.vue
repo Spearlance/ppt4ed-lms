@@ -87,6 +87,38 @@
 				</div>
 
 				<div class="space-y-5 border-t mt-5 pt-5">
+					<div class="flex items-center justify-between">
+						<div>
+							<div class="text-sm font-medium text-ink-gray-9">
+								{{ __('Paid Event') }}
+							</div>
+							<div class="text-xs text-ink-gray-6">
+								{{ __('Charge a fee for event registration.') }}
+							</div>
+						</div>
+						<Switch size="sm" v-model="batch.paid_event" />
+					</div>
+					<div
+						v-if="batch.paid_event"
+						class="grid grid-cols-2 gap-5"
+					>
+						<FormControl
+							v-model="batch.amount"
+							:label="__('Amount')"
+							type="number"
+							:required="true"
+						/>
+						<Link
+							doctype="Currency"
+							v-model="batch.currency"
+							:filters="{ enabled: 1 }"
+							:label="__('Currency')"
+							:required="true"
+						/>
+					</div>
+				</div>
+
+				<div class="space-y-5 border-t mt-5 pt-5">
 					<div class="grid grid-cols-2 gap-5">
 						<FormControl
 							v-model="batch.description"
@@ -136,7 +168,7 @@
 	/>
 </template>
 <script setup lang="ts">
-import { Button, Dialog, FormControl, TextEditor, toast } from 'frappe-ui'
+import { Button, Dialog, FormControl, Switch, TextEditor, toast } from 'frappe-ui'
 import { useOnboarding, useTelemetry } from 'frappe-ui/frappe'
 import { computed, inject, onMounted, onBeforeUnmount, ref } from 'vue'
 import { useRouter } from 'vue-router'
@@ -172,6 +204,9 @@ type Batch = {
 	event_type: string | null
 	credit_hours: number | null
 	venue: string
+	paid_event: boolean
+	amount: number | null
+	currency: string | null
 }
 
 const batch = ref<Batch>({
@@ -190,6 +225,9 @@ const batch = ref<Batch>({
 	event_type: null,
 	credit_hours: null,
 	venue: '',
+	paid_event: false,
+	amount: null,
+	currency: 'USD',
 })
 
 const createCategory = (name: string, done: () => void) => {
