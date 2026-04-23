@@ -1314,6 +1314,10 @@ def get_batch_courses(batch: str) -> list:
 	return courses
 
 
+# Alias for frontend compatibility (Batch→Event rename)
+get_event_courses = get_batch_courses
+
+
 @frappe.whitelist()
 def get_assessments(batch: str) -> list:
 	member = frappe.session.user
