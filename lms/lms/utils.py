@@ -2199,7 +2199,7 @@ def get_batches(filters: dict = None, start: int = 0, order_by: str = "start_dat
 			"title",
 			"description",
 			"seat_count",
-			"paid_batch",
+			"paid_event",
 			"amount",
 			"amount_usd",
 			"currency",
@@ -2268,7 +2268,7 @@ def get_batch_card_details(batches: list) -> list:
 		if batch.seat_count:
 			batch.seats_left = batch.seat_count - students_count
 
-		if batch.paid_batch and batch.start_date >= getdate():
+		if batch.paid_event and batch.start_date >= getdate():
 			batch.amount, batch.currency = check_multicurrency(
 				batch.amount, batch.currency, None, batch.amount_usd
 			)
