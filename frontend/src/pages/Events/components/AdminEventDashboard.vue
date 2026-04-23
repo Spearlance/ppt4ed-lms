@@ -188,7 +188,7 @@ const props = defineProps<{
 const chartData = createResource({
 	url: 'lms.lms.utils.get_event_chart_data',
 	cache: ['event_chart_data', props.batch?.data?.name],
-	params: { event: props.batch?.data?.name },
+	params: { batch: props.batch?.data?.name },
 	auto: true,
 })
 
