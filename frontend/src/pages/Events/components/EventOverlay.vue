@@ -82,29 +82,24 @@
 			</div>
 
 			<div v-if="!readOnlyMode && !canAccessEvent">
-				<router-link
-					:to="{
-						name: 'Billing',
-						params: {
-							type: 'event',
-							name: batch.data.name,
-						},
-					}"
+				<Button
 					v-if="
 						batch.data.paid_event &&
 						batch.data.seats_left > 0 &&
 						batch.data.accept_enrollments
 					"
+					class="w-full mt-4"
+					variant="solid"
+					:loading="purchasing"
+					@click="purchaseEvent()"
 				>
-					<Button class="w-full mt-4" variant="solid">
-						<template #prefix>
-							<CreditCard class="size-4 stroke-1.5" />
-						</template>
-						<span>
-							{{ __('Register Now') }}
-						</span>
-					</Button>
-				</router-link>
+					<template #prefix>
+						<CreditCard class="size-4 stroke-1.5" />
+					</template>
+					<span>
+						{{ __('Register Now') }}
+					</span>
+				</Button>
 				<Button
 					variant="solid"
 					class="w-full mt-2"
@@ -125,8 +120,9 @@
 	</div>
 </template>
 <script setup>
-import { inject, computed } from 'vue'
-import { Badge, Button, createResource, toast } from 'frappe-ui'
+import { inject, computed, ref } from 'vue'
+import { Badge, Button, call, createResource, toast } from 'frappe-ui'
+import { useTelemetry } from 'frappe-ui/frappe'
 import {
 	Award,
 	BookOpen,
@@ -147,6 +143,8 @@ import { useRouter } from 'vue-router'
 const router = useRouter()
 const user = inject('$user')
 const readOnlyMode = window.read_only_mode
+const { capture } = useTelemetry()
+const purchasing = ref(false)
 
 const props = defineProps({
 	batch: {
@@ -163,6 +161,29 @@ const enroll = createResource({
 		}
 	},
 })
+
+async function purchaseEvent() {
+	if (!user.data) {
+		toast.warning(__('You need to login first to register for this event'))
+		setTimeout(() => {
+			window.location.href = `/login?redirect-to=${window.location.pathname}`
+		}, 500)
+		return
+	}
+	purchasing.value = true
+	try {
+		const result = await call(
+			'lms.lms.ceu_stripe.create_event_checkout',
+			{ event_name: props.batch.data.name }
+		)
+		capture('stripe_event_checkout_started', { event: props.batch.data.name })
+		window.location.href = result.url
+	} catch (err) {
+		purchasing.value = false
+		toast.warning(__(err.messages?.[0] || err.message || err))
+		console.error(err)
+	}
+}
 
 const enrollInBatch = () => {
 	if (!user.data) {

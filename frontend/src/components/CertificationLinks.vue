@@ -18,24 +18,10 @@
 		"
 	>
 		<router-link
-			v-if="!certification.data.membership.purchased_certificate"
-			:to="{
-				name: 'Billing',
-				params: {
-					type: 'certificate',
-					name: courseName,
-				},
-			}"
-		>
-			<Button class="w-full">
-				<template #prefix>
-					<GraduationCap class="size-4 stroke-1.5" />
-				</template>
-				{{ __('Get Certified') }}
-			</Button>
-		</router-link>
-		<router-link
-			v-else-if="!certification.data.membership.certificate"
+			v-if="
+				certification.data.membership.purchased_certificate &&
+				!certification.data.membership.certificate
+			"
 			:to="{
 				name: 'CourseCertification',
 				params: {
