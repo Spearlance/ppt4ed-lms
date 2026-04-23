@@ -44,7 +44,7 @@ const communications = createResource({
 	url: 'lms.lms.api.get_announcements',
 	makeParams(value) {
 		return {
-			event: props.batch.data?.name,
+			batch: props.batch.data?.name,
 		}
 	},
 	auto: true,
