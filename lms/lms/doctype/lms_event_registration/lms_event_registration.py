@@ -63,13 +63,13 @@ class LMSEventRegistration(Document):
 	def validate_duplicate_members(self):
 		if frappe.db.exists(
 			"LMS Event Registration",
-			{"batch": self.event, "member": self.member, "name": ["!=", self.name]},
+			{"event": self.event, "member": self.member, "name": ["!=", self.name]},
 		):
 			frappe.throw(_("Member already registered for this event"))
 
 	def validate_seat_availability(self):
 		seat_count = frappe.db.get_value("LMS Event", self.event, "seat_count")
-		enrolled_count = frappe.db.count("LMS Event Registration", {"batch": self.event})
+		enrolled_count = frappe.db.count("LMS Event Registration", {"event": self.event})
 		if seat_count and enrolled_count >= seat_count:
 			frappe.throw(_("There are no seats available for this event."))
 
