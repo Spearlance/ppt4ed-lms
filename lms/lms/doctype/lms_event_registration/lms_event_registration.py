@@ -31,8 +31,8 @@ class LMSEventRegistration(Document):
 			frappe.throw(_("You must be a Moderator to register users for an event."))
 
 	def validate_payment(self):
-		paid_batch = frappe.db.get_value("LMS Event", self.event, "paid_batch")
-		if paid_batch:
+		paid_event = frappe.db.get_value("LMS Event", self.event, "paid_event")
+		if paid_event:
 			payment = frappe.db.exists(
 				"LMS Payment",
 				{
@@ -48,12 +48,12 @@ class LMSEventRegistration(Document):
 				self.payment = payment
 
 	def validate_self_enrollment(self):
-		batch_details = frappe.db.get_value(
-			"LMS Event", self.event, ["allow_self_enrollment", "paid_batch"], as_dict=True
+		event_details = frappe.db.get_value(
+			"LMS Event", self.event, ["allow_self_enrollment", "paid_event"], as_dict=True
 		)
-		if batch_details.paid_batch:
+		if event_details.paid_event:
 			return
-		if not batch_details.allow_self_enrollment and not self.is_admin():
+		if not event_details.allow_self_enrollment and not self.is_admin():
 			frappe.throw(_("Enrollment for this event is restricted. Please contact the Administrator."))
 
 	def is_admin(self):
