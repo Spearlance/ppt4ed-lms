@@ -188,7 +188,7 @@ const props = defineProps<{
 const chartData = createResource({
 	url: 'lms.lms.utils.get_event_chart_data',
 	cache: ['event_chart_data', props.batch?.data?.name],
-	params: { event: props.event?.data?.name },
+	params: { event: props.batch?.data?.name },
 	auto: true,
 })
 
@@ -205,7 +205,7 @@ const certificationCount = createResource({
 const students = createListResource({
 	doctype: 'LMS Event Registration',
 	filters: {
-		event: props.event?.data?.name,
+		event: props.batch?.data?.name,
 	},
 	fields: [
 		'name',
@@ -225,7 +225,7 @@ const filteredChartData = computed(() =>
 
 watch(searchFilter, () => {
 	let filters: Record<string, any> = {
-		event: props.event?.data?.name,
+		event: props.batch?.data?.name,
 	}
 
 	if (searchFilter.value) {

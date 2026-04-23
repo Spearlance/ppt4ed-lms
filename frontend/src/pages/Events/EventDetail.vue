@@ -33,7 +33,7 @@
 			</Dropdown>
 		</header>
 		<div>
-			<EventOverview v-if="!isAdmin && !isStudent" :event="event" />
+			<EventOverview v-if="!isAdmin && !isStudent" :batch="batch" />
 			<div v-else>
 				<Tabs :tabs="tabs" v-model="tabIndex">
 					<template #tab-panel="{ tab }">
@@ -54,7 +54,7 @@
 						<component
 							v-else
 							:is="tab.component"
-							:event="event"
+							:batch="batch"
 							ref="childRef"
 						/>
 					</template>

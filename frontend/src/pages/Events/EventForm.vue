@@ -531,7 +531,7 @@ const deleteBatch = () => {
 
 const trashBatch = (close) => {
 	call('lms.lms.api.delete_event', {
-		event: props.event.data.name,
+		event: props.batch.data.name,
 	}).then(() => {
 		toast.success(__('Event deleted successfully'))
 		close()
