@@ -91,8 +91,8 @@ class TestLMSUtils(BaseTestUtils):
 		self.assertFalse(is_instructor(self.course.name))
 
 	def test_has_moderator_role(self):
-		self.assertIsNotNone(has_moderator_role("frappe@example.com"))
-		self.assertIsNone(has_moderator_role("student2@example.com"))
+		self.assertTrue(has_moderator_role("frappe@example.com"))
+		self.assertFalse(has_moderator_role("student2@example.com"))
 
 	def test_has_student_role(self):
 		self.assertIsNotNone(has_student_role("student1@example.com"))

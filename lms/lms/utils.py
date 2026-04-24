@@ -328,11 +328,8 @@ def is_instructor(course: str) -> bool:
 
 
 def has_moderator_role(member: str = None):
-	return frappe.db.get_value(
-		"Has Role",
-		{"parent": member or frappe.session.user, "role": "Moderator"},
-		"name",
-	)
+	roles = frappe.get_roles(member or frappe.session.user)
+	return "Moderator" in roles or "System Manager" in roles
 
 
 def is_lms_admin(member: str = None):
