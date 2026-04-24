@@ -16,6 +16,15 @@
 				<div class="font-medium leading-5 mb-2 text-ink-gray-9">
 					{{ certificate.course_title || certificate.event_title }}
 				</div>
+				<div
+					v-if="certificate.ceu_hours"
+					class="text-sm text-ink-gray-7"
+				>
+					{{ certificate.ceu_hours }} {{ __('CEU Hours') }}
+					<span v-if="certificate.ceu_disciplines" class="text-ink-gray-5">
+						· {{ certificate.ceu_disciplines }}
+					</span>
+				</div>
 				<div class="text-sm text-ink-gray-7 font-medium mt-auto">
 					<span> {{ __('Issued on') }}: </span>
 					{{ dayjs(certificate.issue_date).format('DD MMM YYYY') }}
@@ -50,7 +59,7 @@ const certificates = createListResource({
 	filters: {
 		member: props.profile.data?.name,
 	},
-	fields: ['name', 'course_title', 'event_title', 'issue_date', 'template'],
+	fields: ['name', 'course_title', 'event_title', 'issue_date', 'template', 'ceu_hours', 'ceu_disciplines'],
 	cache: ['certificates', props.profile.data?.name],
 })
 

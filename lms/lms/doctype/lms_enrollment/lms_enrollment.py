@@ -4,7 +4,7 @@
 import frappe
 from frappe import _
 from frappe.model.document import Document
-from frappe.utils import ceil
+from frappe.utils import ceil, flt, nowdate
 
 
 class LMSEnrollment(Document):
@@ -20,6 +20,50 @@ class LMSEnrollment(Document):
 
 	def on_update(self):
 		update_program_progress(self.member)
+		self.maybe_auto_mint_certificate()
+
+	def maybe_auto_mint_certificate(self):
+		"""Issue a certificate the moment progress crosses 100 on a certified course.
+
+		Only fires on the 0→100 transition. Guarded by the duplicate-check in
+		LMSCertificate.validate_duplicate_certificate, but we check here too so
+		we never even queue a mint that would throw.
+		"""
+		if flt(self.progress) < 100:
+			return
+
+		before = self.get_doc_before_save()
+		previous_progress = flt(before.progress) if before else 0
+		if previous_progress >= 100:
+			return
+
+		if not frappe.db.get_value("LMS Course", self.course, "enable_certification"):
+			return
+
+		if frappe.db.exists("LMS Certificate", {"course": self.course, "member": self.member}):
+			return
+
+		template = frappe.db.get_value(
+			"Property Setter",
+			{"doc_type": "LMS Certificate", "property": "default_print_format"},
+			"value",
+		) or frappe.db.get_value("Print Format", {"doc_type": "LMS Certificate"})
+
+		try:
+			frappe.get_doc(
+				{
+					"doctype": "LMS Certificate",
+					"member": self.member,
+					"course": self.course,
+					"issue_date": nowdate(),
+					"template": template,
+				}
+			).insert(ignore_permissions=True)
+		except Exception:
+			frappe.log_error(
+				frappe.get_traceback(),
+				f"Auto-mint certificate failed for {self.member}/{self.course}",
+			)
 
 	def validate_duplicate_enrollment(self):
 		existing_enrollment = frappe.db.exists(
