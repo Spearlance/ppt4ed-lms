@@ -25,6 +25,12 @@ class LMSQuiz(Document):
 		self.validate_limit()
 		self.calculate_total_marks()
 		self.validate_open_ended_questions()
+		self.apply_survey_defaults()
+
+	def apply_survey_defaults(self):
+		if self.is_survey:
+			self.passing_percentage = 0
+			self.show_answers = 0
 
 	def validate_duplicate_questions(self):
 		questions = [row.question for row in self.questions]
@@ -62,7 +68,8 @@ class LMSQuiz(Document):
 		types = set(types)
 
 		if "Open Ended" in types:
-			if len(types) > 1:
+			# Survey mode allows mixed question types; graded quizzes still require all-or-nothing.
+			if len(types) > 1 and not self.is_survey:
 				frappe.throw(
 					_(
 						"If you want open ended questions then make sure each question in the quiz is of open ended type."
@@ -116,6 +123,7 @@ def submit_quiz(quiz: str, results: str):
 			"course",
 			"enable_negative_marking",
 			"marks_to_cut",
+			"is_survey",
 		],
 		as_dict=1,
 	)
@@ -137,12 +145,14 @@ def submit_quiz(quiz: str, results: str):
 		"pass": percentage >= quiz_details.passing_percentage,
 		"percentage": percentage,
 		"is_open_ended": is_open_ended,
+		"is_survey": bool(quiz_details.is_survey),
 	}
 
 
 def process_results(results: list, quiz_details: dict):
 	score = 0
 	is_open_ended = False
+	is_survey = bool(quiz_details.get("is_survey"))
 
 	for result in results:
 		question_details = frappe.db.get_value(
@@ -156,6 +166,13 @@ def process_results(results: list, quiz_details: dict):
 		result["marks_out_of"] = question_details.marks
 
 		if question_details.type != "Open Ended":
+			# Survey mode: record the answer without grading; no score impact, no correct/incorrect flag.
+			if is_survey:
+				result["answer"] = ", ".join(result["answer"])
+				result["marks"] = 0
+				result["is_correct"] = 0
+				continue
+
 			correct = verify_answer(question_details.question, result["answer"])
 			result["answer"] = ", ".join(result["answer"])
 			if correct:
@@ -264,6 +281,11 @@ def create_submission(quiz: str, results: list, score_out_of: int, passing_perce
 
 def save_progress_after_quiz(quiz_details: dict, percentage: float):
 	if not quiz_details.lesson or not quiz_details.course:
+		return
+
+	# Survey submissions always count as complete regardless of score.
+	if quiz_details.get("is_survey"):
+		save_progress(quiz_details.lesson, quiz_details.course)
 		return
 
 	if quiz_details.passing_percentage and percentage < quiz_details.passing_percentage:

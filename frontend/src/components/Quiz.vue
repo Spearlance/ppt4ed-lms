@@ -5,67 +5,85 @@
 		>
 			<div class="font-medium">
 				{{
-					__(
-						'Please read the following instructions carefully before starting the quiz'
-					)
+					quiz.data.is_survey
+						? __('Please share your feedback to complete this course')
+						: __(
+								'Please read the following instructions carefully before starting the quiz'
+							)
 				}}
 			</div>
 			<ol class="list-decimal list-inside space-y-2">
-				<li v-if="inVideo">
-					{{ __('You will have to complete the quiz to continue the video') }}
-				</li>
-				<li>
+				<li v-if="quiz.data.is_survey">
 					{{
 						__(
-							'Do not refresh the page or close this window. If you do, the quiz will be submitted automatically.'
+							'This feedback survey is required to earn your certificate. Your responses help us improve.'
 						)
 					}}
 				</li>
-				<li>
-					{{
-						__('This quiz consists of {0} questions.').format(questions.length)
-					}}
+				<li v-if="quiz.data.is_survey">
+					{{ __('There are no right or wrong answers.') }}
 				</li>
-				<li v-if="quiz.data?.duration">
-					{{
-						__(
-							'Please ensure that you complete all the questions in {0} minutes.'
-						).format(quiz.data.duration)
-					}}
-				</li>
-				<li v-if="quiz.data?.duration">
-					{{
-						__(
-							'If you fail to do so, the quiz will be automatically submitted when the timer ends.'
-						)
-					}}
-				</li>
-				<li v-if="quiz.data.passing_percentage">
-					{{
-						__(
-							'You will have to get {0}% correct answers in order to pass the quiz.'
-						).format(quiz.data.passing_percentage)
-					}}
-				</li>
-				<li v-if="quiz.data.max_attempts">
-					{{
-						__('You can attempt this quiz {0}.').format(
-							quiz.data.max_attempts == 1
-								? '1 time'
-								: `${quiz.data.max_attempts} times`
-						)
-					}}
-				</li>
-				<li v-if="quiz.data.enable_negative_marking">
-					{{
-						__(
-							'If you answer incorrectly, {0} {1} will be deducted from your score for each incorrect answer.'
-						).format(
-							quiz.data.marks_to_cut,
-							quiz.data.marks_to_cut == 1 ? 'mark' : 'marks'
-						)
-					}}
-				</li>
+				<template v-else>
+					<li v-if="inVideo">
+						{{
+							__('You will have to complete the quiz to continue the video')
+						}}
+					</li>
+					<li>
+						{{
+							__(
+								'Do not refresh the page or close this window. If you do, the quiz will be submitted automatically.'
+							)
+						}}
+					</li>
+					<li>
+						{{
+							__('This quiz consists of {0} questions.').format(
+								questions.length
+							)
+						}}
+					</li>
+					<li v-if="quiz.data?.duration">
+						{{
+							__(
+								'Please ensure that you complete all the questions in {0} minutes.'
+							).format(quiz.data.duration)
+						}}
+					</li>
+					<li v-if="quiz.data?.duration">
+						{{
+							__(
+								'If you fail to do so, the quiz will be automatically submitted when the timer ends.'
+							)
+						}}
+					</li>
+					<li v-if="quiz.data.passing_percentage">
+						{{
+							__(
+								'You will have to get {0}% correct answers in order to pass the quiz.'
+							).format(quiz.data.passing_percentage)
+						}}
+					</li>
+					<li v-if="quiz.data.max_attempts">
+						{{
+							__('You can attempt this quiz {0}.').format(
+								quiz.data.max_attempts == 1
+									? '1 time'
+									: `${quiz.data.max_attempts} times`
+							)
+						}}
+					</li>
+					<li v-if="quiz.data.enable_negative_marking">
+						{{
+							__(
+								'If you answer incorrectly, {0} {1} will be deducted from your score for each incorrect answer.'
+							).format(
+								quiz.data.marks_to_cut,
+								quiz.data.marks_to_cut == 1 ? 'mark' : 'marks'
+							)
+						}}
+					</li>
+				</template>
 			</ol>
 		</div>
 
@@ -94,7 +112,13 @@
 						@click="startQuiz"
 					>
 						<span>
-							{{ inVideo ? __('Start the Quiz') : __('Start') }}
+							{{
+								quiz.data.is_survey
+									? __('Start Survey')
+									: inVideo
+										? __('Start the Quiz')
+										: __('Start')
+							}}
 						</span>
 					</Button>
 					<Button v-if="inVideo" @click="props.backToVideo()">
@@ -127,7 +151,10 @@
 							{{ __('Question {0}').format(activeQuestion) }} -
 							{{ getInstructions(questionDetails.data) }}
 						</div>
-						<div class="text-ink-gray-9 text-sm font-semibold item-left">
+						<div
+							v-if="!quiz.data.is_survey"
+							class="text-ink-gray-9 text-sm font-semibold item-left"
+						>
 							{{ question.marks }}
 							{{ question.marks == 1 ? __('Mark') : __('Marks') }}
 						</div>
@@ -319,10 +346,24 @@
 		</div>
 		<div v-else class="border rounded-lg p-20 text-center space-y-2">
 			<div class="text-lg font-semibold text-ink-gray-9">
-				{{ __('Quiz Summary') }}
+				{{
+					quizSubmission.data.is_survey
+						? __('Thanks for your feedback!')
+						: __('Quiz Summary')
+				}}
 			</div>
 			<div
-				v-if="quizSubmission.data.is_open_ended"
+				v-if="quizSubmission.data.is_survey"
+				class="leading-5 text-ink-gray-7"
+			>
+				{{
+					__(
+						'Your responses have been recorded. Your certificate is now available on the course page.'
+					)
+				}}
+			</div>
+			<div
+				v-else-if="quizSubmission.data.is_open_ended"
 				class="leading-5 text-ink-gray-7"
 			>
 				{{
@@ -347,8 +388,9 @@
 					@click="resetQuiz()"
 					class="mt-2"
 					v-if="
-						!quiz.data.max_attempts ||
-						attempts?.data.length < quiz.data.max_attempts
+						!quizSubmission.data.is_survey &&
+						(!quiz.data.max_attempts ||
+							attempts?.data.length < quiz.data.max_attempts)
 					"
 				>
 					<span>
@@ -384,7 +426,9 @@
 	<Dialog
 		v-model="showSubmissionConfirmation"
 		:options="{
-			title: __('Are you sure you want to submit the quiz?'),
+			title: quiz.data?.is_survey
+				? __('Submit your feedback?')
+				: __('Are you sure you want to submit the quiz?'),
 			actions: [
 				{
 					size: 'sm',
