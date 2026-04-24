@@ -4,23 +4,20 @@
 			class="sticky top-0 z-10 flex items-center justify-between border-b bg-surface-white px-3 py-2.5 sm:px-5"
 		>
 			<Breadcrumbs class="h-7" :items="breadcrumbs" />
-			<Button
-				v-if="user.data?.is_moderator"
-				@click="showEditModal = true"
-			>
-				<template #prefix>
-					<Pencil class="h-4 w-4 stroke-1.5" />
-				</template>
-				{{ __('Edit') }}
-			</Button>
+			<div v-if="isAdmin && tabIndex === 1" class="flex items-center space-x-2">
+				<Badge v-if="childRef?.isDirty" theme="orange">
+					{{ __('Not Saved') }}
+				</Badge>
+				<Button @click="childRef?.trashCourse()">
+					<template #icon>
+						<Trash2 class="w-4 h-4 stroke-1.5" />
+					</template>
+				</Button>
+				<Button variant="solid" @click="childRef?.submitCourse()">
+					{{ __('Save') }}
+				</Button>
+			</div>
 		</header>
-
-		<EditResourceModal
-			v-if="resource.data"
-			v-model="showEditModal"
-			:resourceDoc="resource.data"
-			@updated="resource.reload()"
-		/>
 
 		<!-- Guest: Teaser + Email Gate -->
 		<div v-if="!user.data" class="max-w-3xl mx-auto p-5 pt-10">
@@ -42,7 +39,6 @@
 				{{ resource.data.short_introduction }}
 			</p>
 
-			<!-- Email capture form -->
 			<div class="bg-surface-gray-2 rounded-lg p-6">
 				<div v-if="!emailSent" class="space-y-4">
 					<div class="text-lg font-semibold text-ink-gray-9">
@@ -80,129 +76,53 @@
 			</div>
 		</div>
 
-		<!-- Logged in: Single-lesson resource — show content directly -->
-		<div
-			v-else-if="resource.data.is_single_lesson && resource.data.single_lesson"
-			class="max-w-4xl mx-auto p-5 pt-10"
-		>
-			<div
-				v-if="resource.data.resource_type"
-				class="inline-block text-xs font-semibold bg-surface-gray-2 px-2 py-0.5 rounded-md mb-3"
-			>
-				{{ resource.data.resource_type }}
-			</div>
-			<h1 class="text-3xl font-semibold text-ink-gray-9 mb-2">
-				{{ resource.data.title }}
-			</h1>
-			<div class="flex items-center mb-6">
-				<span
-					class="h-6 mr-1"
-					:class="{ 'avatar-group overlap': resource.data.instructors?.length > 1 }"
-				>
-					<UserAvatar
-						v-for="instructor in resource.data.instructors"
-						:user="instructor"
+		<!-- Admin: tabbed Overview + Content editor -->
+		<div v-else-if="isAdmin">
+			<Tabs :tabs="tabs" v-model="tabIndex">
+				<template #tab-panel="{ tab }">
+					<component
+						:is="tab.component"
+						:resource="resource"
+						:course="resource"
+						:resourceName="resourceName"
+						ref="childRef"
 					/>
-				</span>
-				<CourseInstructors
-					v-if="resource.data.instructors"
-					:instructors="resource.data.instructors"
-				/>
-			</div>
-
-			<!-- Render lesson content -->
-			<div
-				class="ProseMirror prose prose-table:table-fixed prose-td:p-2 prose-th:p-2 prose-td:border prose-th:border prose-td:border-outline-gray-2 prose-th:border-outline-gray-2 prose-td:relative prose-th:relative prose-th:bg-surface-gray-2 prose-sm max-w-none !whitespace-normal"
-			>
-				<div v-if="resource.data.single_lesson.content" id="resource-editor"></div>
-				<LessonContent
-					v-else-if="resource.data.single_lesson.body"
-					:content="resource.data.single_lesson.body"
-					:youtube="resource.data.single_lesson.youtube"
-					:quizId="resource.data.single_lesson.quiz_id"
-				/>
-			</div>
+				</template>
+			</Tabs>
 		</div>
 
-		<!-- Logged in: Multi-lesson resource — show course outline -->
-		<div v-else class="max-w-4xl mx-auto p-5 pt-10">
-			<div
-				v-if="resource.data.resource_type"
-				class="inline-block text-xs font-semibold bg-surface-gray-2 px-2 py-0.5 rounded-md mb-3"
-			>
-				{{ resource.data.resource_type }}
-			</div>
-			<h1 class="text-3xl font-semibold text-ink-gray-9 mb-2">
-				{{ resource.data.title }}
-			</h1>
-			<div class="flex items-center mb-4">
-				<span
-					class="h-6 mr-1"
-					:class="{ 'avatar-group overlap': resource.data.instructors?.length > 1 }"
-				>
-					<UserAvatar
-						v-for="instructor in resource.data.instructors"
-						:user="instructor"
-					/>
-				</span>
-				<CourseInstructors
-					v-if="resource.data.instructors"
-					:instructors="resource.data.instructors"
-				/>
-			</div>
-			<p v-if="resource.data.short_introduction" class="text-ink-gray-7 mb-6">
-				{{ resource.data.short_introduction }}
-			</p>
-
-			<div v-if="resource.data.membership" class="mb-6">
-				<router-link
-					v-if="resource.data.membership.current_lesson || resource.data.current_lesson"
-					:to="{
-						name: 'Lesson',
-						params: {
-							courseName: resourceName,
-							chapterNumber: (resource.data.current_lesson || '1.1').split('.')[0],
-							lessonNumber: (resource.data.current_lesson || '1.1').split('.')[1] || '1',
-						},
-					}"
-				>
-					<Button variant="solid">
-						{{ resource.data.membership.progress > 0 ? __('Continue Learning') : __('Start Learning') }}
-					</Button>
-				</router-link>
-			</div>
-
-			<CourseOutline
-				:courseName="resourceName"
-				:getProgress="resource.data.membership ? true : false"
-			/>
-		</div>
+		<!-- Non-admin logged-in: overview only -->
+		<ResourceOverview
+			v-else
+			:resource="resource"
+			:resourceName="resourceName"
+		/>
 	</div>
 </template>
 <script setup>
 import {
+	Badge,
 	Breadcrumbs,
 	Button,
 	call,
 	createResource,
 	ErrorMessage,
 	FormControl,
+	Tabs,
 	usePageMeta,
 } from 'frappe-ui'
-import { computed, inject, ref, watch, nextTick } from 'vue'
-import { Pencil } from 'lucide-vue-next'
+import { computed, inject, markRaw, ref, watch } from 'vue'
+import { List, Settings2, Trash2 } from 'lucide-vue-next'
 import { sessionStore } from '@/stores/session'
-import EditResourceModal from '@/pages/Resources/EditResourceModal.vue'
-import UserAvatar from '@/components/UserAvatar.vue'
-import CourseInstructors from '@/components/CourseInstructors.vue'
-import CourseOutline from '@/components/CourseOutline.vue'
-import LessonContent from '@/components/LessonContent.vue'
+import ResourceOverview from '@/pages/Resources/ResourceOverview.vue'
+import CourseForm from '@/pages/Courses/CourseForm.vue'
 
 const user = inject('$user')
 const { brand } = sessionStore()
 const email = ref('')
 const emailSent = ref(false)
-const showEditModal = ref(false)
+const tabIndex = ref(0)
+const childRef = ref(null)
 
 const props = defineProps({
 	resourceName: {
@@ -238,45 +158,41 @@ const requestAccess = () => {
 	})
 }
 
-// Auto-enroll when resource loads and user is logged in
+const isInstructor = () => {
+	if (!resource.data?.instructors) return false
+	return resource.data.instructors.some((i) => i.name === user.data?.name)
+}
+
+const isAdmin = computed(() => {
+	return user.data?.is_moderator || isInstructor()
+})
+
+const tabs = ref([
+	{
+		label: __('Overview'),
+		component: markRaw(ResourceOverview),
+		icon: List,
+	},
+	{
+		label: __('Content'),
+		component: markRaw(CourseForm),
+		icon: Settings2,
+	},
+])
+
+// Auto-enroll logged-in non-admin users so they can access the content.
 watch(
 	() => resource.data,
 	(data) => {
-		if (data && user.data && !data.membership) {
+		if (data && user.data && !data.membership && !isAdmin.value) {
 			call('lms.lms.api.auto_enroll_resource', {
 				resource_name: props.resourceName,
 			}).then(() => {
 				resource.reload()
 			})
 		}
-
-		// Render EditorJS content for single-lesson resources
-		if (data?.is_single_lesson && data?.single_lesson?.content) {
-			nextTick(() => {
-				renderEditor(data.single_lesson.content)
-			})
-		}
 	}
 )
-
-let editorInstance = null
-
-const renderEditor = async (content) => {
-	const holder = document.getElementById('resource-editor')
-	if (!holder) return
-
-	const { getEditorTools } = await import('@/utils')
-	const { default: EditorJS } = await import('@editorjs/editorjs')
-
-	holder.innerHTML = ''
-	editorInstance = new EditorJS({
-		holder: 'resource-editor',
-		tools: getEditorTools(),
-		data: JSON.parse(content),
-		readOnly: true,
-		defaultBlock: 'embed',
-	})
-}
 
 const breadcrumbs = computed(() => [
 	{
@@ -296,17 +212,3 @@ usePageMeta(() => {
 	}
 })
 </script>
-<style>
-.avatar-group {
-	display: inline-flex;
-	align-items: center;
-}
-
-.avatar-group .avatar {
-	transition: margin 0.1s ease-in-out;
-}
-
-.avatar-group.overlap .avatar + .avatar {
-	margin-left: calc(-8px);
-}
-</style>

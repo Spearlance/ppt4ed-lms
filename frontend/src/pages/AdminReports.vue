@@ -25,6 +25,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { Breadcrumbs, Tabs, usePageMeta } from 'frappe-ui'
 import ReportRevenue from '@/pages/AdminReports/ReportRevenue.vue'
 import ReportCoursesTaken from '@/pages/AdminReports/ReportCoursesTaken.vue'
+import ReportResources from '@/pages/AdminReports/ReportResources.vue'
 import ReportMembers from '@/pages/AdminReports/ReportMembers.vue'
 import ReportUsage from '@/pages/AdminReports/ReportUsage.vue'
 import ReportCreditHealth from '@/pages/AdminReports/ReportCreditHealth.vue'
@@ -40,6 +41,7 @@ usePageMeta({ title: 'Admin Reports' })
 const tabs = ref([
 	{ label: 'Revenue', component: markRaw(ReportRevenue) },
 	{ label: 'Courses', component: markRaw(ReportCoursesTaken) },
+	{ label: 'Resources', component: markRaw(ReportResources) },
 	{ label: 'Members', component: markRaw(ReportMembers) },
 	{ label: 'Usage', component: markRaw(ReportUsage) },
 	{ label: 'Health', component: markRaw(ReportCreditHealth) },

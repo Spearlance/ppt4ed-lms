@@ -34,7 +34,7 @@ def get_revenue_report(period="monthly"):
 
 @frappe.whitelist()
 def get_courses_taken_report():
-    """Enrollments grouped by course and discipline."""
+    """Enrollments grouped by course and discipline. Excludes Resources (see get_resources_report)."""
     _require_admin()
 
     courses = frappe.db.sql("""
@@ -46,6 +46,7 @@ def get_courses_taken_report():
         FROM `tabLMS Enrollment` e
         JOIN `tabLMS Course` c ON c.name = e.course
         WHERE e.course IS NOT NULL
+          AND (c.course_type IS NULL OR c.course_type != 'Resource')
         GROUP BY e.course
         ORDER BY enrollment_count DESC
     """, as_dict=True)
@@ -59,6 +60,54 @@ def get_courses_taken_report():
         course["disciplines"] = ", ".join(d.discipline for d in disciplines)
 
     return courses
+
+
+@frappe.whitelist()
+def get_resources_report():
+    """Claims grouped by resource (LMS Course with course_type='Resource')."""
+    _require_admin()
+
+    resources = frappe.db.sql("""
+        SELECT
+            c.name as resource,
+            c.title as resource_title,
+            c.resource_type,
+            c.audience,
+            c.published,
+            COUNT(DISTINCT e.member) as claim_count,
+            MAX(e.creation) as last_claim_on
+        FROM `tabLMS Course` c
+        LEFT JOIN `tabLMS Enrollment` e ON e.course = c.name
+        WHERE c.course_type = 'Resource'
+        GROUP BY c.name
+        ORDER BY claim_count DESC, c.title ASC
+    """, as_dict=True)
+
+    return resources
+
+
+@frappe.whitelist()
+def get_resource_claimers(resource: str):
+    """Users who have claimed a given resource, most recent first."""
+    _require_admin()
+
+    if not frappe.db.exists("LMS Course", {"name": resource, "course_type": "Resource"}):
+        frappe.throw("Resource not found")
+
+    claimers = frappe.db.sql("""
+        SELECT
+            e.member,
+            u.full_name as member_name,
+            u.email as member_email,
+            e.creation as claimed_on,
+            e.progress
+        FROM `tabLMS Enrollment` e
+        LEFT JOIN `tabUser` u ON u.name = e.member
+        WHERE e.course = %(resource)s
+        ORDER BY e.creation DESC
+    """, {"resource": resource}, as_dict=True)
+
+    return claimers
 
 
 @frappe.whitelist()

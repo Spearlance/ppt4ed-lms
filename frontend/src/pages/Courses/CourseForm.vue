@@ -79,7 +79,7 @@
 						<div class="grid grid-cols-1 md:grid-cols-2 gap-5">
 							<Uploader
 								v-model="courseResource.doc.image"
-								:label="__('Course Image')"
+								:label="isResource ? __('Resource Image') : __('Course Image')"
 								:required="false"
 								@update:modelValue="makeFormDirty()"
 							/>
@@ -89,11 +89,48 @@
 								:label="__('Color')"
 								:description="
 									__(
-										'Select a fallback color for the course card when no image is set.'
+										'Select a fallback color for the card when no image is set.'
 									)
 								"
 								class="w-full"
 								@update:modelValue="makeFormDirty()"
+							/>
+						</div>
+					</div>
+
+					<div
+						v-if="isResource"
+						class="pr-5 md:pr-10 pb-5 mb-5 space-y-5 border-b"
+					>
+						<div class="text-lg font-semibold text-ink-gray-9">
+							{{ __('Resource Settings') }}
+						</div>
+						<div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+							<FormControl
+								v-model="courseResource.doc.resource_type"
+								:label="__('Resource Type')"
+								type="select"
+								:options="[
+									{ label: __('Video'), value: 'Video' },
+									{ label: __('Download'), value: 'Download' },
+									{ label: __('Article'), value: 'Article' },
+									{ label: __('Mini-Course'), value: 'Mini-Course' },
+									{ label: __('Template'), value: 'Template' },
+								]"
+								@change="makeFormDirty()"
+							/>
+							<FormControl
+								v-model="courseResource.doc.audience"
+								:label="__('Audience')"
+								type="select"
+								:options="[
+									{ label: __('— Not set —'), value: '' },
+									{ label: __('Healthcare Professionals'), value: 'Healthcare Professionals' },
+									{ label: __('Educators'), value: 'Educators' },
+									{ label: __('Parents / Caregivers'), value: 'Parents / Caregivers' },
+								]"
+								:description="__('Determines which tab this resource appears under on the Resources page.')"
+								@change="makeFormDirty()"
 							/>
 						</div>
 					</div>
@@ -111,7 +148,11 @@
 									size="sm"
 									v-model="courseResource.doc.published"
 									:label="__('Published')"
-									:description="__('Make the course visible to all users.')"
+									:description="
+										isResource
+											? __('Make the resource visible to all users.')
+											: __('Make the course visible to all users.')
+									"
 									@change="makeFormDirty()"
 								/>
 								<FormControl
@@ -154,7 +195,7 @@
 
 					<div class="pr-5 md:pr-10 pb-5 mb-5 space-y-5 border-b">
 						<div class="text-lg font-semibold text-ink-gray-9">
-							{{ __('About the Course') }}
+							{{ isResource ? __('About the Resource') : __('About the Course') }}
 						</div>
 						<FormControl
 							v-model="courseResource.doc.short_introduction"
@@ -162,16 +203,18 @@
 							:rows="5"
 							:label="__('Short Introduction')"
 							:placeholder="
-								__(
-									'A one line introduction to the course that appears on the course card'
-								)
+								isResource
+									? __('A one line introduction shown on the resource card')
+									: __(
+										'A one line introduction to the course that appears on the course card'
+									)
 							"
 							:required="true"
 							@change="makeFormDirty()"
 						/>
 						<div class="">
 							<div class="mb-1.5 text-sm text-ink-gray-5">
-								{{ __('Course Description') }}
+								{{ isResource ? __('Resource Description') : __('Course Description') }}
 								<span class="text-ink-red-3">*</span>
 							</div>
 							<TextEditor
@@ -189,6 +232,7 @@
 						</div>
 
 						<FormControl
+							v-if="!isResource"
 							v-model="courseResource.doc.video_link"
 							:label="__('Preview Video')"
 							:description="
@@ -200,6 +244,7 @@
 						/>
 
 						<MultiSelect
+							v-if="!isResource"
 							v-model="related_courses"
 							doctype="LMS Course"
 							:label="__('Related Courses')"
@@ -216,7 +261,10 @@
 						/>
 					</div>
 
-					<div class="pr-5 md:pr-10 pb-5 space-y-5 border-b">
+					<div
+						v-if="!isResource"
+						class="pr-5 md:pr-10 pb-5 space-y-5 border-b"
+					>
 						<div class="text-lg font-semibold mt-5 text-ink-gray-9">
 							{{ __('Pricing and Certification') }}
 						</div>
@@ -378,6 +426,10 @@ const selfEnrollment = computed({
 		makeFormDirty()
 	},
 })
+
+const isResource = computed(
+	() => courseResource.doc?.course_type === 'Resource'
+)
 const memberModalRoles = ref([])
 
 const props = defineProps({
@@ -478,7 +530,11 @@ const updateCourse = () => {
 		{
 			onSuccess() {
 				updateMetaInfo('courses', courseResource.doc?.name, meta)
-				toast.success(__('Course updated successfully'))
+				toast.success(
+					isResource.value
+						? __('Resource updated successfully')
+						: __('Course updated successfully')
+				)
 				isDirty.value = false
 				courseResource.reload()
 			},
@@ -513,17 +569,25 @@ const deleteCourse = createResource({
 		}
 	},
 	onSuccess() {
-		toast.success(__('Course deleted successfully'))
-		router.push({ name: 'Courses' })
+		toast.success(
+			isResource.value
+				? __('Resource deleted successfully')
+				: __('Course deleted successfully')
+		)
+		router.push({ name: isResource.value ? 'Resources' : 'Courses' })
 	},
 })
 
 const trashCourse = () => {
 	$dialog({
-		title: __('Delete Course'),
-		message: __(
-			'Deleting the course will also delete all its chapters and lessons. Are you sure you want to delete this course?'
-		),
+		title: isResource.value ? __('Delete Resource') : __('Delete Course'),
+		message: isResource.value
+			? __(
+					'Deleting the resource will also delete all its chapters and lessons. Are you sure you want to delete this resource?'
+				)
+			: __(
+					'Deleting the course will also delete all its chapters and lessons. Are you sure you want to delete this course?'
+				),
 		actions: [
 			{
 				label: __('Delete'),
