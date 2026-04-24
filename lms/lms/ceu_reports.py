@@ -1,12 +1,10 @@
 import frappe
-from frappe import _
 from frappe.utils import add_months, getdate, nowdate
 
 
 def _require_admin():
-    """Ensure only System Managers can access reports."""
-    if "System Manager" not in frappe.get_roles():
-        frappe.throw(_("Only System Managers can access reports"), frappe.PermissionError)
+    """Ensure only LMS admins (System Manager or Global Admin) can access reports."""
+    frappe.only_for(["System Manager", "Global Admin"])
 
 
 @frappe.whitelist()

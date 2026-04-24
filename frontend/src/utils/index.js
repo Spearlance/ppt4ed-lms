@@ -508,7 +508,7 @@ const getSidebarItems = () => {
 					to: 'Statistics',
 					activeFor: ['Statistics'],
 					condition: () => {
-						return userResource?.data?.is_system_manager
+						return userResource?.data?.is_lms_admin
 					},
 				},
 				{
@@ -537,7 +537,7 @@ const getSidebarItems = () => {
 					to: 'AdminReports',
 					activeFor: ['AdminReports'],
 					condition: () => {
-						return userResource?.data?.is_system_manager
+						return userResource?.data?.is_lms_admin
 					},
 				},
 				{

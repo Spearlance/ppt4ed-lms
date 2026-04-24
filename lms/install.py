@@ -25,6 +25,22 @@ def before_uninstall():
 def create_lms_roles():
 	create_moderator_role()
 	create_lms_student_role()
+	create_global_admin_role()
+
+
+def create_global_admin_role():
+	if frappe.db.exists("Role", "Global Admin"):
+		frappe.db.set_value("Role", "Global Admin", "desk_access", 0)
+	else:
+		role = frappe.new_doc("Role")
+		role.update(
+			{
+				"role_name": "Global Admin",
+				"home_page": "",
+				"desk_access": 0,
+			}
+		)
+		role.save()
 
 
 def create_moderator_role():
@@ -192,7 +208,7 @@ def create_role(doctype, role, permlevel, write=0, create=0):
 
 
 def delete_lms_roles():
-	roles = ["Moderator", "LMS Student"]
+	roles = ["Moderator", "LMS Student", "Global Admin"]
 	for role in roles:
 		if frappe.db.exists("Role", role):
 			frappe.db.delete("Role", role)
