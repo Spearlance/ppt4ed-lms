@@ -11,6 +11,21 @@
 		</Button>
 	</header>
 	<div class="p-5 pb-10">
+		<div class="flex gap-1 border-b border-outline-gray-2 mb-5 overflow-x-auto">
+			<button
+				v-for="audience in audiences"
+				:key="audience.value ?? 'all'"
+				class="px-4 py-2 text-sm whitespace-nowrap transition-colors border-b-2 -mb-px"
+				:class="
+					currentAudience === audience.value
+						? 'border-ink-gray-9 text-ink-gray-9 font-medium'
+						: 'border-transparent text-ink-gray-6 hover:text-ink-gray-8'
+				"
+				@click="setAudience(audience.value)"
+			>
+				{{ audience.label }}
+			</button>
+		</div>
 		<div
 			class="flex flex-col lg:flex-row space-y-4 lg:space-y-0 lg:items-center justify-between mb-5"
 		>
@@ -97,6 +112,7 @@ import {
 	usePageMeta,
 } from 'frappe-ui'
 import { computed, inject, onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { Plus } from 'lucide-vue-next'
 import { sessionStore } from '@/stores/session'
 import { canCreateCourse } from '@/utils'
@@ -105,11 +121,14 @@ import NewResourceModal from '@/pages/Resources/NewResourceModal.vue'
 
 const user = inject('$user')
 const { brand } = sessionStore()
+const route = useRoute()
+const router = useRouter()
 const showResourceModal = ref(false)
 const canCreate = computed(() => canCreateCourse())
 const title = ref('')
 const currentCategory = ref(null)
 const currentType = ref(null)
+const currentAudience = ref(route.query.audience || null)
 const categories = ref([{ label: '', value: null }])
 
 const resourceTypes = [
@@ -120,6 +139,19 @@ const resourceTypes = [
 	{ label: __('Mini-Course'), value: 'Mini-Course' },
 	{ label: __('Template'), value: 'Template' },
 ]
+
+const audiences = [
+	{ label: __('All'), value: null },
+	{ label: __('Healthcare Professionals'), value: 'Healthcare Professionals' },
+	{ label: __('Educators'), value: 'Educators' },
+	{ label: __('Parents / Caregivers'), value: 'Parents / Caregivers' },
+]
+
+const setAudience = (value) => {
+	currentAudience.value = value
+	router.replace({ query: { ...route.query, audience: value || undefined } })
+	updateResources()
+}
 
 onMounted(() => {
 	updateResources()
@@ -145,6 +177,9 @@ const updateResources = () => {
 	}
 	if (currentCategory.value) {
 		filters.category = currentCategory.value
+	}
+	if (currentAudience.value) {
+		filters.audience = currentAudience.value
 	}
 	if (title.value) {
 		filters.title = ['like', `%${title.value}%`]

@@ -129,3 +129,4 @@ lms.patches.v2_0.delete_test_membership_plans #11-04-2026
 lms.patches.v2_0.set_default_course_type #13-04-2026
 lms.patches.v2_0.configure_resend_email_account #17-04-2026
 lms.patches.v2_0.create_global_admin_role #23-04-2026
+lms.patches.v2_0.unlimited_attempts_on_lesson_quizzes #23-04-2026
