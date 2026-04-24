@@ -21,6 +21,7 @@ class LMSCertificate(Document):
 	def after_insert(self):
 		capture("certificate_issued", "lms")
 		self.populate_ceu_fields()
+		self.populate_license_info()
 		self.send_certification_email()
 
 	def populate_ceu_fields(self):
@@ -39,6 +40,35 @@ class LMSCertificate(Document):
 		self.db_set("ceu_hours", ceu_hours, update_modified=False)
 		self.db_set("ceu_disciplines", discipline_names, update_modified=False)
 
+	def populate_license_info(self):
+		"""Freeze the student's State + License # response from the course feedback survey.
+
+		The Course Survey (LMS Quiz with is_survey=1) is attached to every certified
+		course per patch v2_0.attach_feedback_survey_to_certified_courses. The second
+		question captures license info as free-form text ("FL PT 00000"). We copy the
+		answer onto the certificate at mint time so it survives any later edits the
+		student makes to their submissions.
+		"""
+		if not self.course or not self.member:
+			return
+		submissions = frappe.get_all(
+			"LMS Quiz Submission",
+			filters={"member": self.member, "course": self.course},
+			fields=["name", "quiz"],
+			order_by="creation desc",
+		)
+		for sub in submissions:
+			if not frappe.db.get_value("LMS Quiz", sub.quiz, "is_survey"):
+				continue
+			answer = frappe.db.get_value(
+				"LMS Quiz Result",
+				{"parent": sub.name, "question": ["like", "%icense%"]},
+				"answer",
+			)
+			if answer:
+				self.db_set("license_info", answer.strip(), update_modified=False)
+				return
+
 	def send_certification_email(self):
 		outgoing_email_account = frappe.get_cached_value(
 			"Email Account", {"default_outgoing": 1, "enable_outgoing": 1}, "name"
@@ -51,10 +81,11 @@ class LMSCertificate(Document):
 		template = "certification"
 		custom_template = frappe.db.get_single_value("LMS Settings", "certification_template")
 
+		course_title = frappe.db.get_value("LMS Course", self.course, "title") if self.course else None
 		args = {
 			"student_name": self.member_name,
 			"course_name": self.course,
-			"course_title": frappe.db.get_value("LMS Course", self.course, "title"),
+			"course_title": course_title,
 			"certificate_name": self.name,
 			"template": self.template,
 		}
@@ -63,6 +94,25 @@ class LMSCertificate(Document):
 			email_template = get_email_template(custom_template, args)
 			subject = email_template.get("subject")
 			content = email_template.get("message")
+
+		attachments = []
+		if self.template:
+			safe_title = (course_title or self.course or "Certificate").replace("/", "-")
+			try:
+				attachments.append(
+					frappe.attach_print(
+						self.doctype,
+						self.name,
+						print_format=self.template,
+						file_name=f"Certificate — {safe_title}",
+					)
+				)
+			except Exception:
+				frappe.log_error(
+					frappe.get_traceback(),
+					f"Certificate PDF attach failed for {self.name}",
+				)
+
 		frappe.sendmail(
 			recipients=self.member,
 			subject=subject,
@@ -70,6 +120,7 @@ class LMSCertificate(Document):
 			content=content if custom_template else None,
 			args=args,
 			header=[subject, "green"],
+			attachments=attachments or None,
 		)
 
 	def validate_criteria(self):
