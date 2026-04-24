@@ -335,6 +335,19 @@ def has_moderator_role(member: str = None):
 	)
 
 
+def is_lms_admin(member: str = None):
+	"""True if the user has System Manager or Global Admin.
+
+	Use this to gate LMS-wide admin surfaces (Stats, Admin Reports, content
+	authoring shortcuts) where we want both Garrett (System Manager) and PPT
+	staff (Global Admin) to have access. For dev-adjacent surfaces — Data
+	Import, Role editing, payment-gateway secrets — keep using
+	`frappe.only_for("System Manager")` directly.
+	"""
+	roles = frappe.get_roles(member or frappe.session.user)
+	return "System Manager" in roles or "Global Admin" in roles
+
+
 def has_student_role(member: str = None):
 	return frappe.db.get_value(
 		"Has Role",
@@ -545,7 +558,7 @@ def get_chart_data(
 	from_date: str = None,
 	to_date: str = None,
 ):
-	frappe.only_for("System Manager")
+	frappe.only_for(["System Manager", "Global Admin"])
 	from_date, to_date = get_chart_date_range(from_date, to_date)
 	chart = frappe.get_doc("Dashboard Chart", chart_name)
 	doctype = chart.document_type
@@ -621,7 +634,7 @@ def get_chart_details(
 @frappe.whitelist()
 @rate_limit(limit=500, seconds=60 * 60)
 def get_course_completion_data():
-	frappe.only_for("System Manager")
+	frappe.only_for(["System Manager", "Global Admin"])
 	all_membership = frappe.db.count("LMS Enrollment")
 	completed = frappe.db.count("LMS Enrollment", {"progress": ["like", "%100%"]})
 

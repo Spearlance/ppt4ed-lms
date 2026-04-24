@@ -62,6 +62,8 @@ def get_user_info():
 	user.is_student = not user.is_moderator
 	user.is_fc_site = is_fc_site()
 	user.is_system_manager = "System Manager" in user.roles
+	user.is_global_admin = "Global Admin" in user.roles
+	user.is_lms_admin = user.is_system_manager or user.is_global_admin
 	user.is_company_admin = frappe.db.exists(
 		"Company Admin",
 		{"user": frappe.session.user, "parenttype": "Company Account"}
@@ -312,7 +314,7 @@ def get_job_opportunities(filters: dict = None, orFilters: dict = None):
 
 @frappe.whitelist()
 def get_chart_details():
-	frappe.only_for("System Manager")
+	frappe.only_for(["System Manager", "Global Admin"])
 	details = frappe._dict()
 	details.enrollments = frappe.db.count("LMS Enrollment")
 	details.courses = frappe.db.count(

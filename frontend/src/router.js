@@ -244,7 +244,7 @@ let router = createRouter({
 	routes,
 })
 
-const systemManagerOnlyRoutes = ['Statistics']
+const lmsAdminOnlyRoutes = ['Statistics', 'AdminReports']
 
 router.beforeEach(async (to, from, next) => {
 	const { userResource } = usersStore()
@@ -271,8 +271,8 @@ router.beforeEach(async (to, from, next) => {
 	}
 
 	if (
-		systemManagerOnlyRoutes.includes(to.name) &&
-		!userResource?.data?.is_system_manager
+		lmsAdminOnlyRoutes.includes(to.name) &&
+		!userResource?.data?.is_lms_admin
 	) {
 		return next({ name: 'Courses' })
 	}
