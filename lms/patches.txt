@@ -131,3 +131,4 @@ lms.patches.v2_0.configure_resend_email_account #17-04-2026
 lms.patches.v2_0.create_global_admin_role #23-04-2026
 lms.patches.v2_0.unlimited_attempts_on_lesson_quizzes #23-04-2026
 lms.patches.v2_0.attach_feedback_survey_to_certified_courses #23-04-2026
+lms.patches.v2_0.enable_two_factor_auth #24-04-2026
