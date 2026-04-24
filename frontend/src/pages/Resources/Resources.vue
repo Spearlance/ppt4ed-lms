@@ -11,6 +11,34 @@
 		</Button>
 	</header>
 	<div class="p-5 pb-10">
+		<div v-if="user.data" class="flex mb-4">
+			<div
+				class="inline-flex rounded-md border border-outline-gray-2 p-0.5 bg-surface-gray-1"
+			>
+				<button
+					class="px-4 py-1.5 text-sm rounded transition-colors"
+					:class="
+						!onlyClaimed
+							? 'bg-surface-white shadow-sm font-medium text-ink-gray-9'
+							: 'text-ink-gray-6 hover:text-ink-gray-8'
+					"
+					@click="setOnlyClaimed(false)"
+				>
+					{{ __('All Resources') }}
+				</button>
+				<button
+					class="px-4 py-1.5 text-sm rounded transition-colors"
+					:class="
+						onlyClaimed
+							? 'bg-surface-white shadow-sm font-medium text-ink-gray-9'
+							: 'text-ink-gray-6 hover:text-ink-gray-8'
+					"
+					@click="setOnlyClaimed(true)"
+				>
+					{{ __('My Resources') }}
+				</button>
+			</div>
+		</div>
 		<div class="flex gap-1 border-b border-outline-gray-2 mb-5 overflow-x-auto">
 			<button
 				v-for="audience in audiences"
@@ -84,7 +112,10 @@
 		</div>
 		<div v-else-if="!resources.list.loading" class="text-center py-20">
 			<div class="text-ink-gray-5 text-lg">
-				{{ __('No resources found') }}
+				{{ onlyClaimed
+					? __("You haven't claimed any resources yet")
+					: __('No resources found')
+				}}
 			</div>
 		</div>
 		<div
@@ -129,6 +160,7 @@ const title = ref('')
 const currentCategory = ref(null)
 const currentType = ref(null)
 const currentAudience = ref(route.query.audience || null)
+const onlyClaimed = ref(route.query.claimed === '1')
 const categories = ref([{ label: '', value: null }])
 
 const resourceTypes = [
@@ -150,6 +182,12 @@ const audiences = [
 const setAudience = (value) => {
 	currentAudience.value = value
 	router.replace({ query: { ...route.query, audience: value || undefined } })
+	updateResources()
+}
+
+const setOnlyClaimed = (value) => {
+	onlyClaimed.value = value
+	router.replace({ query: { ...route.query, claimed: value ? '1' : undefined } })
 	updateResources()
 }
 
@@ -180,6 +218,9 @@ const updateResources = () => {
 	}
 	if (currentAudience.value) {
 		filters.audience = currentAudience.value
+	}
+	if (onlyClaimed.value) {
+		filters.only_enrolled = 1
 	}
 	if (title.value) {
 		filters.title = ['like', `%${title.value}%`]

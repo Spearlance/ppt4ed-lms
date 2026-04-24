@@ -933,6 +933,20 @@ def get_resources(filters: dict = None, start: int = 0) -> list:
 	else:
 		filters.pop("resource_type", None)
 
+	# Restrict to resources the current user has claimed/enrolled in.
+	only_enrolled = filters.pop("only_enrolled", None)
+	if only_enrolled:
+		if frappe.session.user == "Guest":
+			return []
+		enrolled = frappe.get_all(
+			"LMS Enrollment",
+			filters={"member": frappe.session.user},
+			pluck="course",
+		)
+		if not enrolled:
+			return []
+		filters["name"] = ["in", enrolled]
+
 	# Handle text search
 	if filters.get("title"):
 		or_filters["title"] = filters["title"]
