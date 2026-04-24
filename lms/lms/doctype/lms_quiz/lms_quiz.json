@@ -52,6 +52,7 @@
   },
   {
    "default": "0",
+   "description": "Set to 0 for unlimited attempts.",
    "fieldname": "max_attempts",
    "fieldtype": "Int",
    "label": "Max Attempts"

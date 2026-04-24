@@ -10,6 +10,7 @@
   "title",
   "course_type",
   "resource_type",
+  "audience",
   "video_link",
   "tags",
   "column_break_3",
@@ -77,6 +78,14 @@
    "fieldtype": "Select",
    "label": "Resource Type",
    "options": "\nVideo\nDownload\nArticle\nMini-Course\nTemplate"
+  },
+  {
+   "depends_on": "eval:doc.course_type=='Resource'",
+   "description": "Who this resource is primarily for. Shown as tabs on the Resources page.",
+   "fieldname": "audience",
+   "fieldtype": "Select",
+   "label": "Audience",
+   "options": "\nHealthcare Professionals\nEducators\nParents / Caregivers"
   },
   {
    "fieldname": "description",
