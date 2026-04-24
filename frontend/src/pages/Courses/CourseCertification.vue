@@ -38,14 +38,37 @@
 				</div>
 			</div>
 		</div>
-		<div v-else class="text-ink-gray-7">
-			{{ __('Complete the course to earn your certificate.') }}
+		<div v-else class="text-ink-gray-7 space-y-3">
+			<div>
+				{{
+					__(
+						'Complete the course — including the final feedback survey — to earn your certificate.'
+					)
+				}}
+			</div>
+			<Button
+				variant="solid"
+				@click="
+					router.push({
+						name: 'CourseDetail',
+						params: { courseName: props.courseName },
+					})
+				"
+			>
+				{{ __('Return to Course') }}
+			</Button>
 		</div>
 	</div>
 </template>
 <script setup>
 import { computed, inject, onMounted, ref } from 'vue'
-import { Breadcrumbs, call, createResource, usePageMeta } from 'frappe-ui'
+import {
+	Breadcrumbs,
+	Button,
+	call,
+	createResource,
+	usePageMeta,
+} from 'frappe-ui'
 import { useRouter } from 'vue-router'
 import { sessionStore } from '../../stores/session'
 const courseTitle = ref(null)

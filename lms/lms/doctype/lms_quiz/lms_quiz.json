@@ -8,6 +8,7 @@
  "engine": "InnoDB",
  "field_order": [
   "title",
+  "is_survey",
   "max_attempts",
   "show_answers",
   "show_submission_history",
@@ -150,6 +151,13 @@
    "fieldname": "marks_to_cut",
    "fieldtype": "Int",
    "label": "Marks To Cut"
+  },
+  {
+   "default": "0",
+   "description": "Survey mode: questions are ungraded, any submission counts as complete, and Choices/Open Ended questions may be mixed. Used for post-course feedback surveys.",
+   "fieldname": "is_survey",
+   "fieldtype": "Check",
+   "label": "Survey Mode"
   }
  ],
  "grid_page_length": 50,
