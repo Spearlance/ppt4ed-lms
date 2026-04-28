@@ -19,7 +19,7 @@ from frappe.utils import (
 	nowtime,
 )
 
-from lms.lms.utils import get_evaluator
+from lms.lms.utils import LMS_MODERATOR_ROLES, get_evaluator
 
 
 class LMSCertificateRequest(Document):
@@ -241,7 +241,7 @@ def update_meeting_details(evaluation: dict, event: Document, calendar: str):
 
 @frappe.whitelist()
 def create_lms_certificate_evaluation(source_name: str, target_doc: dict = None):
-	frappe.only_for(["Moderator", "System Manager"])
+	frappe.only_for(LMS_MODERATOR_ROLES)
 	doc = get_mapped_doc(
 		"LMS Certificate Request",
 		source_name,

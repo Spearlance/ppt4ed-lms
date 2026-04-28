@@ -13,6 +13,7 @@ from frappe.model.document import Document
 from frappe.utils import add_days, cint, format_datetime, get_time, nowdate
 
 from lms.lms.utils import (
+	LMS_MODERATOR_ROLES,
 	generate_slug,
 	get_assignment_details,
 	get_instructors,
@@ -229,7 +230,7 @@ def create_live_class(
 	description: str = None,
 ):
 	roles = frappe.get_roles()
-	if not any(role in roles for role in ["Moderator", "Moderator"]):
+	if not any(role in roles for role in LMS_MODERATOR_ROLES):
 		frappe.throw(_("You do not have permission to create a live class."))
 
 	payload = {
@@ -287,7 +288,7 @@ def create_google_meet_live_class(
 	timezone: str,
 	description: str = None,
 ):
-	frappe.only_for(["Moderator", "Moderator"])
+	frappe.only_for(LMS_MODERATOR_ROLES)
 
 	google_meet_settings = frappe.get_doc("LMS Google Meet Settings", google_meet_account)
 	if not google_meet_settings.enabled:
