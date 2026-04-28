@@ -4,11 +4,13 @@ import frappe
 from frappe import _
 from frappe.utils import now_datetime
 
+from lms.lms.utils import LMS_MODERATOR_ROLES
+
 
 @frappe.whitelist()
 def get_member_admin_details(user: str):
     """Get full admin view of a member's membership, company, and enrollments."""
-    frappe.only_for(["Moderator", "System Manager"])
+    frappe.only_for(LMS_MODERATOR_ROLES)
 
     from lms.lms.ceu_user_type import get_user_type
 
@@ -75,7 +77,7 @@ def get_member_admin_details(user: str):
 @frappe.whitelist()
 def admin_adjust_credits(membership: str, hours: float, reason: str):
     """Manually adjust credits on a membership (admin action)."""
-    frappe.only_for(["Moderator", "System Manager"])
+    frappe.only_for(LMS_MODERATOR_ROLES)
 
     doc = frappe.get_doc("CEU Membership", membership)
     doc.credit_balance += hours
@@ -102,7 +104,7 @@ def admin_adjust_credits(membership: str, hours: float, reason: str):
 @frappe.whitelist()
 def admin_cancel_subscription(membership: str):
     """Cancel a Stripe subscription and update membership status."""
-    frappe.only_for(["Moderator", "System Manager"])
+    frappe.only_for(LMS_MODERATOR_ROLES)
 
     doc = frappe.get_doc("CEU Membership", membership)
     if not doc.stripe_subscription_id:
@@ -128,7 +130,7 @@ def admin_cancel_subscription(membership: str):
 @frappe.whitelist()
 def admin_change_plan(membership: str, new_plan: str):
     """Change a membership's plan (swaps Stripe subscription)."""
-    frappe.only_for(["Moderator", "System Manager"])
+    frappe.only_for(LMS_MODERATOR_ROLES)
 
     doc = frappe.get_doc("CEU Membership", membership)
     plan_doc = frappe.get_doc("CEU Membership Plan", new_plan)
@@ -159,7 +161,7 @@ def admin_change_plan(membership: str, new_plan: str):
 @frappe.whitelist()
 def get_company_admin_details(company: str):
     """Get full admin view of a company."""
-    frappe.only_for(["Moderator", "System Manager"])
+    frappe.only_for(LMS_MODERATOR_ROLES)
 
     doc = frappe.get_doc("Company Account", company)
 
@@ -232,7 +234,7 @@ def get_company_admin_details(company: str):
 @frappe.whitelist()
 def admin_update_company(company: str, fields: "dict | str"):
     """Update company details (admin action)."""
-    frappe.only_for(["Moderator", "System Manager"])
+    frappe.only_for(LMS_MODERATOR_ROLES)
 
     if isinstance(fields, str):
         fields = json.loads(fields)
@@ -251,7 +253,7 @@ def admin_update_company(company: str, fields: "dict | str"):
 @frappe.whitelist()
 def admin_remove_member_from_company(user: str, company: str):
     """Remove a member from a company (sets status to Removed)."""
-    frappe.only_for(["Moderator", "System Manager"])
+    frappe.only_for(LMS_MODERATOR_ROLES)
 
     doc = frappe.get_doc("Company Account", company)
     for m in doc.members:
@@ -264,7 +266,7 @@ def admin_remove_member_from_company(user: str, company: str):
 @frappe.whitelist()
 def admin_promote_to_company_admin(user: str, company: str):
     """Promote a company member to admin."""
-    frappe.only_for(["Moderator", "System Manager"])
+    frappe.only_for(LMS_MODERATOR_ROLES)
 
     doc = frappe.get_doc("Company Account", company)
 
@@ -280,7 +282,7 @@ def admin_promote_to_company_admin(user: str, company: str):
 @frappe.whitelist()
 def get_company_credit_history(company: str):
     """Get credit ledger for a company's membership (admin view)."""
-    frappe.only_for(["Moderator", "System Manager"])
+    frappe.only_for(LMS_MODERATOR_ROLES)
 
     membership_name = frappe.db.get_value("Company Account", company, "membership")
     if not membership_name:

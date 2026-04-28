@@ -31,6 +31,7 @@ from pypika import functions as fn
 
 from lms.lms.doctype.course_lesson.course_lesson import save_progress
 from lms.lms.utils import (
+	LMS_MODERATOR_ROLES,
 	LMS_ROLES,
 	can_modify_course,
 	can_modify_event,
@@ -2417,7 +2418,7 @@ def search_users_by_role(txt: str = "", roles: str | list | None = None, page_le
 @frappe.whitelist()
 def add_member_to_company(user_email, company_name):
 	"""Add a user to a company's member list (admin action)."""
-	frappe.only_for(["Moderator", "System Manager"])
+	frappe.only_for(LMS_MODERATOR_ROLES)
 
 	company = frappe.get_doc("Company Account", company_name)
 
@@ -2436,7 +2437,7 @@ def add_member_to_company(user_email, company_name):
 @frappe.whitelist()
 def get_companies():
 	"""Get list of all companies for admin view."""
-	frappe.only_for(["Moderator", "System Manager"])
+	frappe.only_for(LMS_MODERATOR_ROLES)
 
 	companies = frappe.get_all(
 		"Company Account",
@@ -2456,7 +2457,7 @@ def get_companies():
 @frappe.whitelist()
 def create_company_account(company_name, admin_email, max_seats=0):
 	"""Create a new Company Account and invite the admin."""
-	frappe.only_for(["Moderator", "System Manager"])
+	frappe.only_for(LMS_MODERATOR_ROLES)
 
 	if frappe.db.exists("Company Account", company_name):
 		frappe.throw(_("A company with this name already exists"))
@@ -2503,7 +2504,7 @@ def get_membership_plans():
 @frappe.whitelist()
 def get_all_membership_plans():
 	"""Get all membership plans for admin settings view (includes inactive)."""
-	frappe.only_for(["Moderator", "System Manager"])
+	frappe.only_for(LMS_MODERATOR_ROLES)
 
 	return frappe.get_all(
 		"CEU Membership Plan",

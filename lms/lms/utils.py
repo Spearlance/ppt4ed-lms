@@ -32,6 +32,7 @@ from lms.lms.md import find_macros
 
 RE_SLUG_NOTALLOWED = re.compile("[^a-z0-9]+")
 LMS_ROLES = ["Moderator", "LMS Student"]
+LMS_MODERATOR_ROLES = ["Moderator", "System Manager", "Global Admin"]
 
 
 def get_lms_path():
