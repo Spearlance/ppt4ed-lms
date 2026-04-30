@@ -70,7 +70,6 @@ import Members from '@/components/Settings/Members.vue'
 import Categories from '@/components/Settings/Categories.vue'
 import EmailTemplates from '@/components/Settings/EmailTemplates.vue'
 import BrandSettings from '@/components/Settings/BrandSettings.vue'
-import PaymentGateways from '@/components/Settings/PaymentGateways.vue'
 import Coupons from '@/components/Settings/Coupons/Coupons.vue'
 import Transactions from '@/components/Settings/Transactions/Transactions.vue'
 import ZoomSettings from '@/components/Settings/ZoomSettings.vue'
@@ -320,51 +319,9 @@ const tabsStructure = computed(() => {
 										},
 									],
 								},
-								{
-									fields: [
-										{
-											label: 'Payment Gateway',
-											name: 'payment_gateway',
-											type: 'Link',
-											doctype: 'Payment Gateway',
-										},
-										{
-											label: 'Apply GST for India',
-											name: 'apply_gst',
-											type: 'checkbox',
-											description:
-												'If enabled, GST will be applied to the price for students from India.',
-										},
-									],
-								},
-							],
-						},
-						{
-							label: 'Payment Reminders',
-							columns: [
-								{
-									fields: [],
-								},
-								{
-									fields: [
-										{
-											label: 'Send payment reminders for course',
-											name: 'send_payment_reminders_for_course',
-											type: 'checkbox',
-											description:
-												'If enabled, it sends payment reminders to students who left the payment incomplete for a course.',
-										},
-									],
-								},
 							],
 						},
 					],
-				},
-				{
-					label: 'Gateways',
-					icon: 'DollarSign',
-					template: markRaw(PaymentGateways),
-					description: 'Add and manage all your payment gateways',
 				},
 				{
 					label: 'Transactions',

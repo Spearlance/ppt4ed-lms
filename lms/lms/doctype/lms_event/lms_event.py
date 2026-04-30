@@ -23,7 +23,6 @@ from lms.lms.utils import (
 	get_lms_route,
 	get_quiz_details,
 	guest_access_allowed,
-	update_payment_record,
 )
 
 
@@ -141,11 +140,6 @@ class LMSEvent(Document):
 		elif self.conferencing_provider == "Zoom":
 			if not self.zoom_account:
 				frappe.throw(_("Please select a Zoom account for this event."))
-
-	def on_payment_authorized(self, payment_status):
-		if payment_status in ["Authorized", "Completed"]:
-			update_payment_record("LMS Event", self.name)
-
 
 def send_notification_for_published_event(batch):
 	send_notification = frappe.db.get_single_value("LMS Settings", "send_notification_for_published_eventes")

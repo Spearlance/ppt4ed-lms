@@ -28,12 +28,6 @@ const routes = [
 		props: true,
 	},
 	{
-		path: '/courses/:courseName/certification',
-		name: 'CourseCertification',
-		component: () => import('@/pages/Courses/CourseCertification.vue'),
-		props: true,
-	},
-	{
 		path: '/courses/:courseName/learn/:chapterName',
 		name: 'SCORMChapter',
 		component: () => import('@/pages/SCORMChapter.vue'),
@@ -75,12 +69,6 @@ const routes = [
 		path: '/events/:eventName',
 		name: 'EventDetail',
 		component: () => import('@/pages/Events/EventDetail.vue'),
-		props: true,
-	},
-	{
-		path: '/billing/:type/:name',
-		name: 'Billing',
-		component: () => import('@/pages/Billing.vue'),
 		props: true,
 	},
 	{

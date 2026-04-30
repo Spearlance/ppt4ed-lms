@@ -283,13 +283,6 @@
 								:description="__('Issue a certificate on course completion.')"
 								@change="makeFormDirty()"
 							/>
-							<Switch
-								size="sm"
-								v-model="courseResource.doc.paid_certificate"
-								:label="__('Paid Certificate')"
-								:description="__('Charge a fee for the certificate.')"
-								@change="makeFormDirty()"
-							/>
 						</div>
 						<div class="grid grid-cols-1 md:grid-cols-2 gap-5">
 							<FormControl
@@ -300,10 +293,7 @@
 								@input="makeFormDirty()"
 							/>
 							<div
-								v-if="
-									courseResource.doc.paid_course ||
-									courseResource.doc.paid_certificate
-								"
+								v-if="courseResource.doc.paid_course"
 								class="space-y-5"
 							>
 								<FormControl
@@ -316,19 +306,8 @@
 									v-model="courseResource.doc.currency"
 									:filters="{ enabled: 1 }"
 									:label="__('Currency')"
-									:required="
-										courseResource.doc.paid_course ||
-										courseResource.doc.paid_certificate
-									"
+									:required="courseResource.doc.paid_course"
 									@update:modelValue="makeFormDirty()"
-								/>
-							</div>
-							<div v-if="courseResource.doc.paid_certificate" class="space-y-5">
-								<FormControl
-									v-model="courseResource.doc.timezone"
-									:label="__('Timezone')"
-									:placeholder="__('e.g. IST, UTC, GMT...')"
-									@input="makeFormDirty()"
 								/>
 							</div>
 						</div>
@@ -491,7 +470,6 @@ const updateCourseData = () => {
 		'paid_course',
 		'featured',
 		'enable_certification',
-		'paid_certificate',
 	]
 	for (let idx in checkboxes) {
 		let key = checkboxes[idx]

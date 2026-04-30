@@ -38,12 +38,6 @@
 					:description="__('Mark the payment as received.')"
 					v-model="transactionData.payment_received"
 				/>
-				<Switch
-					size="sm"
-					:label="__('Payment For Certificate')"
-					:description="__('This payment is for a certificate.')"
-					v-model="transactionData.payment_for_certificate"
-				/>
 				<FormControl
 					:label="__('Member Consent')"
 					type="checkbox"
@@ -253,7 +247,6 @@ const getDefault = (fieldname: string) =>
 
 const getEmptyTransactionData = () => ({
 	payment_received: false,
-	payment_for_certificate: false,
 	member: getDefault('member'),
 	billing_name: getDefault('billing_name'),
 	source: getDefault('source'),
