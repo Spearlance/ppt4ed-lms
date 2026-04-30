@@ -302,7 +302,7 @@
 	</div>
 	<NewMemberModal
 		v-model="showMemberModal"
-		:defaultRoles="[]"
+		:defaultRoles="['moderator']"
 		@created="onInstructorCreated"
 	/>
 	<EmailTemplateModal

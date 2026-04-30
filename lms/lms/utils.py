@@ -332,6 +332,39 @@ def has_moderator_role(member: str = None):
 	return "Moderator" in roles or "System Manager" in roles
 
 
+def ensure_instructors_have_moderator_role(instructor_users):
+	"""Grant the Moderator role to any instructor user that doesn't have it.
+
+	Called from LMS Course / LMS Event validate so that any path that adds
+	an instructor (form, import, programmatic) leaves the user findable in
+	`search_users_by_role` and able to edit their course in the frontend
+	(which gates on `is_moderator`). Inserts Has Role rows directly to
+	avoid User.save() side effects (no welcome / password reset email).
+	"""
+	users = {u for u in instructor_users if u}
+	if not users:
+		return
+
+	already_have = set(
+		frappe.get_all(
+			"Has Role",
+			filters={"parenttype": "User", "parent": ["in", list(users)], "role": "Moderator"},
+			pluck="parent",
+		)
+	)
+
+	for user in users - already_have:
+		if not frappe.db.exists("User", user):
+			continue
+		role = frappe.new_doc("Has Role")
+		role.parent = user
+		role.parenttype = "User"
+		role.parentfield = "roles"
+		role.role = "Moderator"
+		role.insert(ignore_permissions=True)
+		frappe.clear_cache(user=user)
+
+
 def is_lms_admin(member: str = None):
 	"""True if the user has System Manager or Global Admin.
 

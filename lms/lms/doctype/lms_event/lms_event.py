@@ -14,6 +14,7 @@ from frappe.utils import add_days, cint, format_datetime, get_time, nowdate
 
 from lms.lms.utils import (
 	LMS_MODERATOR_ROLES,
+	ensure_instructors_have_moderator_role,
 	generate_slug,
 	get_assignment_details,
 	get_audience_recipients,
@@ -37,6 +38,7 @@ class LMSEvent(Document):
 		self.validate_timetable()
 		self.validate_evaluation_end_date()
 		self.validate_conferencing_provider()
+		ensure_instructors_have_moderator_role([row.instructor for row in self.instructors or []])
 
 	def on_update(self):
 		if self.has_value_changed("published") and self.published:

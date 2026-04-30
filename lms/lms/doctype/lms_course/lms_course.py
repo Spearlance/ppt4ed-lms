@@ -10,6 +10,7 @@ from frappe.model.document import Document
 from frappe.utils import cint, flt, today
 
 from ...utils import (
+	ensure_instructors_have_moderator_role,
 	generate_slug,
 	get_audience_recipients,
 	get_average_rating,
@@ -29,6 +30,7 @@ class LMSCourse(Document):
 		self.validate_amount_and_currency()
 		self.image = validate_image(self.image)
 		self.validate_card_gradient()
+		ensure_instructors_have_moderator_role([row.instructor for row in self.instructors or []])
 
 	def validate_published(self):
 		if self.published and not self.published_on:
