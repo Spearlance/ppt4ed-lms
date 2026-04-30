@@ -24,7 +24,15 @@ def after_insert(doc, method):
 
 
 @frappe.whitelist(allow_guest=True)
-def sign_up(email: str, full_name: str, verify_terms: bool, user_category: str):
+def sign_up(
+	email: str,
+	full_name: str,
+	verify_terms: bool,
+	user_category: str,
+	license_type: str = "",
+	license_state: str = "",
+	professional_license_number: str = "",
+):
 	if is_signup_disabled():
 		frappe.throw(_("Sign Up is disabled"), _("Not Allowed"))
 
@@ -51,6 +59,9 @@ def sign_up(email: str, full_name: str, verify_terms: bool, user_category: str):
 			"first_name": escape_html(full_name),
 			"verify_terms": verify_terms,
 			"user_category": user_category,
+			"license_type": (license_type or "").strip() or None,
+			"license_state": (license_state or "").strip().upper()[:10] or None,
+			"professional_license_number": (professional_license_number or "").strip() or None,
 			"country": "",
 			"enabled": 1,
 			"new_password": random_string(10),
