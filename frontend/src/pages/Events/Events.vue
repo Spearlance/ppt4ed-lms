@@ -180,7 +180,7 @@ const events = createListResource({
 })
 
 const setCategories = (data) => {
-	let allCategories = data.map((event) => event.category)
+	let allCategories = data.flatMap((event) => event.categories || [])
 	allCategories = allCategories.filter(
 		(category, index) => allCategories.indexOf(category) === index && category
 	)
@@ -293,14 +293,14 @@ const setQueryParams = () => {
 
 const updateCategories = (data) => {
 	data.forEach((event) => {
-		if (
-			event.category &&
-			!categories.value.find((category) => category.value === event.category)
-		)
-			categories.value.push({
-				label: event.category,
-				value: event.category,
-			})
+		;(event.categories || []).forEach((category) => {
+			if (
+				category &&
+				!categories.value.find((c) => c.value === category)
+			) {
+				categories.value.push({ label: category, value: category })
+			}
+		})
 	})
 }
 

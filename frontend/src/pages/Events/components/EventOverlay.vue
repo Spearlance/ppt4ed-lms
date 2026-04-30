@@ -33,9 +33,31 @@
 			/>
 			<div
 				v-if="batch.data.amount"
-				class="text-lg font-semibold mb-5 text-ink-gray-9"
+				class="mb-5"
 			>
-				{{ formatNumberIntoCurrency(batch.data.amount, batch.data.currency) }}
+				<div
+					v-if="earlyBirdActive"
+					class="flex items-baseline gap-2"
+				>
+					<span class="text-lg font-semibold text-ink-gray-9">
+						{{ formatNumberIntoCurrency(batch.data.early_bird_amount, batch.data.currency) }}
+					</span>
+					<span class="text-sm text-ink-gray-6 line-through">
+						{{ formatNumberIntoCurrency(batch.data.amount, batch.data.currency) }}
+					</span>
+				</div>
+				<div
+					v-else
+					class="text-lg font-semibold text-ink-gray-9"
+				>
+					{{ formatNumberIntoCurrency(batch.data.amount, batch.data.currency) }}
+				</div>
+				<div
+					v-if="earlyBirdActive"
+					class="text-xs text-ink-green-3 mt-1"
+				>
+					{{ __('Early bird through') }} {{ batch.data.early_bird_deadline }}
+				</div>
 			</div>
 			<div
 				v-if="batch.data.courses.length"
@@ -49,7 +71,23 @@
 				:endDate="batch.data.end_date"
 				class="mb-3"
 			/>
-			<div class="flex items-center mb-3 text-ink-gray-7">
+			<div
+				v-if="multiDay"
+				class="space-y-1 mb-3 text-ink-gray-7"
+			>
+				<div
+					v-for="(day, idx) in batch.data.event_days"
+					:key="idx"
+					class="flex items-center text-sm"
+				>
+					<Clock class="h-4 w-4 stroke-1.5 mr-2" />
+					<span>
+						{{ day.date }}: {{ formatTime(day.start_time) }} -
+						{{ formatTime(day.end_time) }}
+					</span>
+				</div>
+			</div>
+			<div v-else class="flex items-center mb-3 text-ink-gray-7">
 				<Clock class="h-4 w-4 stroke-1.5 mr-2" />
 				<span>
 					{{ formatTime(batch.data.start_time) }} -
@@ -240,5 +278,22 @@ const canAccessEvent = computed(() => {
 		return false
 	}
 	return isModerator.value || isStudent.value
+})
+
+const multiDay = computed(() => {
+	const days = props.batch?.data?.event_days || []
+	return days.length > 1
+})
+
+const earlyBirdActive = computed(() => {
+	const data = props.batch?.data
+	if (!data?.paid_event) return false
+	if (!data.early_bird_deadline) return false
+	const eb = data.early_bird_amount || data.early_bird_amount_usd
+	if (!eb || Number(eb) <= 0) return false
+	const today = new Date()
+	today.setHours(0, 0, 0, 0)
+	const deadline = new Date(data.early_bird_deadline)
+	return today <= deadline
 })
 </script>

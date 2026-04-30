@@ -1228,18 +1228,36 @@ def get_event_details(batch: str):
 			"amount_usd",
 			"currency",
 			"paid_event",
+			"early_bird_amount",
+			"early_bird_amount_usd",
+			"early_bird_deadline",
 			"evaluation_end_date",
 			"allow_self_enrollment",
 			"certification",
 			"evaluation",
 			"timezone",
-			"category",
 			"zoom_account",
 			"conferencing_provider",
 			"google_meet_account",
 			"video_link",
+			"event_type",
+			"venue",
+			"credit_hours",
 		],
 		as_dict=True,
+	)
+
+	event_details.categories = frappe.get_all(
+		"LMS Event Category",
+		filters={"parent": batch, "parenttype": "LMS Event"},
+		pluck="category",
+		order_by="idx",
+	)
+	event_details.event_days = frappe.get_all(
+		"LMS Event Day",
+		filters={"parent": batch, "parenttype": "LMS Event"},
+		fields=["date", "start_time", "end_time"],
+		order_by="idx",
 	)
 
 	event_details.instructors = get_instructors("LMS Event", batch)
@@ -1994,6 +2012,23 @@ def get_batches(filters: dict = None, start: int = 0, order_by: str = "start_dat
 		filters.update({"name": ["in", enrolled_batches]})
 		del filters["enrolled"]
 
+	# `category` is a child-table multiselect — translate the filter into a
+	# `name in (parents of LMS Event Category rows where category = X)` lookup.
+	# Single-select dropdown still drives this; "any of the event's categories
+	# matches" is the desired semantic.
+	if filters.get("category"):
+		matching_events = frappe.get_all(
+			"LMS Event Category",
+			filters={"category": filters["category"], "parenttype": "LMS Event"},
+			pluck="parent",
+		)
+		existing_name_filter = filters.get("name")
+		if existing_name_filter and isinstance(existing_name_filter, list) and existing_name_filter[0] == "in":
+			filters["name"] = ["in", list(set(existing_name_filter[1]) & set(matching_events))]
+		else:
+			filters["name"] = ["in", matching_events]
+		del filters["category"]
+
 	batches = frappe.get_all(
 		"LMS Event",
 		filters=filters,
@@ -2012,10 +2047,12 @@ def get_batches(filters: dict = None, start: int = 0, order_by: str = "start_dat
 			"end_time",
 			"timezone",
 			"published",
-			"category",
 			"credit_hours",
 			"event_type",
 			"venue",
+			"early_bird_amount",
+			"early_bird_amount_usd",
+			"early_bird_deadline",
 		],
 		order_by=order_by,
 		start=start,
@@ -2023,7 +2060,52 @@ def get_batches(filters: dict = None, start: int = 0, order_by: str = "start_dat
 	)
 
 	batches = filter_batches_based_on_start_time(batches, filters)
+	batches = attach_event_categories(batches)
+	batches = attach_event_days(batches)
 	batches = get_batch_card_details(batches)
+	return batches
+
+
+def attach_event_categories(batches: list) -> list:
+	"""Pull all category rows for the visible events in one query and
+	bucket them per event. Empty list when an event has none."""
+	if not batches:
+		return batches
+	event_names = [b.name for b in batches]
+	rows = frappe.get_all(
+		"LMS Event Category",
+		filters={"parent": ["in", event_names], "parenttype": "LMS Event"},
+		fields=["parent", "category"],
+		order_by="idx",
+	)
+	by_event = {}
+	for row in rows:
+		by_event.setdefault(row.parent, []).append(row.category)
+	for batch in batches:
+		batch["categories"] = by_event.get(batch.name, [])
+	return batches
+
+
+def attach_event_days(batches: list) -> list:
+	"""Pull all per-day rows for the visible events in one query."""
+	if not batches:
+		return batches
+	event_names = [b.name for b in batches]
+	rows = frappe.get_all(
+		"LMS Event Day",
+		filters={"parent": ["in", event_names], "parenttype": "LMS Event"},
+		fields=["parent", "date", "start_time", "end_time", "idx"],
+		order_by="idx",
+	)
+	by_event = {}
+	for row in rows:
+		by_event.setdefault(row.parent, []).append({
+			"date": row.date,
+			"start_time": row.start_time,
+			"end_time": row.end_time,
+		})
+	for batch in batches:
+		batch["event_days"] = by_event.get(batch.name, [])
 	return batches
 
 

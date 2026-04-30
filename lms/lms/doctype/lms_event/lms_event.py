@@ -10,7 +10,7 @@ import requests
 from frappe import _
 from frappe.desk.doctype.notification_log.notification_log import make_notification_logs
 from frappe.model.document import Document
-from frappe.utils import add_days, cint, format_datetime, get_time, nowdate
+from frappe.utils import add_days, cint, format_datetime, get_time, getdate, nowdate
 
 from lms.lms.utils import (
 	LMS_MODERATOR_ROLES,
@@ -32,8 +32,11 @@ class LMSEvent(Document):
 		self.validate_seats_left()
 		self.validate_event_end_date()
 		self.validate_event_time()
+		self.sync_event_days()
+		self.validate_event_days()
 		self.validate_duplicate_courses()
 		self.validate_amount_and_currency()
+		self.validate_early_bird()
 		self.validate_duplicate_assessments()
 		self.validate_timetable()
 		self.validate_evaluation_end_date()
@@ -67,6 +70,45 @@ class LMSEvent(Document):
 	def validate_amount_and_currency(self):
 		if self.paid_event and (not self.amount or not self.currency):
 			frappe.throw(_("Amount and currency are required for paid eventes."))
+
+	def sync_event_days(self):
+		"""Ensure at least one Event Day row exists. If empty, mirror the
+		top-level start_date/start_time/end_time as a single day. The
+		top-level fields stay the canonical event window for filtering and
+		listing — child rows are the source of truth for per-day schedule."""
+		if not self.event_days:
+			self.append("event_days", {
+				"date": self.start_date,
+				"start_time": self.start_time,
+				"end_time": self.end_time,
+			})
+
+	def validate_event_days(self):
+		"""Each row needs start<end, and the date must fall within the event window."""
+		for row in self.event_days or []:
+			if row.start_time and row.end_time:
+				if get_time(row.start_time) >= get_time(row.end_time):
+					frappe.throw(
+						_("Event Day Row #{0}: Start time cannot be greater than or equal to end time.").format(row.idx)
+					)
+			if row.date and (row.date < self.start_date or row.date > self.end_date):
+				frappe.throw(
+					_("Event Day Row #{0}: Date must be between the event start and end dates.").format(row.idx)
+				)
+
+	def validate_early_bird(self):
+		if not self.paid_event:
+			return
+		# Either the early-bird block is empty (nothing to validate) or all three are set.
+		any_set = self.early_bird_amount or self.early_bird_amount_usd or self.early_bird_deadline
+		if not any_set:
+			return
+		if not self.early_bird_deadline:
+			frappe.throw(_("Early bird deadline is required when an early bird amount is set."))
+		if not (self.early_bird_amount or self.early_bird_amount_usd):
+			frappe.throw(_("Set an early bird amount (or USD equivalent) when an early bird deadline is set."))
+		if self.start_date and getdate(self.early_bird_deadline) > getdate(self.start_date):
+			frappe.throw(_("Early bird deadline cannot be after the event start date."))
 
 	def validate_duplicate_assessments(self):
 		assessments = [row.assessment_name for row in self.assessment]
