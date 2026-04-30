@@ -16,7 +16,6 @@ from ...utils import (
 	get_instructors,
 	get_lesson_count,
 	get_lms_route,
-	update_payment_record,
 	validate_image,
 )
 
@@ -27,7 +26,6 @@ class LMSCourse(Document):
 		self.validate_instructors()
 		self.validate_video_link()
 		self.validate_status()
-		self.validate_certification()
 		self.validate_amount_and_currency()
 		self.image = validate_image(self.image)
 		self.validate_card_gradient()
@@ -58,22 +56,9 @@ class LMSCourse(Document):
 		if self.published:
 			self.status = "Approved"
 
-	def validate_certification(self):
-		if self.enable_certification and self.paid_certificate:
-			frappe.throw(_("A course cannot have both paid certificate and certificate of completion."))
-
-		if self.paid_certificate and not self.evaluator:
-			frappe.throw(_("Evaluator is required for paid certificates."))
-
-		if self.paid_certificate and not self.timezone:
-			frappe.throw(_("Timezone is required for paid certificates."))
-
 	def validate_amount_and_currency(self):
 		if self.paid_course and (cint(self.course_price) < 0 or not self.currency):
 			frappe.throw(_("Amount and currency are required for paid courses."))
-
-		if self.paid_certificate and (cint(self.course_price) <= 0 or not self.currency):
-			frappe.throw(_("Amount and currency are required for paid certificates."))
 
 	def validate_card_gradient(self):
 		if not self.image and not self.card_gradient:
@@ -96,10 +81,6 @@ class LMSCourse(Document):
 	def on_update(self):
 		if not self.upcoming and self.has_value_changed("upcoming"):
 			self.send_email_to_interested_users()
-
-	def on_payment_authorized(self, payment_status):
-		if payment_status in ["Authorized", "Completed"]:
-			update_payment_record("LMS Course", self.name)
 
 	def send_email_to_interested_users(self):
 		interested_users = frappe.get_all("LMS Course Interest", {"course": self.name}, ["name", "user"])

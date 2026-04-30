@@ -186,15 +186,6 @@
 						{{ __('Certificate of Completion') }}
 					</span>
 				</div>
-				<div
-					v-if="course.data.paid_certificate"
-					class="flex items-center font-semibold text-ink-gray-9"
-				>
-					<GraduationCap class="h-4 w-4 stroke-2" />
-					<span class="ml-2">
-						{{ __('Paid Certificate after Evaluation') }}
-					</span>
-				</div>
 			</div>
 		</div>
 	</div>

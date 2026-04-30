@@ -82,7 +82,7 @@ class LMSEnrollment(Document):
 		course_details = frappe.db.get_value(
 			"LMS Course",
 			self.course,
-			["published", "disable_self_learning", "paid_course", "paid_certificate", "course_type"],
+			["published", "disable_self_learning", "paid_course", "course_type"],
 			as_dict=True,
 		)
 

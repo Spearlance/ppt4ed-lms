@@ -55,22 +55,15 @@
   "mentor_request_status_update",
   "payment_settings_tab",
   "payment_section",
-  "payment_gateway",
   "default_currency",
   "exception_country",
   "column_break_cfcv",
-  "apply_gst",
   "show_usd_equivalent",
   "apply_rounding",
-  "send_payment_reminders_for_batch",
-  "send_payment_reminders_for_course",
-  "no_payments_app",
-  "payments_app_is_not_installed",
   "email_templates_tab",
   "certification_template",
   "batch_confirmation_template",
   "column_break_uwsp",
-  "payment_reminder_template",
   "seo_tab",
   "meta_description",
   "meta_image",
@@ -167,12 +160,6 @@
   {
    "fieldname": "column_break_cfcv",
    "fieldtype": "Column Break"
-  },
-  {
-   "default": "0",
-   "fieldname": "apply_gst",
-   "fieldtype": "Check",
-   "label": "Apply GST for India"
   },
   {
    "default": "0",
@@ -332,20 +319,6 @@
    "label": "Custom Signup Content"
   },
   {
-   "fieldname": "payment_gateway",
-   "fieldtype": "Data",
-   "label": "Payment Gateway"
-  },
-  {
-   "fieldname": "no_payments_app",
-   "fieldtype": "Section Break"
-  },
-  {
-   "fieldname": "payments_app_is_not_installed",
-   "fieldtype": "HTML",
-   "label": "Payments app is not installed"
-  },
-  {
    "fieldname": "general_tab",
    "fieldtype": "Tab Break",
    "label": "General"
@@ -355,12 +328,6 @@
    "fieldname": "allow_guest_access",
    "fieldtype": "Check",
    "label": "Allow Guest Access"
-  },
-  {
-   "fieldname": "payment_reminder_template",
-   "fieldtype": "Link",
-   "label": "Payment Reminder Template",
-   "options": "Email Template"
   },
   {
    "default": "1",
@@ -494,18 +461,6 @@
    "fieldtype": "Check",
    "label": "Demo Data Present",
    "read_only": 1
-  },
-  {
-   "default": "0",
-   "fieldname": "send_payment_reminders_for_batch",
-   "fieldtype": "Check",
-   "label": "Send Payment Reminders for Batch"
-  },
-  {
-   "default": "0",
-   "fieldname": "send_payment_reminders_for_course",
-   "fieldtype": "Check",
-   "label": "Send Payment Reminders for Course"
   }
  ],
  "grid_page_length": 50,

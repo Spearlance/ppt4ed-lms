@@ -11,7 +11,6 @@ cd ./frappe-bench || exit
 bench -v setup requirements
 
 echo "Setting Up LMS App..."
-bench get-app "https://github.com/frappe/payments"
 bench get-app lms "${GITHUB_WORKSPACE}"
 
 echo "Setting Up Sites & Database..."

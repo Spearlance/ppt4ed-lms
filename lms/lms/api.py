@@ -134,51 +134,6 @@ def get_translations():
 
 
 @frappe.whitelist()
-def validate_billing_access(billing_type: str, name: str):
-	doctype = "LMS Event" if billing_type == "event" else "LMS Course"
-	access, message = verify_billing_access(doctype, name, billing_type)
-
-	address = frappe.db.get_value(
-		"Address",
-		{"email_id": frappe.session.user},
-		[
-			"name",
-			"address_title as billing_name",
-			"address_line1",
-			"address_line2",
-			"city",
-			"state",
-			"country",
-			"pincode",
-			"phone",
-		],
-		as_dict=1,
-	)
-
-	payment_fields = get_payment_field_meta()
-	address_fields = get_field_meta(
-		"Address",
-		[
-			"address_line1",
-			"address_line2",
-			"city",
-			"state",
-			"country",
-			"pincode",
-			"phone",
-		],
-	)
-	billing_field_meta = {**payment_fields, **address_fields}
-
-	return {
-		"access": access,
-		"message": message,
-		"address": address,
-		"billing_field_meta": billing_field_meta,
-	}
-
-
-@frappe.whitelist()
 def get_payment_field_meta():
 	return get_field_meta(
 		"LMS Payment",
@@ -203,61 +158,6 @@ def get_payment_field_meta():
 			"member_consent",
 		],
 	)
-
-
-def verify_billing_access(doctype, name, billing_type):
-	access = True
-	message = ""
-
-	if frappe.session.user == "Guest":
-		access = False
-		message = _("Please login to continue with payment.")
-
-	if access and billing_type not in ["course", "event", "certificate"]:
-		access = False
-		message = _("Module is incorrect.")
-
-	if access and not frappe.db.exists(doctype, name):
-		access = False
-		message = _("Module Name is incorrect or does not exist.")
-
-	if access and billing_type == "course":
-		membership = frappe.db.exists("LMS Enrollment", {"member": frappe.session.user, "course": name})
-		if membership:
-			access = False
-			message = _("You are already enrolled for this course.")
-
-	elif access and billing_type == "event":
-		membership = frappe.db.exists("LMS Event Registration", {"member": frappe.session.user, "event": name})
-		if membership:
-			access = False
-			message = _("You are already enrolled for this event.")
-
-		seat_count = frappe.get_cached_value("LMS Event", name, "seat_count")
-		number_of_students = frappe.db.count("LMS Event Registration", {"event": name})
-		if seat_count <= number_of_students:
-			access = False
-			message = _("Event is sold out.")
-
-		start_date = frappe.get_cached_value("LMS Event", name, "start_date")
-		if start_date and date_diff(start_date, now()) < 0:
-			access = False
-			message = _("Event has already started.")
-
-	elif access and billing_type == "certificate":
-		purchased_certificate = frappe.db.exists(
-			"LMS Enrollment",
-			{
-				"course": name,
-				"member": frappe.session.user,
-				"purchased_certificate": 1,
-			},
-		)
-		if purchased_certificate:
-			access = False
-			message = _("You have already purchased the certificate for this course.")
-
-	return access, message
 
 
 @frappe.whitelist(allow_guest=True)
@@ -807,38 +707,6 @@ def delete_documents(doctype: str, documents: list):
 		if not isinstance(doc, str) or not doc.strip():
 			frappe.throw(_("Invalid document name"))
 		frappe.delete_doc(doctype, doc)
-
-
-@frappe.whitelist()
-def get_payment_gateway_details(payment_gateway: str):
-	frappe.only_for("Moderator")
-	gateway = frappe.get_doc("Payment Gateway", payment_gateway)
-
-	if gateway.gateway_controller is None:
-		try:
-			data = frappe.get_doc(f"{payment_gateway} Settings").as_dict()
-			meta = frappe.get_meta(f"{payment_gateway} Settings").fields
-			doctype = f"{payment_gateway} Settings"
-			docname = f"{payment_gateway} Settings"
-		except Exception:
-			frappe.throw(_("{0} Settings not found").format(payment_gateway))
-	else:
-		try:
-			data = frappe.get_doc(gateway.gateway_settings, gateway.gateway_controller).as_dict()
-			meta = frappe.get_meta(gateway.gateway_settings).fields
-			doctype = gateway.gateway_settings
-			docname = gateway.gateway_controller
-		except Exception:
-			frappe.throw(_("{0} Settings not found").format(payment_gateway))
-
-	gateway_fields = get_transformed_fields(meta, data)
-
-	return {
-		"fields": gateway_fields,
-		"data": data,
-		"doctype": doctype,
-		"docname": docname,
-	}
 
 
 def get_transformed_fields(meta: list, data: dict = None):
@@ -1457,18 +1325,6 @@ def cancel_evaluation(evaluation: dict):
 
 @frappe.whitelist()
 def get_certification_details(course: str):
-	membership = None
-	filters = {"course": course, "member": frappe.session.user}
-
-	if frappe.db.exists("LMS Enrollment", filters):
-		membership = frappe.db.get_value(
-			"LMS Enrollment",
-			filters,
-			["name", "purchased_certificate"],
-			as_dict=1,
-		)
-
-	paid_certificate = frappe.db.get_value("LMS Course", course, "paid_certificate")
 	certificate = frappe.db.get_value(
 		"LMS Certificate",
 		{"member": frappe.session.user, "course": course},
@@ -1477,8 +1333,6 @@ def get_certification_details(course: str):
 	)
 
 	return {
-		"membership": membership,
-		"paid_certificate": paid_certificate,
 		"certificate": certificate,
 	}
 

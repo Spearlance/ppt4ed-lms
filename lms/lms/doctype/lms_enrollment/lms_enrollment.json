@@ -17,7 +17,6 @@
   "member_username",
   "member_image",
   "certification_section",
-  "purchased_certificate",
   "certificate",
   "section_break_8",
   "column_break_12",
@@ -111,12 +110,6 @@
    "fieldname": "certification_section",
    "fieldtype": "Section Break",
    "label": "Certification"
-  },
-  {
-   "default": "0",
-   "fieldname": "purchased_certificate",
-   "fieldtype": "Check",
-   "label": "Purchased Certificate"
   },
   {
    "fieldname": "certificate",

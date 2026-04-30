@@ -33,12 +33,6 @@
 				:description="__('Mark the payment as received.')"
 				v-model="paymentReceived"
 			/>
-			<Switch
-				size="sm"
-				:label="__('Payment For Certificate')"
-				:description="__('This payment is for a certificate.')"
-				v-model="paymentForCertificate"
-			/>
 		</div>
 
 		<div v-if="transactions.data?.length" class="overflow-y-auto">
@@ -73,11 +67,7 @@
 						<template #default="{ column, item }">
 							<ListRowItem :item="row[column.key]" :align="column.align">
 								<FormControl
-									v-if="
-										['payment_received', 'payment_for_certificate'].includes(
-											column.key
-										)
-									"
+									v-if="column.key === 'payment_received'"
 									type="checkbox"
 									v-model="row[column.key]"
 									:disabled="true"
@@ -126,7 +116,6 @@ import Link from '@/components/Controls/Link.vue'
 
 const billingName = ref(null)
 const paymentReceived = ref(false)
-const paymentForCertificate = ref(false)
 const member = ref(null)
 const emit = defineEmits(['updateStep'])
 
@@ -137,22 +126,14 @@ const props = defineProps<{
 }>()
 
 watch(
-	[billingName, member, paymentReceived, paymentForCertificate],
-	([
-		newBillingName,
-		newMember,
-		newPaymentReceived,
-		newPaymentForCertificate,
-	]) => {
+	[billingName, member, paymentReceived],
+	([newBillingName, newMember, newPaymentReceived]) => {
 		props.transactions.update({
 			filters: [
 				newBillingName ? [['billing_name', 'like', `%${newBillingName}%`]] : [],
 				newMember ? [['member', '=', newMember]] : [],
 				newPaymentReceived
 					? [['payment_received', '=', newPaymentReceived]]
-					: [],
-				newPaymentForCertificate
-					? [['payment_for_certificate', '=', newPaymentForCertificate]]
 					: [],
 			].flat(),
 		})
@@ -198,14 +179,7 @@ const columns = computed(() => {
 			label: __('Payment Received'),
 			icon: 'check-circle',
 			key: 'payment_received',
-			width: '25%',
-			align: 'center',
-		},
-		{
-			label: __('Payment for Certificate'),
-			icon: 'award',
-			key: 'payment_for_certificate',
-			width: '25%',
+			width: '50%',
 			align: 'center',
 		},
 	]

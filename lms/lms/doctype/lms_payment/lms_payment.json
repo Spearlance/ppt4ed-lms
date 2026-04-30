@@ -15,7 +15,6 @@
   "payment_for_document_type",
   "payment_for_document",
   "payment_received",
-  "payment_for_certificate",
   "member_consent",
   "payment_details_section",
   "original_amount",
@@ -157,13 +156,6 @@
    "fieldtype": "Link",
    "label": "Source",
    "options": "LMS Source"
-  },
-  {
-   "default": "0",
-   "fieldname": "payment_for_certificate",
-   "fieldtype": "Check",
-   "in_standard_filter": 1,
-   "label": "Payment for Certificate"
   },
   {
    "depends_on": "coupon",

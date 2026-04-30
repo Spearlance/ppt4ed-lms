@@ -128,7 +128,7 @@
 					</div>
 
 					<Tooltip
-						v-if="course.paid_certificate || course.enable_certification"
+						v-if="course.enable_certification"
 						:text="__('Get Certified')"
 					>
 						<GraduationCap class="size-5 stroke-1.5 text-ink-gray-7" />

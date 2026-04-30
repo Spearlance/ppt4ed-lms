@@ -12,7 +12,6 @@ app_icon_route = "/lms"
 app_color = "#0b6685"
 app_email = "info@ppt4ed.org"
 app_license = "AGPL"
-required_apps = ["frappe/payments"]
 
 
 def get_lms_path():
@@ -141,7 +140,6 @@ scheduler_events = {
 	],
 	"daily": [
 		# "lms.job.doctype.job_opportunity.job_opportunity.update_job_openings",  # PPT4ed: hidden
-		"lms.lms.doctype.lms_payment.lms_payment.send_payment_reminder",
 		"lms.lms.doctype.lms_live_class.lms_live_class.send_live_class_reminder",
 		"lms.lms.doctype.lms_course.lms_course.send_notification_for_published_courses",
 	],

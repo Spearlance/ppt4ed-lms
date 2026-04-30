@@ -62,7 +62,6 @@ const transactions = createListResource({
 		'payment_for_document_type',
 		'payment_for_document',
 		'payment_received',
-		'payment_for_certificate',
 		'currency',
 		'amount',
 		'amount_with_gst',
