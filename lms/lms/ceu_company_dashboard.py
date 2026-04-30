@@ -1,6 +1,6 @@
 import frappe
 from frappe import _
-from frappe.utils import now_datetime
+from frappe.utils import add_days, cint, flt, now_datetime, nowdate
 
 
 def _get_user_company():
@@ -191,6 +191,165 @@ def get_enrollment_requests():
         ) or req.course
 
     return requests
+
+
+@frappe.whitelist()
+def get_team_activity(period_days: int = 30, top_courses_limit: int = 5):
+	"""Aggregate per-employee learning activity for the company admin's team.
+
+	Returns lifetime + period-bound enrollment, completion, and CEU consumption
+	per member, plus the most-enrolled courses across the team. ``period_days``
+	bounds the period-relative metrics (default last 30 days).
+	"""
+	company_name = _get_user_company()
+	company = frappe.get_doc("Company Account", company_name)
+	period_days = max(cint(period_days) or 30, 1)
+	top_courses_limit = max(cint(top_courses_limit) or 5, 1)
+	period_start = add_days(nowdate(), -period_days)
+
+	member_users = [m.user for m in company.members if m.user]
+	if not member_users:
+		return {
+			"period_days": period_days,
+			"members": [],
+			"totals": _empty_totals(period_days),
+			"top_courses": [],
+		}
+
+	enrollments = frappe.get_all(
+		"LMS Enrollment",
+		filters={"member": ["in", member_users]},
+		fields=["member", "course", "progress", "modified", "creation"],
+	)
+	certs = frappe.get_all(
+		"LMS Certificate",
+		filters={"member": ["in", member_users]},
+		fields=["member", "course", "creation", "ceu_hours"],
+	)
+	user_meta = {
+		row.name: row
+		for row in frappe.get_all(
+			"User",
+			filters={"name": ["in", member_users]},
+			fields=["name", "full_name", "email", "last_active"],
+		)
+	}
+
+	ceu_by_user = {}
+	if company.membership:
+		ceu_rows = frappe.get_all(
+			"CEU Credit Ledger",
+			filters={
+				"membership": company.membership,
+				"user": ["in", member_users],
+				"timestamp": [">=", period_start],
+				"transaction_type": ["in", ["Enrollment", "Direct Purchase"]],
+			},
+			fields=["user", "SUM(hours) as total_hours"],
+			group_by="user",
+		)
+		ceu_by_user = {r.user: flt(r.total_hours) for r in ceu_rows}
+
+	in_progress_by_user = {}
+	completed_total_by_user = {}
+	for e in enrollments:
+		if (e.progress or 0) >= 100:
+			completed_total_by_user[e.member] = completed_total_by_user.get(e.member, 0) + 1
+		else:
+			in_progress_by_user[e.member] = in_progress_by_user.get(e.member, 0) + 1
+
+	completed_period_by_user = {}
+	for c in certs:
+		if str(c.creation) >= period_start:
+			completed_period_by_user[c.member] = completed_period_by_user.get(c.member, 0) + 1
+
+	members_payload = []
+	for user in member_users:
+		meta = user_meta.get(user)
+		members_payload.append(
+			{
+				"user": user,
+				"full_name": (meta.full_name if meta else user) or user,
+				"email": (meta.email if meta else user) or user,
+				"last_active": meta.last_active if meta else None,
+				"in_progress": in_progress_by_user.get(user, 0),
+				"completed_total": completed_total_by_user.get(user, 0),
+				"completed_period": completed_period_by_user.get(user, 0),
+				"ceu_debited_period": ceu_by_user.get(user, 0.0),
+			}
+		)
+	members_payload.sort(
+		key=lambda m: (m["completed_period"], m["ceu_debited_period"]),
+		reverse=True,
+	)
+
+	totals = {
+		"members": len(member_users),
+		"active_learners_period": sum(
+			1
+			for m in members_payload
+			if m["completed_period"] or m["ceu_debited_period"]
+		),
+		"completed_total": sum(completed_total_by_user.values()),
+		"completed_period": sum(completed_period_by_user.values()),
+		"ceu_debited_period": sum(ceu_by_user.values()),
+		"avg_ceu_per_member_period": (
+			sum(ceu_by_user.values()) / len(member_users) if member_users else 0
+		),
+	}
+
+	enrollment_counts = {}
+	completion_counts = {}
+	for e in enrollments:
+		enrollment_counts[e.course] = enrollment_counts.get(e.course, 0) + 1
+		if (e.progress or 0) >= 100:
+			completion_counts[e.course] = completion_counts.get(e.course, 0) + 1
+
+	top_course_names = sorted(
+		enrollment_counts.keys(),
+		key=lambda c: (enrollment_counts[c], completion_counts.get(c, 0)),
+		reverse=True,
+	)[:top_courses_limit]
+
+	titles = (
+		dict(
+			frappe.get_all(
+				"LMS Course",
+				filters={"name": ["in", top_course_names]},
+				fields=["name", "title"],
+				as_list=True,
+			)
+		)
+		if top_course_names
+		else {}
+	)
+	top_courses_payload = [
+		{
+			"course": c,
+			"title": titles.get(c, c),
+			"enrollment_count": enrollment_counts[c],
+			"completed_count": completion_counts.get(c, 0),
+		}
+		for c in top_course_names
+	]
+
+	return {
+		"period_days": period_days,
+		"members": members_payload,
+		"totals": totals,
+		"top_courses": top_courses_payload,
+	}
+
+
+def _empty_totals(period_days: int):
+	return {
+		"members": 0,
+		"active_learners_period": 0,
+		"completed_total": 0,
+		"completed_period": 0,
+		"ceu_debited_period": 0,
+		"avg_ceu_per_member_period": 0,
+	}
 
 
 @frappe.whitelist()

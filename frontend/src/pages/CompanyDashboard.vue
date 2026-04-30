@@ -46,6 +46,7 @@ import { markRaw, ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Badge, Breadcrumbs, Tabs, usePageMeta, createResource } from 'frappe-ui'
 import CompanyEmployees from '@/pages/CompanyDashboard/CompanyEmployees.vue'
+import CompanyTeamActivity from '@/pages/CompanyDashboard/CompanyTeamActivity.vue'
 import CompanyInvites from '@/pages/CompanyDashboard/CompanyInvites.vue'
 import CompanyCreditHistory from '@/pages/CompanyDashboard/CompanyCreditHistory.vue'
 import CompanyEnrollmentRequests from '@/pages/CompanyDashboard/CompanyEnrollmentRequests.vue'
@@ -65,6 +66,7 @@ const dashboard = createResource({
 
 const tabs = ref([
 	{ label: 'Employees', component: markRaw(CompanyEmployees) },
+	{ label: 'Activity', component: markRaw(CompanyTeamActivity) },
 	{ label: 'Invitations', component: markRaw(CompanyInvites) },
 	{ label: 'Credits', component: markRaw(CompanyCreditHistory) },
 	{ label: 'Requests', component: markRaw(CompanyEnrollmentRequests) },
