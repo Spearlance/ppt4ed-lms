@@ -409,7 +409,7 @@ const keyboardShortcut = (e) => {
 		(e.ctrlKey || e.metaKey) &&
 		!e.target.classList.contains('ProseMirror')
 	) {
-		submitBatch()
+		submitEvent()
 		e.preventDefault()
 	}
 }
@@ -479,12 +479,12 @@ const validateFields = () => {
 	})
 }
 
-const submitBatch = () => {
+const submitEvent = () => {
 	validateFields()
-	updateBatch()
+	updateEvent()
 }
 
-const updateBatch = () => {
+const updateEvent = () => {
 	batchDetail.setValue.submit(
 		{
 			...batchDetail.doc,
@@ -509,7 +509,7 @@ const updateBatch = () => {
 	)
 }
 
-const deleteBatch = () => {
+const deleteEvent = () => {
 	$dialog({
 		title: __('Confirm your action to delete'),
 		message: __(
@@ -521,7 +521,7 @@ const deleteBatch = () => {
 				theme: 'red',
 				variant: 'solid',
 				onClick({ close }) {
-					trashBatch(close)
+					trashEvent(close)
 					close()
 				},
 			},
@@ -529,7 +529,7 @@ const deleteBatch = () => {
 	})
 }
 
-const trashBatch = (close) => {
+const trashEvent = (close) => {
 	call('lms.lms.api.delete_event', {
 		event: props.batch.data.name,
 	}).then(() => {
@@ -589,8 +589,8 @@ const mediumOptions = computed(() => {
 })
 
 defineExpose({
-	submitBatch,
-	deleteBatch,
+	submitEvent,
+	deleteEvent,
 	isDirty,
 })
 </script>
