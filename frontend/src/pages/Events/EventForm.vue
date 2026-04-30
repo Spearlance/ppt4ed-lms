@@ -22,20 +22,6 @@
 								class="w-full"
 							/>
 							<FormControl
-								v-model="batchDetail.doc.start_date"
-								:label="__('Event Start Date')"
-								type="date"
-								class="mb-4"
-								:required="true"
-							/>
-							<FormControl
-								v-model="batchDetail.doc.end_date"
-								:label="__('Event End Date')"
-								type="date"
-								class="mb-4"
-								:required="true"
-							/>
-							<FormControl
 								v-model="batchDetail.doc.seat_count"
 								:label="__('Seat Count')"
 								type="number"
@@ -60,20 +46,6 @@
 								"
 							/>
 							<FormControl
-								v-model="batchDetail.doc.start_time"
-								:label="__('Session Start Time')"
-								type="time"
-								class="mb-4"
-								:required="true"
-							/>
-							<FormControl
-								v-model="batchDetail.doc.end_time"
-								:label="__('Session End Time')"
-								type="time"
-								class="mb-4"
-								:required="true"
-							/>
-							<FormControl
 								v-model="batchDetail.doc.timezone"
 								:label="__('Timezone')"
 								type="text"
@@ -94,7 +66,7 @@
 				<div class="px-5 pb-5 space-y-5 border-b mb-5">
 					<div class="flex items-center justify-between mb-2">
 						<div class="text-lg text-ink-gray-9 font-semibold">
-							{{ __('Per-day Schedule') }}
+							{{ __('Schedule') }}
 						</div>
 						<Button @click="addEventDay">
 							<template #prefix>
@@ -106,7 +78,7 @@
 					<div class="text-sm text-ink-gray-6 -mt-1 mb-2">
 						{{
 							__(
-								'One row per day the event runs. The Start/End Date and Time fields above stay as the overall event window.'
+								'One row per day the event runs. Use Add Day for multi-day events.'
 							)
 						}}
 					</div>
@@ -309,21 +281,11 @@
 						class="grid grid-cols-1 md:grid-cols-2 gap-5"
 					>
 						<FormControl
-							v-model="batchDetail.doc.amount"
-							:label="__('Amount')"
-							type="number"
-						/>
-						<Link
-							doctype="Currency"
-							v-model="batchDetail.doc.currency"
-							:filters="{ enabled: 1 }"
-							:label="__('Currency')"
-						/>
-						<FormControl
-							v-model="batchDetail.doc.amount_usd"
+							v-model.number="batchDetail.doc.amount"
 							:label="__('Amount (USD)')"
 							type="number"
-							:placeholder="__('Used for Stripe checkout')"
+							min="0"
+							step="0.01"
 						/>
 					</div>
 					<div
@@ -336,20 +298,19 @@
 						<div class="text-xs text-ink-gray-6 mb-3">
 							{{
 								__(
-									'Optional discount applied automatically when the event is purchased on or before the deadline. Leave blank to disable.'
+									'Optional discount applied automatically when purchased on or before the deadline. Leave both fields blank to disable.'
 								)
 							}}
 						</div>
-						<div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+						<div class="grid grid-cols-1 md:grid-cols-2 gap-5">
 							<FormControl
-								v-model="batchDetail.doc.early_bird_amount"
-								:label="__('Early Bird Amount')"
-								type="number"
-							/>
-							<FormControl
-								v-model="batchDetail.doc.early_bird_amount_usd"
+								:modelValue="earlyBirdAmountDisplay"
+								@update:modelValue="updateEarlyBirdAmount"
 								:label="__('Early Bird Amount (USD)')"
 								type="number"
+								min="0"
+								step="0.01"
+								:placeholder="__('e.g. 75')"
 							/>
 							<FormControl
 								v-model="batchDetail.doc.early_bird_deadline"
@@ -445,6 +406,18 @@ const instructors = ref([])
 const categories = ref([])
 const eventDays = ref([])
 const app = getCurrentInstance()
+
+// Render 0 / null as an empty input so "leave blank to disable" matches what the
+// user sees. The DB column still defaults to 0 — backend treats <= 0 as not-set.
+const earlyBirdAmountDisplay = computed(() => {
+	const v = batchDetail.doc?.early_bird_amount
+	return v && Number(v) > 0 ? v : ''
+})
+const updateEarlyBirdAmount = (val) => {
+	if (!batchDetail.doc) return
+	const num = Number(val)
+	batchDetail.doc.early_bird_amount = val === '' || isNaN(num) ? 0 : num
+}
 const { capture } = useTelemetry()
 const { $dialog } = app.appContext.config.globalProperties
 const isDirty = ref(false)
@@ -603,19 +576,24 @@ const submitEvent = () => {
 }
 
 const updateEvent = () => {
+	const payload = {
+		...batchDetail.doc,
+		instructors: instructors.value.map((instructor) => ({
+			instructor: instructor,
+		})),
+		categories: categories.value.map((category) => ({ category })),
+		event_days: eventDays.value.map((day) => ({
+			date: day.date,
+			start_time: day.start_time,
+			end_time: day.end_time,
+		})),
+	}
+	// Currency is USD-only; the form hides the selector. Always send USD.
+	if (payload.paid_event) {
+		payload.currency = 'USD'
+	}
 	batchDetail.setValue.submit(
-		{
-			...batchDetail.doc,
-			instructors: instructors.value.map((instructor) => ({
-				instructor: instructor,
-			})),
-			categories: categories.value.map((category) => ({ category })),
-			event_days: eventDays.value.map((day) => ({
-				date: day.date,
-				start_time: day.start_time,
-				end_time: day.end_time,
-			})),
-		},
+		payload,
 		{
 			onSuccess(data) {
 				updateMetaInfo('events', data.name, meta)

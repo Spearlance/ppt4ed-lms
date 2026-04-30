@@ -29,10 +29,9 @@ from lms.lms.utils import (
 
 class LMSEvent(Document):
 	def validate(self):
+		self.derive_schedule_from_event_days()
 		self.validate_seats_left()
 		self.validate_event_end_date()
-		self.validate_event_time()
-		self.sync_event_days()
 		self.validate_event_days()
 		self.validate_duplicate_courses()
 		self.validate_amount_and_currency()
@@ -55,11 +54,6 @@ class LMSEvent(Document):
 		if self.end_date < self.start_date:
 			frappe.throw(_("Event end date cannot be before the event start date"))
 
-	def validate_event_time(self):
-		if self.start_time and self.end_time:
-			if get_time(self.start_time) >= get_time(self.end_time):
-				frappe.throw(_("Event start time cannot be greater than or equal to end time."))
-
 	def validate_duplicate_courses(self):
 		courses = [row.course for row in self.courses]
 		duplicates = {course for course in courses if courses.count(course) > 1}
@@ -68,20 +62,42 @@ class LMSEvent(Document):
 			frappe.throw(_("Course {0} has already been added to this event.").format(frappe.bold(title)))
 
 	def validate_amount_and_currency(self):
-		if self.paid_event and (not self.amount or not self.currency):
-			frappe.throw(_("Amount and currency are required for paid eventes."))
+		if self.paid_event:
+			if not self.amount:
+				frappe.throw(_("Amount is required for paid events."))
+			# Currency is USD-only on the form; default it server-side when missing
+			# so old API/import paths keep working without a currency selector.
+			if not self.currency:
+				self.currency = "USD"
 
-	def sync_event_days(self):
-		"""Ensure at least one Event Day row exists. If empty, mirror the
-		top-level start_date/start_time/end_time as a single day. The
-		top-level fields stay the canonical event window for filtering and
-		listing — child rows are the source of truth for per-day schedule."""
-		if not self.event_days:
+	def derive_schedule_from_event_days(self):
+		"""`event_days` is the source of truth for the schedule. The top-level
+		`start_date`/`end_date`/`start_time`/`end_time` columns are derived from
+		it on save and kept for filtering, listing, and email templates that
+		still reference them.
+
+		If `event_days` is empty (e.g. older API import paths), seed it from
+		the legacy top-level inputs so nothing in the codebase breaks."""
+		if not self.event_days and self.start_date:
 			self.append("event_days", {
 				"date": self.start_date,
 				"start_time": self.start_time,
 				"end_time": self.end_time,
 			})
+
+		if not self.event_days:
+			return
+
+		# Ascending sort: earliest date first; tiebreak by start_time so the
+		# first/last row is deterministic when two days share a date.
+		ordered = sorted(
+			self.event_days,
+			key=lambda r: (r.date, str(r.start_time or "")),
+		)
+		self.start_date = ordered[0].date
+		self.end_date = ordered[-1].date
+		self.start_time = ordered[0].start_time
+		self.end_time = ordered[-1].end_time
 
 	def validate_event_days(self):
 		"""Each row needs start<end, and the date must fall within the event window."""
@@ -89,25 +105,27 @@ class LMSEvent(Document):
 			if row.start_time and row.end_time:
 				if get_time(row.start_time) >= get_time(row.end_time):
 					frappe.throw(
-						_("Event Day Row #{0}: Start time cannot be greater than or equal to end time.").format(row.idx)
+						_("Schedule Row #{0}: Start time cannot be greater than or equal to end time.").format(row.idx)
 					)
 			if row.date and (row.date < self.start_date or row.date > self.end_date):
 				frappe.throw(
-					_("Event Day Row #{0}: Date must be between the event start and end dates.").format(row.idx)
+					_("Schedule Row #{0}: Date must be between the event start and end dates.").format(row.idx)
 				)
 
 	def validate_early_bird(self):
 		if not self.paid_event:
 			return
-		# Either the early-bird block is empty (nothing to validate) or all three are set.
-		any_set = self.early_bird_amount or self.early_bird_amount_usd or self.early_bird_deadline
-		if not any_set:
+		# Treat 0 as "not set" so the form's blank-defaults-to-zero behavior
+		# never accidentally enables an early-bird at $0.
+		amount = float(self.early_bird_amount or 0)
+		deadline = self.early_bird_deadline
+		if amount <= 0 and not deadline:
 			return
-		if not self.early_bird_deadline:
+		if amount <= 0:
+			frappe.throw(_("Set an early bird amount when a deadline is set."))
+		if not deadline:
 			frappe.throw(_("Early bird deadline is required when an early bird amount is set."))
-		if not (self.early_bird_amount or self.early_bird_amount_usd):
-			frappe.throw(_("Set an early bird amount (or USD equivalent) when an early bird deadline is set."))
-		if self.start_date and getdate(self.early_bird_deadline) > getdate(self.start_date):
+		if self.start_date and getdate(deadline) > getdate(self.start_date):
 			frappe.throw(_("Early bird deadline cannot be after the event start date."))
 
 	def validate_duplicate_assessments(self):

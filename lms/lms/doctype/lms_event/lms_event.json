@@ -219,7 +219,7 @@
   },
   {
    "depends_on": "paid_event",
-   "description": "Optional early-bird price. Applied automatically to checkouts created on or before the deadline.",
+   "description": "Optional early-bird price (USD). Applied automatically to checkouts created on or before the deadline. Leave blank to disable.",
    "fieldname": "early_bird_amount",
    "fieldtype": "Currency",
    "label": "Early Bird Amount"
@@ -229,15 +229,15 @@
    "fieldtype": "Column Break"
   },
   {
-   "depends_on": "paid_event",
-   "description": "USD equivalent for the early-bird price. Used for Stripe checkout.",
+   "description": "Legacy USD equivalent — kept for back-compat. The form uses early_bird_amount as USD.",
    "fieldname": "early_bird_amount_usd",
    "fieldtype": "Currency",
+   "hidden": 1,
    "label": "Early Bird Amount (USD)"
   },
   {
    "depends_on": "paid_event",
-   "description": "Last date the early-bird price applies. Compared against today's date in the user's local time.",
+   "description": "Last date the early-bird price applies. Compared against today's date.",
    "fieldname": "early_bird_deadline",
    "fieldtype": "Date",
    "label": "Early Bird Deadline"
@@ -275,11 +275,12 @@
    "mandatory_depends_on": "paid_event"
   },
   {
-   "depends_on": "paid_event",
+   "default": "USD",
+   "description": "Currency is USD-only on the form; this field is kept on the doctype for back-compat with multi-currency code paths.",
    "fieldname": "currency",
    "fieldtype": "Link",
+   "hidden": 1,
    "label": "Currency",
-   "mandatory_depends_on": "paid_event",
    "options": "Currency"
   },
   {
@@ -378,10 +379,10 @@
    "label": "Evaluation End Date"
   },
   {
-   "depends_on": "paid_event",
-   "description": "If you set an amount here, then the USD equivalent setting will not get applied.",
+   "description": "Legacy USD equivalent — kept for back-compat. The form uses amount as USD.",
    "fieldname": "amount_usd",
    "fieldtype": "Currency",
+   "hidden": 1,
    "label": "Amount (USD)"
   },
   {
