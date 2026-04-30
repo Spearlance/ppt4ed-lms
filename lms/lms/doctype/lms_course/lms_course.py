@@ -11,6 +11,7 @@ from frappe.utils import cint, flt, today
 
 from ...utils import (
 	generate_slug,
+	get_audience_recipients,
 	get_average_rating,
 	get_instructors,
 	get_lesson_count,
@@ -142,7 +143,7 @@ def send_notification_for_published_courses():
 			"published_on": today(),
 			"notification_sent": 0,
 		},
-		["name", "title", "short_introduction"],
+		["name", "title", "short_introduction", "audience"],
 	)
 
 	if not courses_published_today:
@@ -159,10 +160,10 @@ def send_email_notification_for_published_courses(courses):
 	brand_logo = frappe.db.get_single_value("Website Settings", "banner_image")
 	subject = _("A new course has been published on {0}").format(brand_name)
 	template = "published_course_notification"
-	students = frappe.get_all("User", {"enabled": 1}, pluck="name")
 
 	for course in courses:
 		instructors = get_instructors("LMS Course", course.name)
+		students = get_audience_recipients(course.audience, extra_users=instructors)
 
 		args = {
 			"brand_logo": brand_logo,
@@ -185,9 +186,11 @@ def send_email_notification_for_published_courses(courses):
 
 def send_system_notification_for_published_courses(courses):
 	for course in courses:
-		students = frappe.get_all("User", {"enabled": 1}, pluck="name")
 		instructors = frappe.get_all("Course Instructor", {"parent": course.name}, pluck="instructor")
-		instructor_name = frappe.db.get_value("User", instructors[0], "full_name")
+		students = get_audience_recipients(course.audience, extra_users=instructors)
+		instructor_name = (
+			frappe.db.get_value("User", instructors[0], "full_name") if instructors else ""
+		)
 		notification = frappe._dict(
 			{
 				"subject": _("{0} has published a new course {1}").format(

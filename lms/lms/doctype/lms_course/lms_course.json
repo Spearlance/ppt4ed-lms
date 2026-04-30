@@ -80,8 +80,7 @@
    "options": "\nVideo\nDownload\nArticle\nMini-Course\nTemplate"
   },
   {
-   "depends_on": "eval:doc.course_type=='Resource'",
-   "description": "Who this resource is primarily for. Shown as tabs on the Resources page.",
+   "description": "Primary audience for this content. Shown as tabs on the Resources page; used to target the new-content notification so only users whose notification audience matches (or is unset) are notified.",
    "fieldname": "audience",
    "fieldtype": "Select",
    "label": "Audience",

@@ -23,6 +23,7 @@
   "credit_hours",
   "column_break_uamg",
   "category",
+  "audience",
   "section_break_cssv",
   "evaluation",
   "evaluation_end_date",
@@ -180,6 +181,13 @@
    "in_standard_filter": 1,
    "label": "Category",
    "options": "LMS Category"
+  },
+  {
+   "description": "Primary audience for this event. When set, only users whose notification audience matches (or is unset) receive the new-event notification.",
+   "fieldname": "audience",
+   "fieldtype": "Select",
+   "label": "Audience",
+   "options": "\nHealthcare Professionals\nEducators\nParents / Caregivers"
   },
   {
    "description": "These customisations will work on the main event page.",

@@ -16,6 +16,7 @@ from lms.lms.utils import (
 	LMS_MODERATOR_ROLES,
 	generate_slug,
 	get_assignment_details,
+	get_audience_recipients,
 	get_instructors,
 	get_lesson_index,
 	get_lesson_url,
@@ -167,8 +168,8 @@ def send_email_notification_for_published_event(batch):
 	brand_logo = frappe.db.get_single_value("Website Settings", "banner_image")
 	subject = _("A new course has been published on {0}").format(brand_name)
 	template = "published_course_notification"
-	students = frappe.get_all("User", {"enabled": 1}, pluck="name")
 	instructors = get_instructors("LMS Event", batch.name)
+	students = get_audience_recipients(batch.get("audience"), extra_users=instructors)
 
 	args = {
 		"brand_logo": brand_logo,
@@ -195,9 +196,11 @@ def send_email_notification_for_published_event(batch):
 
 
 def send_system_notification_for_published_event(batch):
-	students = frappe.get_all("User", {"enabled": 1}, pluck="name")
 	instructors = frappe.get_all("Course Instructor", {"parent": batch.name}, pluck="instructor")
-	instructor_name = frappe.db.get_value("User", instructors[0], "full_name")
+	students = get_audience_recipients(batch.get("audience"), extra_users=instructors)
+	instructor_name = (
+		frappe.db.get_value("User", instructors[0], "full_name") if instructors else ""
+	)
 	notification = frappe._dict(
 		{
 			"subject": _("{0} has published a new event {1}").format(

@@ -87,6 +87,17 @@
 								class="col-span-2"
 							/>
 						</div>
+						<FormControl
+							v-model="profile.notification_audience"
+							type="select"
+							:label="__('Notification Audience')"
+							:options="notificationAudienceOptions"
+							:description="
+								__(
+									'Filter notifications about new courses and events to your audience. Leave on \'All audiences\' to receive everything.'
+								)
+							"
+						/>
 						<div>
 							<div class="mb-1.5 text-sm text-ink-gray-5">
 								{{ __('Bio') }}
@@ -143,6 +154,7 @@ const profile = reactive({
 	professional_license_number: '',
 	license_type: '',
 	license_state: '',
+	notification_audience: '',
 })
 
 const licenseTypeOptions = [
@@ -151,6 +163,16 @@ const licenseTypeOptions = [
 	{ label: 'PT', value: 'PT' },
 	{ label: 'SLP', value: 'SLP' },
 	{ label: __('Other'), value: 'Other' },
+]
+
+const notificationAudienceOptions = [
+	{ label: __('All audiences'), value: '' },
+	{
+		label: __('Healthcare Professionals'),
+		value: 'Healthcare Professionals',
+	},
+	{ label: __('Educators'), value: 'Educators' },
+	{ label: __('Parents / Caregivers'), value: 'Parents / Caregivers' },
 ]
 
 const updateProfile = createResource({
@@ -245,6 +267,7 @@ watch(
 				newVal.professional_license_number || ''
 			profile.license_type = newVal.license_type || ''
 			profile.license_state = newVal.license_state || ''
+			profile.notification_audience = newVal.notification_audience || ''
 			profile.image = newVal.user_image
 			isDirty.value = false
 		}

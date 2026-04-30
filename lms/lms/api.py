@@ -1836,6 +1836,7 @@ def get_profile_details(username: str):
 			"professional_license_number",
 			"license_type",
 			"license_state",
+			"notification_audience",
 		],
 		as_dict=True,
 	)
