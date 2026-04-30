@@ -35,7 +35,7 @@
 		<div>
 			<EventOverview v-if="!isAdmin && !isStudent" :batch="batch" />
 			<div v-else>
-				<Tabs :tabs="tabs" v-model="tabIndex">
+				<Tabs v-if="tabs.length" :tabs="tabs" v-model="tabIndex">
 					<template #tab-panel="{ tab }">
 						<div
 							v-if="tab.label == 'Discussions'"
