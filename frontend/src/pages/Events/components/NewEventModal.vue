@@ -102,16 +102,11 @@
 						class="grid grid-cols-2 gap-5"
 					>
 						<FormControl
-							v-model="batch.amount"
-							:label="__('Amount')"
+							v-model.number="batch.amount"
+							:label="__('Amount (USD)')"
 							type="number"
-							:required="true"
-						/>
-						<Link
-							doctype="Currency"
-							v-model="batch.currency"
-							:filters="{ enabled: 1 }"
-							:label="__('Currency')"
+							min="0"
+							step="0.01"
 							:required="true"
 						/>
 					</div>
@@ -173,7 +168,6 @@ import { computed, inject, onMounted, onBeforeUnmount, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { sanitizeHTML } from '@/utils'
 import MultiSelect from '@/components/Controls/MultiSelect.vue'
-import Link from '@/components/Controls/Link.vue'
 import NewMemberModal from '@/components/Modals/NewMemberModal.vue'
 
 const show = defineModel<boolean>({ required: true, default: false })
@@ -252,6 +246,7 @@ const saveBatch = (close: () => void = () => {}) => {
 				instructor: instructor,
 			})),
 			categories: batch.value.categories.map((category) => ({ category })),
+			currency: batch.value.paid_event ? 'USD' : batch.value.currency,
 		},
 		{
 			onSuccess(data: any) {
