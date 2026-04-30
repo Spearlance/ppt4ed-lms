@@ -63,6 +63,30 @@
 							v-model="profile.language"
 							doctype="Language"
 						/>
+						<FormControl
+							v-model="profile.license_type"
+							type="select"
+							:label="__('License Type')"
+							:options="licenseTypeOptions"
+							:description="
+								__(
+									'Used on CEU certificates. Required to issue CEU credit for licensed professionals.'
+								)
+							"
+						/>
+						<div class="grid grid-cols-3 gap-3">
+							<FormControl
+								v-model="profile.license_state"
+								:label="__('License State')"
+								placeholder="FL"
+								class="col-span-1"
+							/>
+							<FormControl
+								v-model="profile.professional_license_number"
+								:label="__('License Number')"
+								class="col-span-2"
+							/>
+						</div>
 						<div>
 							<div class="mb-1.5 text-sm text-ink-gray-5">
 								{{ __('Bio') }}
@@ -116,7 +140,18 @@ const profile = reactive({
 	linkedin: '',
 	github: '',
 	twitter: '',
+	professional_license_number: '',
+	license_type: '',
+	license_state: '',
 })
+
+const licenseTypeOptions = [
+	{ label: __('— None —'), value: '' },
+	{ label: 'OT', value: 'OT' },
+	{ label: 'PT', value: 'PT' },
+	{ label: 'SLP', value: 'SLP' },
+	{ label: __('Other'), value: 'Other' },
+]
 
 const updateProfile = createResource({
 	url: 'frappe.client.set_value',
@@ -206,6 +241,10 @@ watch(
 			profile.linkedin = newVal.linkedin
 			profile.github = newVal.github
 			profile.twitter = newVal.twitter
+			profile.professional_license_number =
+				newVal.professional_license_number || ''
+			profile.license_type = newVal.license_type || ''
+			profile.license_state = newVal.license_state || ''
 			profile.image = newVal.user_image
 			isDirty.value = false
 		}

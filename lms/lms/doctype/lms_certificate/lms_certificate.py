@@ -1,6 +1,8 @@
 # Copyright (c) 2021, FOSS United and contributors
 # For license information, please see license.txt
 
+import re
+
 import frappe
 from frappe import _
 from frappe.email.doctype.email_template.email_template import get_email_template
@@ -8,6 +10,11 @@ from frappe.model.document import Document
 from frappe.model.naming import make_autoname
 from frappe.utils import nowdate
 from frappe.utils.telemetry import capture
+
+LICENSE_TYPES = {"OT", "PT", "SLP"}
+SURVEY_LICENSE_PATTERN = re.compile(
+	r"^\s*([A-Za-z]{2})[\s,]+([A-Za-z]{2,4})[\s,]+(\S.*?)\s*$"
+)
 
 
 class LMSCertificate(Document):
@@ -41,16 +48,57 @@ class LMSCertificate(Document):
 		self.db_set("ceu_disciplines", discipline_names, update_modified=False)
 
 	def populate_license_info(self):
-		"""Freeze the student's State + License # response from the course feedback survey.
+		"""Freeze the student's license info onto the certificate.
 
-		The Course Survey (LMS Quiz with is_survey=1) is attached to every certified
-		course per patch v2_0.attach_feedback_survey_to_certified_courses. The second
-		question captures license info as free-form text ("FL PT 00000"). We copy the
-		answer onto the certificate at mint time so it survives any later edits the
-		student makes to their submissions.
+		Prefers structured fields on the User profile (professional_license_number,
+		license_type, license_state). Falls back to the free-form answer captured by
+		the Course Survey (LMS Quiz with is_survey=1, attached to every certified
+		course per patch v2_0.attach_feedback_survey_to_certified_courses).
+
+		If the user's structured fields are blank but the survey answer parses
+		cleanly into (state, type, number), the parsed values are written back to
+		the User so subsequent certificates can use the structured fields directly.
 		"""
-		if not self.course or not self.member:
+		if not self.member:
 			return
+
+		structured = self._format_structured_license_from_user()
+		if structured:
+			self.db_set("license_info", structured, update_modified=False)
+			return
+
+		if not self.course:
+			return
+
+		survey_answer = self._fetch_survey_license_answer()
+		if not survey_answer:
+			return
+
+		parsed = parse_license_answer(survey_answer)
+		if parsed:
+			self._backfill_user_license(parsed)
+			structured = self._format_structured_license_from_user()
+			if structured:
+				self.db_set("license_info", structured, update_modified=False)
+				return
+
+		self.db_set("license_info", survey_answer, update_modified=False)
+
+	def _format_structured_license_from_user(self):
+		fields = frappe.db.get_value(
+			"User",
+			self.member,
+			["license_state", "license_type", "professional_license_number"],
+			as_dict=True,
+		) or {}
+		state = (fields.get("license_state") or "").strip()
+		ltype = (fields.get("license_type") or "").strip()
+		number = (fields.get("professional_license_number") or "").strip()
+		if not (state and ltype and number):
+			return None
+		return f"{state} {ltype} {number}"
+
+	def _fetch_survey_license_answer(self):
 		submissions = frappe.get_all(
 			"LMS Quiz Submission",
 			filters={"member": self.member, "course": self.course},
@@ -66,8 +114,25 @@ class LMSCertificate(Document):
 				"answer",
 			)
 			if answer:
-				self.db_set("license_info", answer.strip(), update_modified=False)
-				return
+				return answer.strip()
+		return None
+
+	def _backfill_user_license(self, parsed):
+		current = frappe.db.get_value(
+			"User",
+			self.member,
+			["license_state", "license_type", "professional_license_number"],
+			as_dict=True,
+		) or {}
+		updates = {}
+		if not (current.get("license_state") or "").strip():
+			updates["license_state"] = parsed["state"]
+		if not (current.get("license_type") or "").strip():
+			updates["license_type"] = parsed["type"]
+		if not (current.get("professional_license_number") or "").strip():
+			updates["professional_license_number"] = parsed["number"]
+		if updates:
+			frappe.db.set_value("User", self.member, updates, update_modified=False)
 
 	def send_certification_email(self):
 		outgoing_email_account = frappe.get_cached_value(
@@ -213,6 +278,41 @@ class LMSCertificate(Document):
 			share=1,
 			flags={"ignore_share_permission": True},
 		)
+
+
+def parse_license_answer(answer):
+	"""Parse a free-form survey answer like "FL PT 00000" into structured parts.
+
+	Returns a dict with state/type/number keys, or None if the answer does not
+	cleanly match. Only writes back to a user profile when type maps to a known
+	license discipline; unrecognized types fall through so the raw survey
+	answer keeps appearing on the certificate without polluting the profile.
+	"""
+	if not answer:
+		return None
+	match = SURVEY_LICENSE_PATTERN.match(answer)
+	if not match:
+		return None
+	state, raw_type, number = match.groups()
+	type_token = raw_type.upper()
+	if type_token in {"OTA", "OT/OTA"}:
+		license_type = "OT"
+	elif type_token in {"PTA", "PT/PTA"}:
+		license_type = "PT"
+	elif type_token in {"SLPA", "SLP/SLPA"}:
+		license_type = "SLP"
+	elif type_token in LICENSE_TYPES:
+		license_type = type_token
+	else:
+		return None
+	number = number.strip()
+	if not number:
+		return None
+	return {
+		"state": state.upper(),
+		"type": license_type,
+		"number": number,
+	}
 
 
 def has_website_permission(doc, ptype, user, verbose=False):

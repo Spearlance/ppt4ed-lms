@@ -32,6 +32,23 @@
         </div>
         {% endif %}
 
+        <div class="form-group">
+            <label class="form-label sr-only" for="signup_license_type"> {{ _("License Type (optional)") }} </label>
+            <select id="signup_license_type" class="form-control" data-fieldtype="Select" style="color: var(--text-light)">
+                <option value=""> {{ _("License type (optional, for CEU credit)") }} </option>
+                <option value="OT"> {{ _("OT — Occupational Therapy") }} </option>
+                <option value="PT"> {{ _("PT — Physical Therapy") }} </option>
+                <option value="SLP"> {{ _("SLP — Speech-Language Pathology") }} </option>
+                <option value="Other"> {{ _("Other") }} </option>
+            </select>
+        </div>
+        <div class="form-group" style="display: flex; gap: 8px;">
+            <input type="text" id="signup_license_state" class="form-control" maxlength="10"
+                placeholder="{{ _('State (e.g. FL)') }}" style="flex: 0 0 35%;">
+            <input type="text" id="signup_license_number" class="form-control"
+                placeholder="{{ _('License number (optional)') }}" style="flex: 1;">
+        </div>
+
         {% if custom_signup_content %}
         <div class="form-group">
             <div class="checkbox">
@@ -90,7 +107,10 @@
                 "email": email,
                 "full_name": full_name,
                 "verify_terms": $("#signup-terms").prop("checked") ? 1 : 0,
-                "user_category": $("#user_category").length ?  $("#user_category").val() : ""
+                "user_category": $("#user_category").length ?  $("#user_category").val() : "",
+                "license_type": ($("#signup_license_type").val() || "").trim(),
+                "license_state": ($("#signup_license_state").val() || "").trim(),
+                "professional_license_number": ($("#signup_license_number").val() || "").trim()
             },
             statusCode: login.login_handlers
         })

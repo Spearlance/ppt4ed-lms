@@ -1833,6 +1833,9 @@ def get_profile_details(username: str):
 			"linkedin",
 			"github",
 			"twitter",
+			"professional_license_number",
+			"license_type",
+			"license_state",
 		],
 		as_dict=True,
 	)
