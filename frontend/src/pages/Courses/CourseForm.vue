@@ -409,7 +409,7 @@ const selfEnrollment = computed({
 const isResource = computed(
 	() => courseResource.doc?.course_type === 'Resource'
 )
-const memberModalRoles = ref([])
+const memberModalRoles = ref(['moderator'])
 
 const props = defineProps({
 	course: {
