@@ -1,5 +1,6 @@
 import frappe
 from frappe import _
+from frappe.utils import getdate, nowdate
 import stripe
 
 
@@ -89,6 +90,20 @@ def create_event_checkout(event_name):
         amount_usd = event.amount_usd or event.amount or 0
     else:
         amount_usd = event.amount_usd or 0
+
+    # Early-bird auto-discount: when today is on or before the deadline and
+    # an early-bird amount exists, swap in the lower price. Selection happens
+    # server-side so the client cannot ask for it after the cutoff.
+    is_early_bird = False
+    if event.early_bird_deadline and getdate(nowdate()) <= getdate(event.early_bird_deadline):
+        if (event.currency or "").upper() == "USD":
+            eb = event.early_bird_amount_usd or event.early_bird_amount or 0
+        else:
+            eb = event.early_bird_amount_usd or 0
+        if eb and float(eb) > 0:
+            amount_usd = eb
+            is_early_bird = True
+
     if amount_usd <= 0:
         frappe.throw(_("This event has no USD price configured"))
 
@@ -109,6 +124,12 @@ def create_event_checkout(event_name):
     product_data = {"name": event.title}
     if event.credit_hours:
         product_data["description"] = f"{event.credit_hours} CEU Hours"
+    if is_early_bird:
+        product_data["description"] = (
+            f"{product_data['description']} — Early Bird"
+            if product_data.get("description")
+            else "Early Bird"
+        )
 
     s = get_stripe()
     session = s.checkout.Session.create(
@@ -125,7 +146,8 @@ def create_event_checkout(event_name):
         metadata={
             "type": "event_one_off",
             "event": event_name,
-            "user": user_email
+            "user": user_email,
+            "early_bird": "1" if is_early_bird else "0",
         },
         success_url=frappe.utils.get_url(f"/lms/events/{event_name}?payment=success"),
         cancel_url=frappe.utils.get_url(f"/lms/events/{event_name}?payment=cancelled")

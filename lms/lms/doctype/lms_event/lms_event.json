@@ -18,11 +18,14 @@
   "start_time",
   "end_time",
   "timezone",
+  "section_break_event_days",
+  "event_days",
   "section_break_wuxt",
   "seat_count",
   "credit_hours",
   "column_break_uamg",
   "category",
+  "categories",
   "audience",
   "section_break_cssv",
   "evaluation",
@@ -69,6 +72,11 @@
   "amount",
   "currency",
   "amount_usd",
+  "section_break_early_bird",
+  "early_bird_amount",
+  "column_break_early_bird",
+  "early_bird_amount_usd",
+  "early_bird_deadline",
   "customisations_tab",
   "section_break_ubxi",
   "custom_component",
@@ -176,11 +184,63 @@
    "fieldtype": "Column Break"
   },
   {
+   "description": "Deprecated: use the Categories table below. Kept for one cycle so the data migration is reversible.",
    "fieldname": "category",
    "fieldtype": "Link",
+   "hidden": 1,
    "in_standard_filter": 1,
-   "label": "Category",
-   "options": "LMS Category"
+   "label": "Category (legacy)",
+   "options": "LMS Category",
+   "read_only": 1
+  },
+  {
+   "fieldname": "categories",
+   "fieldtype": "Table MultiSelect",
+   "label": "Categories",
+   "options": "LMS Event Category"
+  },
+  {
+   "fieldname": "section_break_event_days",
+   "fieldtype": "Section Break",
+   "label": "Schedule"
+  },
+  {
+   "description": "Per-day schedule. One row per day the event runs. Defaults to a single row matching Start/End Date and Time.",
+   "fieldname": "event_days",
+   "fieldtype": "Table",
+   "label": "Event Days",
+   "options": "LMS Event Day"
+  },
+  {
+   "depends_on": "paid_event",
+   "fieldname": "section_break_early_bird",
+   "fieldtype": "Section Break",
+   "label": "Early Bird"
+  },
+  {
+   "depends_on": "paid_event",
+   "description": "Optional early-bird price. Applied automatically to checkouts created on or before the deadline.",
+   "fieldname": "early_bird_amount",
+   "fieldtype": "Currency",
+   "label": "Early Bird Amount"
+  },
+  {
+   "fieldname": "column_break_early_bird",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "paid_event",
+   "description": "USD equivalent for the early-bird price. Used for Stripe checkout.",
+   "fieldname": "early_bird_amount_usd",
+   "fieldtype": "Currency",
+   "label": "Early Bird Amount (USD)"
+  },
+  {
+   "depends_on": "paid_event",
+   "description": "Last date the early-bird price applies. Compared against today's date in the user's local time.",
+   "fieldname": "early_bird_deadline",
+   "fieldtype": "Date",
+   "label": "Early Bird Deadline"
   },
   {
    "description": "Primary audience for this event. When set, only users whose notification audience matches (or is unset) receive the new-event notification.",

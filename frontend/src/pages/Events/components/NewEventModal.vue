@@ -45,11 +45,10 @@
 						:required="true"
 						autocomplete="off"
 					/>
-					<Link
-						v-model="batch.category"
+					<MultiSelect
+						v-model="batch.categories"
 						doctype="LMS Category"
-						:label="__('Category')"
-						:onCreate="createCategory"
+						:label="__('Categories')"
 					/>
 					<FormControl
 						v-model="batch.seat_count"
@@ -172,7 +171,7 @@ import { Button, Dialog, FormControl, Switch, TextEditor, toast } from 'frappe-u
 import { useOnboarding, useTelemetry } from 'frappe-ui/frappe'
 import { computed, inject, onMounted, onBeforeUnmount, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { sanitizeHTML, createLMSCategory } from '@/utils'
+import { sanitizeHTML } from '@/utils'
 import MultiSelect from '@/components/Controls/MultiSelect.vue'
 import Link from '@/components/Controls/Link.vue'
 import NewMemberModal from '@/components/Modals/NewMemberModal.vue'
@@ -198,7 +197,7 @@ type Batch = {
 	description: string
 	event_details: string
 	instructors: string[]
-	category: string | null
+	categories: string[]
 	seat_count: number
 	medium: string | null
 	event_type: string | null
@@ -219,7 +218,7 @@ const batch = ref<Batch>({
 	description: '',
 	event_details: '',
 	instructors: [],
-	category: null,
+	categories: [],
 	seat_count: 0,
 	medium: null,
 	event_type: null,
@@ -229,14 +228,6 @@ const batch = ref<Batch>({
 	amount: null,
 	currency: 'USD',
 })
-
-const createCategory = (name: string, done: () => void) => {
-	createLMSCategory(name).then((categoryName: string) => {
-		if (!categoryName) return
-		batch.value.category = categoryName
-		done()
-	})
-}
 
 const onInstructorCreated = (user: any) => {
 	batch.value.instructors = [...batch.value.instructors, user.name]
@@ -260,6 +251,7 @@ const saveBatch = (close: () => void = () => {}) => {
 			instructors: batch.value.instructors.map((instructor) => ({
 				instructor: instructor,
 			})),
+			categories: batch.value.categories.map((category) => ({ category })),
 		},
 		{
 			onSuccess(data: any) {

@@ -82,14 +82,65 @@
 								:required="true"
 							/>
 
-							<Link
-								v-model="batchDetail.doc.category"
+							<MultiSelect
+								v-model="categories"
 								doctype="LMS Category"
-								:label="__('Category')"
-								:inlineCreate="true"
-								:onCreate="createCategory"
+								:label="__('Categories')"
 							/>
 						</div>
+					</div>
+				</div>
+
+				<div class="px-5 pb-5 space-y-5 border-b mb-5">
+					<div class="flex items-center justify-between mb-2">
+						<div class="text-lg text-ink-gray-9 font-semibold">
+							{{ __('Per-day Schedule') }}
+						</div>
+						<Button @click="addEventDay">
+							<template #prefix>
+								<Plus class="w-4 h-4 stroke-1.5" />
+							</template>
+							{{ __('Add Day') }}
+						</Button>
+					</div>
+					<div class="text-sm text-ink-gray-6 -mt-1 mb-2">
+						{{
+							__(
+								'One row per day the event runs. The Start/End Date and Time fields above stay as the overall event window.'
+							)
+						}}
+					</div>
+					<div
+						v-for="(day, idx) in eventDays"
+						:key="idx"
+						class="grid grid-cols-[1fr,1fr,1fr,auto] gap-3 items-end"
+					>
+						<FormControl
+							v-model="day.date"
+							:label="idx === 0 ? __('Date') : ''"
+							type="date"
+							:required="true"
+						/>
+						<FormControl
+							v-model="day.start_time"
+							:label="idx === 0 ? __('Start Time') : ''"
+							type="time"
+							:required="true"
+						/>
+						<FormControl
+							v-model="day.end_time"
+							:label="idx === 0 ? __('End Time') : ''"
+							type="time"
+							:required="true"
+						/>
+						<Button
+							variant="ghost"
+							theme="red"
+							:disabled="eventDays.length <= 1"
+							@click="removeEventDay(idx)"
+						>
+							<X class="w-4 h-4 stroke-1.5" />
+						</Button>
 					</div>
 				</div>
 
@@ -268,6 +319,44 @@
 							:filters="{ enabled: 1 }"
 							:label="__('Currency')"
 						/>
+						<FormControl
+							v-model="batchDetail.doc.amount_usd"
+							:label="__('Amount (USD)')"
+							type="number"
+							:placeholder="__('Used for Stripe checkout')"
+						/>
+					</div>
+					<div
+						v-if="batchDetail.doc.paid_event"
+						class="border-t pt-4 mt-2"
+					>
+						<div class="text-sm font-semibold text-ink-gray-9 mb-1">
+							{{ __('Early Bird') }}
+						</div>
+						<div class="text-xs text-ink-gray-6 mb-3">
+							{{
+								__(
+									'Optional discount applied automatically when the event is purchased on or before the deadline. Leave blank to disable.'
+								)
+							}}
+						</div>
+						<div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+							<FormControl
+								v-model="batchDetail.doc.early_bird_amount"
+								:label="__('Early Bird Amount')"
+								type="number"
+							/>
+							<FormControl
+								v-model="batchDetail.doc.early_bird_amount_usd"
+								:label="__('Early Bird Amount (USD)')"
+								type="number"
+							/>
+							<FormControl
+								v-model="batchDetail.doc.early_bird_deadline"
+								:label="__('Deadline')"
+								type="date"
+							/>
+						</div>
 					</div>
 				</div>
 
@@ -326,6 +415,7 @@ import {
 	nextTick,
 } from 'vue'
 import {
+	Button,
 	FormControl,
 	Switch,
 	TextEditor,
@@ -334,8 +424,8 @@ import {
 	call,
 	createListResource,
 } from 'frappe-ui'
+import { Plus, X } from 'lucide-vue-next'
 import {
-	createLMSCategory,
 	getMetaInfo,
 	openSettings,
 	sanitizeHTML,
@@ -352,6 +442,8 @@ import EmailTemplateModal from '@/components/Modals/EmailTemplateModal.vue'
 const router = useRouter()
 const user = inject('$user')
 const instructors = ref([])
+const categories = ref([])
+const eventDays = ref([])
 const app = getCurrentInstance()
 const { capture } = useTelemetry()
 const { $dialog } = app.appContext.config.globalProperties
@@ -374,16 +466,22 @@ const onEmailTemplateCreated = (name) => {
 	emailTemplateLinkRef.value?.reload()
 }
 
-const createCategory = (name, done) => {
-	createLMSCategory(name).then((categoryName) => {
-		if (!categoryName) return
-		batchDetail.doc.category = categoryName
-		done()
+const onInstructorCreated = (user) => {
+	instructors.value = [...instructors.value, user.name]
+}
+
+const addEventDay = () => {
+	const last = eventDays.value[eventDays.value.length - 1]
+	eventDays.value.push({
+		date: last?.date || batchDetail.doc?.start_date || null,
+		start_time: last?.start_time || batchDetail.doc?.start_time || null,
+		end_time: last?.end_time || batchDetail.doc?.end_time || null,
 	})
 }
 
-const onInstructorCreated = (user) => {
-	instructors.value = [...instructors.value, user.name]
+const removeEventDay = (idx) => {
+	if (eventDays.value.length <= 1) return
+	eventDays.value.splice(idx, 1)
 }
 
 const meta = reactive({
@@ -447,10 +545,29 @@ const updateBatchData = () => {
 			batchDetail.doc.instructors.forEach((instructor) => {
 				instructors.value.push(instructor.instructor)
 			})
+		} else if (key == 'categories') {
+			categories.value = (batchDetail.doc.categories || []).map(
+				(row) => row.category
+			)
+		} else if (key == 'event_days') {
+			eventDays.value = (batchDetail.doc.event_days || []).map((row) => ({
+				date: row.date,
+				start_time: formatTime(row.start_time),
+				end_time: formatTime(row.end_time),
+			}))
 		} else if (['start_time', 'end_time'].includes(key)) {
 			batchDetail.doc[key] = formatTime(batchDetail.doc[key])
 		}
 	})
+	if (!eventDays.value.length) {
+		eventDays.value = [
+			{
+				date: batchDetail.doc.start_date,
+				start_time: batchDetail.doc.start_time,
+				end_time: batchDetail.doc.end_time,
+			},
+		]
+	}
 	let checkboxes = [
 		'published',
 		'paid_event',
@@ -466,6 +583,7 @@ const updateBatchData = () => {
 }
 
 const formatTime = (timeStr) => {
+	if (!timeStr) return timeStr
 	let [hours, minutes, seconds] = timeStr.split(':')
 	hours = hours.length == 1 ? '0' + hours : hours
 	return `${hours}:${minutes}`
@@ -490,6 +608,12 @@ const updateEvent = () => {
 			...batchDetail.doc,
 			instructors: instructors.value.map((instructor) => ({
 				instructor: instructor,
+			})),
+			categories: categories.value.map((category) => ({ category })),
+			event_days: eventDays.value.map((day) => ({
+				date: day.date,
+				start_time: day.start_time,
+				end_time: day.end_time,
 			})),
 		},
 		{
