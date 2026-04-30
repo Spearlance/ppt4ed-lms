@@ -1956,6 +1956,42 @@ def publish_notifications(doc: Document, method: str):
 	frappe.publish_realtime("publish_lms_notifications", user=doc.for_user, after_commit=True)
 
 
+def get_audience_recipients(audience: str | None, extra_users: list = None) -> list:
+	"""Return the list of enabled user emails to receive a new-content
+	notification for content targeted at ``audience``.
+
+	When ``audience`` is falsy, every enabled user is returned (preserves the
+	pre-targeting fan-out behavior). When set, the result is restricted to users
+	whose ``notification_audience`` matches the given audience OR is unset
+	(catch-all default — users who haven't expressed a preference still receive
+	the notification). ``extra_users`` (e.g. course/event instructors) are always
+	included regardless of preference so the people responsible for the content
+	don't accidentally filter themselves out.
+	"""
+	extras = [u for u in (extra_users or []) if u]
+	if not audience:
+		return frappe.get_all("User", {"enabled": 1}, pluck="name")
+
+	from frappe.query_builder import DocType
+
+	User = DocType("User")
+	rows = (
+		frappe.qb.from_(User)
+		.select(User.name)
+		.where(User.enabled == 1)
+		.where(
+			(User.notification_audience == audience)
+			| (User.notification_audience.isnull())
+			| (User.notification_audience == "")
+		)
+		.run(pluck=True)
+	)
+	if extras:
+		merged = list(dict.fromkeys(list(rows) + extras))
+		return merged
+	return list(rows)
+
+
 def update_payment_record(doctype: str, docname: str):
 	request = get_integration_requests(doctype, docname)
 
