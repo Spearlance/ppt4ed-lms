@@ -1,0 +1,52 @@
+<p>
+    {{ _("Hi") }} {{ guardian_name }},
+</p>
+<br>
+<p>
+    {{ _("You're registered! We can't wait to see you at the event.") }}
+</p>
+<br>
+<p>
+    <b>{{ _("Event:") }}</b> {{ event_title }}
+</p>
+<p>
+    <b>{{ _("Date:") }}</b> {{ frappe.utils.format_date(event_date, "long") }}{% if event_end_date and event_end_date != event_date %} &mdash; {{ frappe.utils.format_date(event_end_date, "long") }}{% endif %}
+</p>
+{% if event_time %}
+<p>
+    <b>{{ _("Time:") }}</b> {{ frappe.utils.format_time(event_time, "hh:mm a") }}{% if event_end_time %} &ndash; {{ frappe.utils.format_time(event_end_time, "hh:mm a") }}{% endif %}
+</p>
+{% endif %}
+{% if location %}
+<p>
+    <b>{{ _("Location:") }}</b> {{ location }}
+</p>
+{% endif %}
+{% if virtual_link %}
+<p>
+    <b>{{ _("Join Link:") }}</b> <a href="{{ virtual_link }}">{{ virtual_link }}</a>
+</p>
+{% endif %}
+<br>
+<p>
+    <b>{{ _("Attendees ({0}):").format(attendee_count) }}</b>
+</p>
+<ul>
+    {% for name in attendee_names %}
+    <li>{{ name }}</li>
+    {% endfor %}
+</ul>
+{% if donation_total and donation_total > 0 %}
+<br>
+<p>
+    {{ _("Thank you for your $%s donation to PPT4ed!") | replace("%s", "{:.2f}".format(donation_total|float)) }}
+</p>
+{% endif %}
+<br>
+<p>
+    <a href="{{ event_url }}">{{ _("View event details") }}</a>
+</p>
+<br>
+<p>
+    {{ _("If you need to make a change, just reply to this email.") }}
+</p>

@@ -92,6 +92,14 @@ def handle_checkout_completed(data):
             amount_total=data.get("amount_total"),
             currency=data.get("currency"),
         )
+    elif checkout_type == "community_event_donation":
+        _confirm_community_event_registration(
+            registration=metadata.get("registration"),
+            stripe_session_id=data.get("id"),
+            stripe_payment_intent_id=data.get("payment_intent"),
+            amount_total=data.get("amount_total"),
+            currency=data.get("currency"),
+        )
     elif checkout_type == "subscription":
         _activate_subscription(
             plan=metadata.get("plan"),
@@ -281,6 +289,52 @@ def _create_event_registration(
         }).insert(ignore_permissions=True)
     finally:
         frappe.set_user(original_user)
+
+
+def _confirm_community_event_registration(
+    registration,
+    stripe_session_id=None,
+    stripe_payment_intent_id=None,
+    amount_total=None,
+    currency=None,
+):
+    """Mark a Community Event Registration as Confirmed after Stripe Checkout
+    succeeds and send the confirmation email.
+
+    Community Events skip the LMS Payment record — that doctype requires a
+    User Link and only accepts LMS Course / LMS Event as the dynamic-linked
+    document. Community Event registrations are guest-checkout donations, so
+    we keep the receipt fields directly on the registration row (stripe ids
+    + donation_total) and lean on Stripe's dashboard for full audit.
+
+    Idempotent: if the registration is already Confirmed (e.g. duplicate
+    webhook delivery), this no-ops.
+    """
+    if not registration:
+        return
+
+    reg = frappe.db.get_value(
+        "Community Event Registration",
+        registration,
+        ["name", "payment_status"],
+        as_dict=True,
+    )
+    if not reg:
+        return
+    if reg.payment_status == "Confirmed":
+        return
+
+    frappe.db.set_value(
+        "Community Event Registration",
+        registration,
+        {
+            "payment_status": "Confirmed",
+            "stripe_payment_intent_id": stripe_payment_intent_id,
+        },
+    )
+
+    from lms.lms.community_event import _send_confirmation_email
+    _send_confirmation_email(registration)
 
 
 def _activate_subscription(plan, user, stripe_subscription_id, stripe_customer_id, company_name=None):

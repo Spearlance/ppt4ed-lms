@@ -1,0 +1,226 @@
+{
+ "actions": [],
+ "allow_import": 1,
+ "allow_rename": 1,
+ "creation": "2026-05-01 00:00:00.000000",
+ "default_view": "List",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "section_break_header",
+  "title",
+  "published",
+  "column_break_header",
+  "route",
+  "image",
+  "section_break_overview",
+  "short_description",
+  "description",
+  "section_break_when",
+  "start_date",
+  "start_time",
+  "column_break_when",
+  "end_date",
+  "end_time",
+  "section_break_where",
+  "location",
+  "column_break_where",
+  "virtual_link",
+  "section_break_capacity",
+  "max_attendees",
+  "column_break_capacity",
+  "additional_attendee_amount"
+ ],
+ "fields": [
+  {
+   "fieldname": "section_break_header",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Title",
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "description": "When checked, the public RSVP page is reachable. Unpublished events are admin-only.",
+   "fieldname": "published",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Published"
+  },
+  {
+   "fieldname": "column_break_header",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Auto-generated public URL slug. Don't edit unless you know what you're doing.",
+   "fieldname": "route",
+   "fieldtype": "Data",
+   "label": "Route",
+   "read_only": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "image",
+   "fieldtype": "Attach Image",
+   "label": "Hero Image"
+  },
+  {
+   "fieldname": "section_break_overview",
+   "fieldtype": "Section Break",
+   "label": "Overview"
+  },
+  {
+   "description": "One- or two-sentence summary used in event cards and meta tags.",
+   "fieldname": "short_description",
+   "fieldtype": "Small Text",
+   "label": "Short Description"
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Text Editor",
+   "label": "Description"
+  },
+  {
+   "fieldname": "section_break_when",
+   "fieldtype": "Section Break",
+   "label": "When"
+  },
+  {
+   "fieldname": "start_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Start Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "start_time",
+   "fieldtype": "Time",
+   "label": "Start Time"
+  },
+  {
+   "fieldname": "column_break_when",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "end_date",
+   "fieldtype": "Date",
+   "label": "End Date"
+  },
+  {
+   "fieldname": "end_time",
+   "fieldtype": "Time",
+   "label": "End Time"
+  },
+  {
+   "fieldname": "section_break_where",
+   "fieldtype": "Section Break",
+   "label": "Where"
+  },
+  {
+   "description": "Physical address or 'Virtual'. Shown on the public page.",
+   "fieldname": "location",
+   "fieldtype": "Data",
+   "label": "Location"
+  },
+  {
+   "fieldname": "column_break_where",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Optional Zoom/Meet/etc URL. Emailed to confirmed registrants.",
+   "fieldname": "virtual_link",
+   "fieldtype": "Data",
+   "label": "Virtual Link",
+   "options": "URL"
+  },
+  {
+   "fieldname": "section_break_capacity",
+   "fieldtype": "Section Break",
+   "label": "Capacity & Donation"
+  },
+  {
+   "default": "0",
+   "description": "Total attendees (across all signups). 0 = unlimited.",
+   "fieldname": "max_attendees",
+   "fieldtype": "Int",
+   "label": "Max Attendees"
+  },
+  {
+   "fieldname": "column_break_capacity",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "description": "USD donation charged per attendee BEYOND the first one. First attendee per signup is always free (PPT honor system). Set to 0 to make all attendees free.",
+   "fieldname": "additional_attendee_amount",
+   "fieldtype": "Currency",
+   "label": "Donation Per Extra Attendee (USD)",
+   "options": "USD"
+  }
+ ],
+ "has_web_view": 1,
+ "index_web_pages_for_search": 1,
+ "is_published_field": "published",
+ "links": [
+  {
+   "link_doctype": "Community Event Registration",
+   "link_fieldname": "parent_event"
+  }
+ ],
+ "modified": "2026-05-01 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "LMS",
+ "name": "Community Event",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Moderator",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Global Admin",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "show_title_field_in_link": 1,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "title",
+ "track_changes": 1,
+ "website_search_field": "title"
+}
