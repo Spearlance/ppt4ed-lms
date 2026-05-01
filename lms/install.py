@@ -8,6 +8,7 @@ def after_install():
 	give_discussions_permission()
 	give_user_list_permission()
 	give_event_permission()
+	give_email_template_permission()
 
 
 def after_sync():
@@ -182,6 +183,24 @@ def give_event_permission():
 		permlevel = 0
 		create_role(doctype, role, permlevel, 1, 1)
 	create_role(doctype, "System Manager", 0, 1, 1)
+
+
+def give_email_template_permission():
+	doctype = "Email Template"
+	for role in ["Moderator", "Global Admin"]:
+		if not frappe.db.exists("Custom DocPerm", {"parent": doctype, "role": role}):
+			frappe.get_doc(
+				{
+					"doctype": "Custom DocPerm",
+					"parent": doctype,
+					"role": role,
+					"read": 1,
+					"select": 1,
+					"write": 1,
+					"create": 1,
+					"delete": 1,
+				}
+			).save()
 
 
 def create_role(doctype, role, permlevel, write=0, create=0):

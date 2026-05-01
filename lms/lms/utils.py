@@ -526,6 +526,44 @@ def notify_mentions_on_portal(doc: Document, topic: dict):
 		make_notification_logs(notification, user)
 
 
+def lms_send_template_mail(
+	*,
+	recipients,
+	default_subject,
+	jinja_template,
+	args,
+	template_name,
+	**sendmail_kwargs,
+):
+	"""frappe.sendmail wrapper that prefers an Email Template doctype record.
+
+	When an Email Template named `template_name` exists, render its subject and
+	body through it so admins can edit copy via /lms Settings → Email Templates
+	without a deploy. Otherwise fall back to the Jinja file `jinja_template`.
+	All other frappe.sendmail kwargs (header, retry, bcc, cc, attachments...)
+	pass through unchanged.
+	"""
+	from frappe.email.doctype.email_template.email_template import get_email_template
+
+	if template_name and frappe.db.exists("Email Template", template_name):
+		rendered = get_email_template(template_name, args)
+		frappe.sendmail(
+			recipients=recipients,
+			subject=rendered.get("subject") or default_subject,
+			content=rendered.get("message"),
+			args=args,
+			**sendmail_kwargs,
+		)
+	else:
+		frappe.sendmail(
+			recipients=recipients,
+			subject=default_subject,
+			template=jinja_template,
+			args=args,
+			**sendmail_kwargs,
+		)
+
+
 def notify_mentions_via_email(doc: Document, topic: dict):
 	outgoing_email_account = frappe.get_cached_value(
 		"Email Account", {"default_outgoing": 1, "enable_outgoing": 1}, "name"
@@ -547,7 +585,6 @@ def notify_mentions_via_email(doc: Document, topic: dict):
 		for name in mentions
 	]
 	subject = _("{0} mentioned you in a comment").format(sender_fullname)
-	template = "mention_template"
 
 	if topic.reference_doctype == "LMS Event":
 		link = f"/events/{topic.reference_docname}#discussions"
@@ -563,11 +600,12 @@ def notify_mentions_via_email(doc: Document, topic: dict):
 	}
 
 	for recipient in recipients:
-		frappe.sendmail(
+		lms_send_template_mail(
 			recipients=recipient,
-			subject=subject,
-			template=template,
+			default_subject=subject,
+			jinja_template="mention_template",
 			args=args,
+			template_name="Mention Notification",
 			header=[subject, "green"],
 			retry=3,
 		)

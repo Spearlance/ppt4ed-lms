@@ -170,8 +170,9 @@ def send_live_class_reminder():
 
 
 def send_mail(live_class, student):
+	from lms.lms.utils import lms_send_template_mail
+
 	subject = _("Your class on {0} is today").format(live_class.title)
-	template = "live_class_reminder"
 
 	args = {
 		"student_name": student.member_name,
@@ -181,11 +182,12 @@ def send_mail(live_class, student):
 		"event_name": live_class.event_name,
 	}
 
-	frappe.sendmail(
+	lms_send_template_mail(
 		recipients=student.member,
-		subject=subject,
-		template=template,
+		default_subject=subject,
+		jinja_template="live_class_reminder",
 		args=args,
+		template_name="Live Class Reminder",
 		header=[_(f"Class Reminder: {live_class.title}"), "orange"],
 	)
 

@@ -96,15 +96,18 @@ class LMSCourse(Document):
 
 		for user in interested_users:
 			args["first_name"] = frappe.db.get_value("User", user.user, "first_name")
-			email_args = frappe._dict(
+			frappe.enqueue(
+				method="lms.lms.utils.lms_send_template_mail",
+				queue="short",
+				timeout=300,
+				is_async=True,
 				recipients=user.user,
-				subject=subject,
+				default_subject=subject,
+				jinja_template="lms_course_interest",
+				args=dict(args),
+				template_name="Course Now Available",
 				header=[subject, "green"],
-				template="lms_course_interest",
-				args=args,
-				now=True,
 			)
-			frappe.enqueue(method=frappe.sendmail, queue="short", timeout=300, is_async=True, **email_args)
 			frappe.db.set_value("LMS Course Interest", user.name, "email_sent", True)
 
 	def autoname(self):
@@ -157,12 +160,15 @@ def send_email_notification_for_published_courses(courses):
 			"course_url": frappe.utils.get_url(get_lms_route(f"courses/{course.name}")),
 		}
 
-		frappe.sendmail(
+		from lms.lms.utils import lms_send_template_mail
+
+		lms_send_template_mail(
 			recipients=instructors,
-			bcc=students,
-			subject=subject,
-			template=template,
+			default_subject=subject,
+			jinja_template=template,
 			args=args,
+			template_name="New Course Published",
+			bcc=students,
 		)
 		frappe.db.set_value("LMS Course", course.name, "notification_sent", 1)
 
