@@ -55,12 +55,16 @@ def get_company_dashboard():
 
 @frappe.whitelist()
 def get_company_members():
-    """Get list of company members (employees)."""
+    """Get list of active company members (employees). Removed members
+    are hidden — keep them in the underlying child table for audit but
+    don't surface in the admin UI."""
     company_name = _get_user_company()
     company = frappe.get_doc("Company Account", company_name)
 
     members = []
     for m in company.members:
+        if m.status == "Removed":
+            continue
         user = frappe.db.get_value(
             "User", m.user, ["full_name", "email", "last_active"], as_dict=True
         )
@@ -76,6 +80,21 @@ def get_company_members():
         })
 
     return members
+
+
+@frappe.whitelist()
+def remove_company_member(user: str):
+    """Company-admin endpoint: remove an employee from the caller's company.
+    Triggers the personal-signup email so the user knows their account
+    persists outside the company."""
+    from lms.lms.ceu_admin import remove_member_and_notify
+
+    company_name = _get_user_company()
+
+    if user == frappe.session.user:
+        frappe.throw(_("You cannot remove yourself from the company"))
+
+    return remove_member_and_notify(user, company_name)
 
 
 @frappe.whitelist()
