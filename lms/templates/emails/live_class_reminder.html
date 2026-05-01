@@ -15,6 +15,17 @@
 <p>
     <b>{{ _("Timings:") }}</b> {{ frappe.utils.format_time(time, "hh:mm a") }}
 </p>
+{% if zoom_link %}
+<br>
+<p>
+    <a href="{{ zoom_link }}" style="display: inline-block; padding: 10px 20px; background-color: #2563eb; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600;">
+        🎥 {{ _("Join Webinar") }}
+    </a>
+</p>
+<p style="font-size: 12px; color: #6b7280;">
+    {{ _("Or copy this link:") }} <a href="{{ zoom_link }}">{{ zoom_link }}</a>
+</p>
+{% endif %}
 <br>
 <p>
     <a href="{{ get_lms_route('events/' ~ name) }}">👉 {{ _("Visit your event") }}</a>

@@ -1,6 +1,7 @@
 import hashlib
 import json
 import re
+from datetime import timedelta
 
 import frappe
 import requests
@@ -20,6 +21,7 @@ from frappe.utils import (
 	get_frappe_version,
 	get_fullname,
 	getdate,
+	now_datetime,
 	nowtime,
 	pretty_date,
 	rounded,
@@ -1195,6 +1197,39 @@ def get_neighbour_lesson(course: str, chapter: int, lesson: int) -> dict:
 	}
 
 
+WEBINAR_WINDOW_LEAD_MINUTES = 15
+
+
+def is_webinar_window_open(event: str) -> bool:
+	"""True when server time is within (start - 15 min) through end_time of any event_day.
+	Times are compared naively in server-local time, matching how `accept_enrollments`
+	is computed elsewhere — accurate enough for the manual-link UX, where the email
+	is the primary delivery and the in-app button is a backup."""
+	days = frappe.get_all(
+		"LMS Event Day",
+		filters={"parent": event, "parenttype": "LMS Event"},
+		fields=["date", "start_time", "end_time"],
+	)
+	if not days:
+		start_date, start_time, end_time = frappe.db.get_value(
+			"LMS Event", event, ["start_date", "start_time", "end_time"]
+		)
+		if not (start_date and start_time and end_time):
+			return False
+		days = [{"date": start_date, "start_time": start_time, "end_time": end_time}]
+
+	now = now_datetime()
+	for day in days:
+		try:
+			start_dt = get_datetime(f"{day['date']} {day['start_time']}")
+			end_dt = get_datetime(f"{day['date']} {day['end_time']}")
+		except Exception:
+			continue
+		if start_dt - timedelta(minutes=WEBINAR_WINDOW_LEAD_MINUTES) <= now <= end_dt:
+			return True
+	return False
+
+
 @frappe.whitelist(allow_guest=True)  # nosemgrep: frappe-semgrep-rules.rules.security.guest-whitelisted-method
 @rate_limit(limit=500, seconds=60 * 60)
 def get_event_details(batch: str):
@@ -1239,6 +1274,7 @@ def get_event_details(batch: str):
 			"zoom_account",
 			"conferencing_provider",
 			"google_meet_account",
+			"zoom_link",
 			"video_link",
 			"event_type",
 			"venue",
@@ -1246,6 +1282,11 @@ def get_event_details(batch: str):
 		],
 		as_dict=True,
 	)
+
+	if not (is_batch_admin or is_student_enrolled):
+		event_details.zoom_link = None
+
+	event_details.webinar_window_open = is_webinar_window_open(batch)
 
 	event_details.categories = frappe.get_all(
 		"LMS Event Category",

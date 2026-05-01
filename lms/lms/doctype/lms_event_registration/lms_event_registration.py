@@ -139,6 +139,7 @@ def send_mail(doc):
 			"start_date",
 			"start_time",
 			"medium",
+			"zoom_link",
 			"confirmation_email_template",
 		],
 		as_dict=1,
@@ -155,8 +156,11 @@ def send_mail(doc):
 		"student_name": doc.member_name,
 		"start_time": batch.start_time,
 		"start_date": batch.start_date,
+		"date": batch.start_date,
+		"time": batch.start_time,
 		"medium": batch.medium,
 		"name": batch.name,
+		"zoom_link": batch.zoom_link,
 	}
 
 	if custom_template:

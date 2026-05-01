@@ -1,0 +1,36 @@
+<p>
+    {{ _("Hi") }} {{ student_name }},
+</p>
+<br>
+<p>
+    {{ _("Your event is starting in about an hour. Time to get ready!") }}
+</p>
+<br>
+<p>
+    <b>{{ _("Event:") }}</b> {{ title }}
+</p>
+<p>
+    <b>{{ _("Date:") }}</b> {{ frappe.utils.format_date(date, "long") }}
+</p>
+<p>
+    <b>{{ _("Time:") }}</b> {{ frappe.utils.format_time(time, "hh:mm a") }}
+</p>
+{% if zoom_link %}
+<br>
+<p>
+    <a href="{{ zoom_link }}" style="display: inline-block; padding: 12px 24px; background-color: #2563eb; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600;">
+        🎥 {{ _("Join Webinar") }}
+    </a>
+</p>
+<p style="font-size: 12px; color: #6b7280;">
+    {{ _("Or copy this link:") }} <a href="{{ zoom_link }}">{{ zoom_link }}</a>
+</p>
+{% endif %}
+<br>
+<p>
+    <a href="{{ get_lms_route('events/' ~ name) }}">{{ _("View event details") }}</a>
+</p>
+<br>
+<p>
+    {{ _("See you there!") }}
+</p>

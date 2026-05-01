@@ -165,6 +165,26 @@
 				</template>
 				{{ __('Registered') }}
 			</Badge>
+			<a
+				v-if="batch.data.zoom_link && canAccessEvent && batch.data.webinar_window_open"
+				:href="batch.data.zoom_link"
+				target="_blank"
+				rel="noopener noreferrer"
+				class="block mt-2"
+			>
+				<Button variant="solid" class="w-full">
+					<template #prefix>
+						<Video class="size-4 stroke-1.5" />
+					</template>
+					{{ __('Join Webinar') }}
+				</Button>
+			</a>
+			<div
+				v-else-if="batch.data.zoom_link && canAccessEvent"
+				class="mt-2 text-xs text-ink-gray-6 text-center"
+			>
+				{{ __('Join link unlocks 15 min before start.') }}
+			</div>
 		</div>
 	</div>
 </template>
@@ -185,6 +205,7 @@ import {
 	Monitor,
 	Pencil,
 	Settings,
+	Video,
 } from 'lucide-vue-next'
 import { formatNumberIntoCurrency, formatTime } from '@/utils'
 import DateRange from '@/components/Common/DateRange.vue'
