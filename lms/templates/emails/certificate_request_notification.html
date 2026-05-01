@@ -1,0 +1,24 @@
+<p>
+    {{ _("Hi") }} {{ member_name }},
+</p>
+<br>
+<p>
+    {{ _("Your evaluation slot has been booked.") }}
+</p>
+<br>
+<p>
+    <b>{{ _("Course:") }}</b> {{ course }}
+</p>
+<p>
+    <b>{{ _("Date:") }}</b> {{ date }}
+</p>
+<p>
+    <b>{{ _("Time:") }}</b> {{ start_time }}{% if timezone %} ({{ timezone }}){% endif %}
+</p>
+<p>
+    <b>{{ _("Evaluator:") }}</b> {{ evaluator }}
+</p>
+<br>
+<p>
+    {{ _("If you have any questions, reply to this email and we will be in touch.") }}
+</p>
