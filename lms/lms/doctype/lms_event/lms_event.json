@@ -46,6 +46,7 @@
   "conferencing_provider",
   "zoom_account",
   "google_meet_account",
+  "zoom_link",
   "notification_sent",
   "section_break_jedp",
   "video_link",
@@ -505,6 +506,13 @@
    "fieldname": "venue",
    "fieldtype": "Small Text",
    "label": "Venue / Location"
+  },
+  {
+   "description": "Optional join URL for live webinars. Paste the Zoom (or other) join URL here. Only enrolled attendees and moderators see it on the event page.",
+   "fieldname": "zoom_link",
+   "fieldtype": "Data",
+   "label": "Webinar Join Link",
+   "options": "URL"
   }
  ],
  "grid_page_length": 50,
@@ -523,7 +531,7 @@
    "link_fieldname": "payment_for_document"
   }
  ],
- "modified": "2026-04-10 00:00:00.000000",
+ "modified": "2026-04-30 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "LMS",
  "name": "LMS Event",

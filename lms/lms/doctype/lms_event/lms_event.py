@@ -10,7 +10,16 @@ import requests
 from frappe import _
 from frappe.desk.doctype.notification_log.notification_log import make_notification_logs
 from frappe.model.document import Document
-from frappe.utils import add_days, cint, format_datetime, get_time, getdate, nowdate
+from frappe.utils import (
+	add_days,
+	cint,
+	format_datetime,
+	get_datetime,
+	get_time,
+	getdate,
+	now_datetime,
+	nowdate,
+)
 
 from lms.lms.utils import (
 	LMS_MODERATOR_ROLES,
@@ -491,29 +500,32 @@ def get_timetable_details(timetable):
 
 
 def send_event_start_reminder():
-	batches = frappe.get_all(
+	events = frappe.get_all(
 		"LMS Event",
 		{"start_date": add_days(nowdate(), 1), "published": 1},
-		["name", "title", "start_date", "start_time", "medium"],
+		["name", "title", "start_date", "start_time", "medium", "zoom_link"],
 	)
 
-	for batch in batches:
-		students = frappe.get_all("LMS Event Registration", {"event": batch.name}, ["member", "member_name"])
+	for event in events:
+		students = frappe.get_all("LMS Event Registration", {"event": event.name}, ["member", "member_name"])
 		for student in students:
-			send_mail(batch, student)
+			send_mail(event, student)
 
 
-def send_mail(batch, student):
-	subject = _("Your event {0} is starting tomorrow").format(batch.title)
+def send_mail(event, student):
+	subject = _("Your event {0} is starting tomorrow").format(event.title)
 	template = "live_class_reminder"
 
 	args = {
 		"student_name": student.member_name,
-		"title": batch.title,
-		"start_date": batch.start_date,
-		"start_time": batch.start_time,
-		"medium": batch.medium,
-		"name": batch.name,
+		"title": event.title,
+		"start_date": event.start_date,
+		"start_time": event.start_time,
+		"date": event.start_date,
+		"time": event.start_time,
+		"medium": event.medium,
+		"name": event.name,
+		"zoom_link": event.zoom_link,
 	}
 
 	frappe.sendmail(
@@ -521,7 +533,83 @@ def send_mail(batch, student):
 		subject=subject,
 		template=template,
 		args=args,
-		header=[_(f"Event Start Reminder: {batch.title}"), "orange"],
+		header=[_(f"Event Start Reminder: {event.title}"), "orange"],
+	)
+
+
+ONE_HOUR_REMINDER_WINDOW_MINUTES = 75
+
+
+def send_event_one_hour_reminder():
+	"""Hourly. Email enrolled members ~1 hour before their event starts.
+	Looks at LMS Event Day rows so multi-day events trigger per day.
+	Cache-based dedup keyed on (event, member, day) prevents the next
+	hourly run from re-sending while a webinar's start time is still in
+	the look-ahead window."""
+	now = now_datetime()
+	today = getdate()
+	horizon = now + timedelta(minutes=ONE_HOUR_REMINDER_WINDOW_MINUTES)
+
+	upcoming_days = frappe.get_all(
+		"LMS Event Day",
+		filters={"date": today, "parenttype": "LMS Event"},
+		fields=["parent", "date", "start_time"],
+	)
+
+	for day in upcoming_days:
+		try:
+			start_dt = get_datetime(f"{day.date} {day.start_time}")
+		except Exception:
+			continue
+		if not (now <= start_dt <= horizon):
+			continue
+
+		event = frappe.db.get_value(
+			"LMS Event",
+			day.parent,
+			["name", "title", "medium", "zoom_link", "published"],
+			as_dict=True,
+		)
+		if not event or not event.published or not event.zoom_link:
+			continue
+
+		event.start_date = day.date
+		event.start_time = day.start_time
+
+		students = frappe.get_all(
+			"LMS Event Registration",
+			{"event": event.name},
+			["member", "member_name"],
+		)
+		for student in students:
+			cache_key = f"event_1h_reminder:{event.name}:{student.member}:{day.date}"
+			if frappe.cache().get_value(cache_key):
+				continue
+			send_starting_soon_mail(event, student)
+			frappe.cache().set_value(cache_key, 1, expires_in_sec=86400)
+
+
+def send_starting_soon_mail(event, student):
+	subject = _("Your event {0} starts in about an hour").format(event.title)
+
+	args = {
+		"student_name": student.member_name,
+		"title": event.title,
+		"start_date": event.start_date,
+		"start_time": event.start_time,
+		"date": event.start_date,
+		"time": event.start_time,
+		"medium": event.medium,
+		"name": event.name,
+		"zoom_link": event.zoom_link,
+	}
+
+	frappe.sendmail(
+		recipients=student.member,
+		subject=subject,
+		template="event_starting_soon",
+		args=args,
+		header=[_(f"Starting Soon: {event.title}"), "blue"],
 	)
 
 

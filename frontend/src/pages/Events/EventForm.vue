@@ -236,10 +236,23 @@
 					</div>
 					<div class="grid grid-cols-1 md:grid-cols-2 gap-5">
 						<FormControl
+							v-model="batchDetail.doc.zoom_link"
+							:label="__('Webinar Join Link')"
+							type="url"
+							:placeholder="__('https://zoom.us/j/...')"
+							:description="
+								__(
+									'Paste the Zoom join URL. Enrolled attendees will see a Join Webinar button on the event page.'
+								)
+							"
+						/>
+					</div>
+					<div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+						<FormControl
 							v-model="batchDetail.doc.conferencing_provider"
 							type="select"
 							:options="conferencingOptions"
-							:label="__('Conferencing Provider')"
+							:label="__('Conferencing Provider (advanced)')"
 						/>
 						<Link
 							v-if="batchDetail.doc.conferencing_provider === 'Zoom'"

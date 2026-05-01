@@ -137,11 +137,13 @@ scheduler_events = {
 	"hourly": [
 		"lms.lms.doctype.lms_course.lms_course.update_course_statistics",
 		"lms.lms.doctype.lms_live_class.lms_live_class.update_attendance",
+		"lms.lms.doctype.lms_event.lms_event.send_event_one_hour_reminder",
 	],
 	"daily": [
 		# "lms.job.doctype.job_opportunity.job_opportunity.update_job_openings",  # PPT4ed: hidden
 		"lms.lms.doctype.lms_live_class.lms_live_class.send_live_class_reminder",
 		"lms.lms.doctype.lms_course.lms_course.send_notification_for_published_courses",
+		"lms.lms.doctype.lms_event.lms_event.send_event_start_reminder",
 	],
 }
 
