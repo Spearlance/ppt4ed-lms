@@ -23,6 +23,13 @@ class CommunityEvent(WebsiteGenerator):
 		return f"community-events/{self.name}"
 
 	def validate(self):
+		# WebsiteGenerator's auto-route only fires when the doc is already
+		# website-published. Events are typically created as Drafts and
+		# flipped to Published later, so the auto-fill never runs and the
+		# public URL stays unresolvable. Force-fill on every save so the
+		# route is stable from creation onward.
+		if not self.route:
+			self.route = self.make_route()
 		self.validate_dates()
 		self.validate_capacity()
 		self.validate_donation_amount()
