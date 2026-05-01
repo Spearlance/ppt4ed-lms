@@ -214,8 +214,11 @@ const openAnnouncementModal = () => {
 
 const canMakeAnnouncement = () => {
 	if (readOnlyMode) return false
-	if (!batch.data?.students?.length) return false
-	return user.data?.is_moderator
+	if (!batch.data) return false
+	if (user.data?.is_moderator) return true
+	return batch.data.instructors?.some(
+		(i) => i.name === user.data?.name
+	)
 }
 
 const batchMenu = computed(() => {
