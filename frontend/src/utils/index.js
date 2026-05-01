@@ -494,6 +494,15 @@ const getSidebarItems = () => {
 					activeFor: ['Events', 'EventDetail', 'Event', 'EventForm'],
 				},
 				{
+					label: 'Community Events',
+					icon: 'Users',
+					to: 'CommunityEvents',
+					activeFor: ['CommunityEvents', 'CommunityEventForm'],
+					condition: () => {
+						return userResource?.data?.is_moderator
+					},
+				},
+				{
 					label: 'Certifications',
 					icon: 'GraduationCap',
 					to: 'CertifiedParticipants',

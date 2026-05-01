@@ -1,0 +1,412 @@
+{% extends "templates/web.html" %}
+
+{% block title %}{{ event.title }}{% endblock %}
+
+{% block head_include %}
+<style>
+.community-event {
+	max-width: 760px;
+	margin: 0 auto;
+	padding: 1.5rem 1rem 4rem;
+	color: #1f2933;
+}
+.community-event__hero {
+	width: 100%;
+	max-height: 360px;
+	object-fit: cover;
+	border-radius: 12px;
+	margin-bottom: 1.75rem;
+}
+.community-event h1 {
+	font-size: 2rem;
+	font-weight: 700;
+	margin: 0 0 0.5rem;
+	line-height: 1.2;
+}
+.community-event__short {
+	font-size: 1.05rem;
+	color: #486581;
+	margin: 0 0 1.5rem;
+}
+.community-event__meta {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+	gap: 1rem;
+	background: #f7f9fc;
+	padding: 1rem 1.25rem;
+	border-radius: 10px;
+	margin-bottom: 2rem;
+}
+.community-event__meta-item-label {
+	font-size: 0.75rem;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: #829ab1;
+	margin-bottom: 0.25rem;
+}
+.community-event__meta-item-value {
+	font-size: 0.95rem;
+	color: #1f2933;
+}
+.community-event__description {
+	margin-bottom: 2.5rem;
+	line-height: 1.6;
+}
+.community-event__rsvp {
+	border: 1px solid #d9e2ec;
+	border-radius: 12px;
+	padding: 1.75rem;
+}
+.community-event__rsvp h2 {
+	font-size: 1.4rem;
+	margin: 0 0 0.5rem;
+}
+.community-event__rsvp-pricing {
+	font-size: 0.9rem;
+	color: #486581;
+	margin-bottom: 1.25rem;
+	line-height: 1.5;
+}
+.community-event__form-group {
+	margin-bottom: 1rem;
+}
+.community-event__form-group label {
+	display: block;
+	font-size: 0.85rem;
+	font-weight: 600;
+	color: #334e68;
+	margin-bottom: 0.35rem;
+}
+.community-event__form-group input {
+	width: 100%;
+	padding: 0.55rem 0.75rem;
+	border: 1px solid #d9e2ec;
+	border-radius: 8px;
+	font-size: 0.95rem;
+}
+.community-event__attendees-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: baseline;
+	margin: 1.5rem 0 0.75rem;
+}
+.community-event__attendees-header h3 {
+	font-size: 1rem;
+	margin: 0;
+	font-weight: 600;
+}
+.community-event__attendee-row {
+	display: grid;
+	grid-template-columns: 1fr 90px 36px;
+	gap: 0.5rem;
+	margin-bottom: 0.5rem;
+}
+.community-event__attendee-row input {
+	padding: 0.5rem 0.65rem;
+	border: 1px solid #d9e2ec;
+	border-radius: 6px;
+	font-size: 0.9rem;
+}
+.community-event__btn {
+	display: inline-block;
+	padding: 0.55rem 1.1rem;
+	border-radius: 8px;
+	font-size: 0.9rem;
+	font-weight: 600;
+	cursor: pointer;
+	border: 1px solid transparent;
+}
+.community-event__btn--secondary {
+	background: white;
+	border-color: #d9e2ec;
+	color: #334e68;
+}
+.community-event__btn--remove {
+	background: white;
+	border: 1px solid #d9e2ec;
+	color: #ef4444;
+	font-weight: 700;
+	padding: 0;
+}
+.community-event__btn--primary {
+	background: #2c5282;
+	color: white;
+	font-size: 1rem;
+	padding: 0.7rem 1.4rem;
+	width: 100%;
+	margin-top: 1.25rem;
+}
+.community-event__btn--primary:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+.community-event__total {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 0.75rem 1rem;
+	background: #f0f4f8;
+	border-radius: 8px;
+	margin-top: 1rem;
+	font-weight: 600;
+}
+.community-event__total small {
+	display: block;
+	font-weight: 400;
+	font-size: 0.75rem;
+	color: #627d98;
+	margin-top: 0.15rem;
+}
+.community-event__alert {
+	padding: 0.85rem 1rem;
+	border-radius: 8px;
+	margin-bottom: 1rem;
+	font-size: 0.9rem;
+}
+.community-event__alert--success {
+	background: #ecfdf5;
+	color: #065f46;
+	border: 1px solid #a7f3d0;
+}
+.community-event__alert--error {
+	background: #fef2f2;
+	color: #991b1b;
+	border: 1px solid #fecaca;
+}
+.community-event__alert--info {
+	background: #eff6ff;
+	color: #1e40af;
+	border: 1px solid #bfdbfe;
+}
+</style>
+{% endblock %}
+
+{% block page_content %}
+<div class="community-event">
+	{% if event.image %}
+	<img src="{{ event.image }}" alt="{{ event.title }}" class="community-event__hero">
+	{% endif %}
+
+	<h1>{{ event.title }}</h1>
+	{% if event.short_description %}
+	<p class="community-event__short">{{ event.short_description }}</p>
+	{% endif %}
+
+	<div class="community-event__meta">
+		<div>
+			<div class="community-event__meta-item-label">{{ _("Date") }}</div>
+			<div class="community-event__meta-item-value">
+				{{ frappe.utils.format_date(event.start_date, "long") }}
+				{% if event.end_date and event.end_date != event.start_date %}
+					&mdash; {{ frappe.utils.format_date(event.end_date, "long") }}
+				{% endif %}
+			</div>
+		</div>
+		{% if event.start_time %}
+		<div>
+			<div class="community-event__meta-item-label">{{ _("Time") }}</div>
+			<div class="community-event__meta-item-value">
+				{{ event.start_time }}{% if event.end_time %} &ndash; {{ event.end_time }}{% endif %}
+			</div>
+		</div>
+		{% endif %}
+		{% if event.location %}
+		<div>
+			<div class="community-event__meta-item-label">{{ _("Location") }}</div>
+			<div class="community-event__meta-item-value">{{ event.location }}</div>
+		</div>
+		{% endif %}
+		{% if seats_remaining is not none %}
+		<div>
+			<div class="community-event__meta-item-label">{{ _("Seats Remaining") }}</div>
+			<div class="community-event__meta-item-value">{{ seats_remaining }}</div>
+		</div>
+		{% endif %}
+	</div>
+
+	{% if event.description %}
+	<div class="community-event__description">
+		{{ event.description | safe }}
+	</div>
+	{% endif %}
+
+	<div class="community-event__rsvp" id="rsvp">
+		<h2>{{ _("RSVP") }}</h2>
+
+		<div id="status-banner"></div>
+
+		{% if is_full %}
+		<div class="community-event__alert community-event__alert--info">
+			{{ _("Sorry, this event is at capacity.") }}
+		</div>
+		{% else %}
+		{% if event.additional_attendee_amount and event.additional_attendee_amount > 0 %}
+		<p class="community-event__rsvp-pricing">
+			{{ _("Free for PPT clients. The first attendee per signup is always free; each additional attendee is a $%s donation to PPT4ed.") | replace("%s", "{:.0f}".format(event.additional_attendee_amount|float)) }}
+		</p>
+		{% else %}
+		<p class="community-event__rsvp-pricing">
+			{{ _("Free to attend. Just let us know who's coming.") }}
+		</p>
+		{% endif %}
+
+		<form id="rsvp-form">
+			<div class="community-event__form-group">
+				<label for="guardian_name">{{ _("Your Name") }}</label>
+				<input id="guardian_name" name="guardian_name" type="text" required>
+			</div>
+			<div class="community-event__form-group">
+				<label for="guardian_email">{{ _("Your Email") }}</label>
+				<input id="guardian_email" name="guardian_email" type="email" required>
+			</div>
+			<div class="community-event__form-group">
+				<label for="guardian_phone">{{ _("Phone (optional)") }}</label>
+				<input id="guardian_phone" name="guardian_phone" type="tel">
+			</div>
+
+			<div class="community-event__attendees-header">
+				<h3>{{ _("Attendees") }}</h3>
+				<button type="button" id="add-attendee" class="community-event__btn community-event__btn--secondary">
+					+ {{ _("Add Attendee") }}
+				</button>
+			</div>
+			<div id="attendee-rows"></div>
+
+			<div class="community-event__total">
+				<div>
+					<span id="attendee-count-label">1 attendee</span>
+					<small id="donation-help">{{ _("First attendee free") }}</small>
+				</div>
+				<div id="donation-total">$0.00</div>
+			</div>
+
+			<button type="submit" id="rsvp-submit" class="community-event__btn community-event__btn--primary">
+				{{ _("Reserve Spot") }}
+			</button>
+		</form>
+		{% endif %}
+	</div>
+</div>
+
+<script>
+(function() {
+	const PER_EXTRA = {{ (event.additional_attendee_amount or 0)|float }};
+	const FREE_PER_SIGNUP = 1;
+	const EVENT_SLUG = {{ event.name|tojson }};
+
+	const rowsContainer = document.getElementById('attendee-rows');
+	const totalEl = document.getElementById('donation-total');
+	const countLabelEl = document.getElementById('attendee-count-label');
+	const helpEl = document.getElementById('donation-help');
+	const banner = document.getElementById('status-banner');
+
+	function renderRow(idx) {
+		const row = document.createElement('div');
+		row.className = 'community-event__attendee-row';
+		row.innerHTML = `
+			<input type="text" placeholder="{{ _("Attendee name") }}" data-field="attendee_name" required>
+			<input type="number" placeholder="{{ _("Age") }}" min="0" max="120" data-field="attendee_age">
+			<button type="button" class="community-event__btn community-event__btn--remove" data-action="remove" aria-label="Remove">&times;</button>
+		`;
+		row.querySelector('[data-action="remove"]').addEventListener('click', () => {
+			if (rowsContainer.children.length > 1) {
+				row.remove();
+				updateTotal();
+			}
+		});
+		row.querySelectorAll('input').forEach(i => i.addEventListener('input', updateTotal));
+		rowsContainer.appendChild(row);
+	}
+
+	function updateTotal() {
+		const rows = rowsContainer.children.length;
+		const extras = Math.max(rows - FREE_PER_SIGNUP, 0);
+		const total = extras * PER_EXTRA;
+		totalEl.textContent = '$' + total.toFixed(2);
+		countLabelEl.textContent = rows + ' attendee' + (rows === 1 ? '' : 's');
+		if (PER_EXTRA <= 0) {
+			helpEl.textContent = "{{ _('Free to attend') }}";
+		} else if (extras === 0) {
+			helpEl.textContent = "{{ _('First attendee free') }}";
+		} else {
+			helpEl.textContent = extras + " × $" + PER_EXTRA.toFixed(0) + " donation";
+		}
+	}
+
+	function showBanner(kind, text) {
+		banner.innerHTML = '<div class="community-event__alert community-event__alert--' + kind + '">' + text + '</div>';
+	}
+
+	const form = document.getElementById('rsvp-form');
+	const addBtn = document.getElementById('add-attendee');
+	const submitBtn = document.getElementById('rsvp-submit');
+
+	if (form) {
+		renderRow(0);
+		updateTotal();
+		addBtn.addEventListener('click', () => { renderRow(rowsContainer.children.length); updateTotal(); });
+
+		form.addEventListener('submit', async (e) => {
+			e.preventDefault();
+			submitBtn.disabled = true;
+			submitBtn.textContent = "{{ _('Submitting...') }}";
+
+			const attendees = Array.from(rowsContainer.children).map(row => ({
+				attendee_name: row.querySelector('[data-field="attendee_name"]').value.trim(),
+				attendee_age: row.querySelector('[data-field="attendee_age"]').value || null,
+			})).filter(a => a.attendee_name);
+
+			frappe.call({
+				method: 'lms.lms.community_event.submit_rsvp',
+				type: 'POST',
+				args: {
+					slug: EVENT_SLUG,
+					guardian_name: document.getElementById('guardian_name').value.trim(),
+					guardian_email: document.getElementById('guardian_email').value.trim(),
+					guardian_phone: document.getElementById('guardian_phone').value.trim(),
+					attendees: attendees,
+				},
+				callback: function(r) {
+					const result = (r && r.message) || {};
+					if (result.checkout_url) {
+						window.location.href = result.checkout_url;
+					} else if (result.confirmed) {
+						form.style.display = 'none';
+						showBanner('success', "{{ _("You're all set! A confirmation email is on its way.") }}");
+					} else {
+						showBanner('error', "{{ _('Something went wrong. Please try again.') }}");
+						submitBtn.disabled = false;
+						submitBtn.textContent = "{{ _('Reserve Spot') }}";
+					}
+				},
+				error: function(err) {
+					const messages = err && err.responseJSON && err.responseJSON._server_messages;
+					let msg = "{{ _('Something went wrong. Please try again.') }}";
+					if (messages) {
+						try {
+							const parsed = JSON.parse(messages);
+							if (parsed && parsed.length) {
+								const first = JSON.parse(parsed[0]);
+								msg = (first && first.message) || msg;
+							}
+						} catch (e) {}
+					}
+					showBanner('error', String(msg).replace(/<[^>]+>/g, ''));
+					submitBtn.disabled = false;
+					submitBtn.textContent = "{{ _('Reserve Spot') }}";
+				}
+			});
+		});
+	}
+
+	const params = new URLSearchParams(window.location.search);
+	if (params.get('status') === 'confirmed') {
+		showBanner('success', "{{ _('Thanks for your donation! Your registration is confirmed and a receipt is on the way.') }}");
+		if (form) form.style.display = 'none';
+	} else if (params.get('status') === 'cancelled') {
+		showBanner('info', "{{ _('Checkout cancelled. Your spot was not reserved — try again whenever you\\'re ready.') }}");
+	}
+})();
+</script>
+{% endblock %}

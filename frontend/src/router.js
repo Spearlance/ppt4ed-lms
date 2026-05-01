@@ -72,6 +72,17 @@ const routes = [
 		props: true,
 	},
 	{
+		path: '/community-events',
+		name: 'CommunityEvents',
+		component: () => import('@/pages/CommunityEvents/CommunityEvents.vue'),
+	},
+	{
+		path: '/community-events/:slug',
+		name: 'CommunityEventForm',
+		component: () => import('@/pages/CommunityEvents/CommunityEventForm.vue'),
+		props: true,
+	},
+	{
 		path: '/statistics',
 		name: 'Statistics',
 		component: () => import('@/pages/Statistics.vue'),
@@ -248,6 +259,7 @@ let router = createRouter({
 })
 
 const lmsAdminOnlyRoutes = ['Statistics', 'AdminReports']
+const moderatorOnlyRoutes = ['CommunityEvents', 'CommunityEventForm']
 
 router.beforeEach(async (to, from, next) => {
 	const { userResource } = usersStore()
@@ -282,6 +294,13 @@ router.beforeEach(async (to, from, next) => {
 	if (
 		lmsAdminOnlyRoutes.includes(to.name) &&
 		!userResource?.data?.is_lms_admin
+	) {
+		return next({ name: 'Courses' })
+	}
+
+	if (
+		moderatorOnlyRoutes.includes(to.name) &&
+		!userResource?.data?.is_moderator
 	) {
 		return next({ name: 'Courses' })
 	}

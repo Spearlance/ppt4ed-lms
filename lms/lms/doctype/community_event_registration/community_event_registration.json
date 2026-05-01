@@ -1,0 +1,204 @@
+{
+ "actions": [],
+ "allow_import": 0,
+ "allow_rename": 0,
+ "creation": "2026-05-01 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "section_break_event",
+  "parent_event",
+  "parent_event_title",
+  "column_break_event",
+  "payment_status",
+  "registered_on",
+  "section_break_guardian",
+  "guardian_name",
+  "guardian_email",
+  "column_break_guardian",
+  "guardian_phone",
+  "section_break_attendees",
+  "attendee_count",
+  "attendees",
+  "section_break_payment",
+  "donation_total",
+  "stripe_session_id",
+  "column_break_payment",
+  "stripe_payment_intent_id"
+ ],
+ "fields": [
+  {
+   "fieldname": "section_break_event",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "parent_event",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Community Event",
+   "options": "Community Event",
+   "reqd": 1
+  },
+  {
+   "fetch_from": "parent_event.title",
+   "fieldname": "parent_event_title",
+   "fieldtype": "Data",
+   "label": "Event Title",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_event",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Pending",
+   "description": "Free = no payment needed (single attendee). Pending = awaiting Stripe. Confirmed = paid.",
+   "fieldname": "payment_status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Payment Status",
+   "options": "Pending\nFree\nConfirmed",
+   "reqd": 1
+  },
+  {
+   "fieldname": "registered_on",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "label": "Registered On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_guardian",
+   "fieldtype": "Section Break",
+   "label": "Contact"
+  },
+  {
+   "fieldname": "guardian_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Guardian Name",
+   "reqd": 1
+  },
+  {
+   "fieldname": "guardian_email",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Guardian Email",
+   "options": "Email",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_guardian",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "guardian_phone",
+   "fieldtype": "Data",
+   "label": "Guardian Phone",
+   "options": "Phone"
+  },
+  {
+   "fieldname": "section_break_attendees",
+   "fieldtype": "Section Break",
+   "label": "Attendees"
+  },
+  {
+   "fieldname": "attendee_count",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Attendee Count",
+   "read_only": 1
+  },
+  {
+   "fieldname": "attendees",
+   "fieldtype": "Table",
+   "label": "Attendees",
+   "options": "Community Event Attendee",
+   "reqd": 1
+  },
+  {
+   "fieldname": "section_break_payment",
+   "fieldtype": "Section Break",
+   "label": "Payment"
+  },
+  {
+   "default": "0",
+   "fieldname": "donation_total",
+   "fieldtype": "Currency",
+   "label": "Donation Total (USD)",
+   "options": "USD",
+   "read_only": 1
+  },
+  {
+   "fieldname": "stripe_session_id",
+   "fieldtype": "Data",
+   "label": "Stripe Session ID",
+   "read_only": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "column_break_payment",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "stripe_payment_intent_id",
+   "fieldtype": "Data",
+   "label": "Stripe Payment Intent ID",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-05-01 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "LMS",
+ "name": "Community Event Registration",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Moderator",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Global Admin",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "guardian_name",
+ "track_changes": 1
+}
