@@ -225,6 +225,21 @@ const routes = [
 		component: () => import('@/pages/CompanyAdmin.vue'),
 		props: true,
 	},
+	{
+		path: '/privacy',
+		name: 'PrivacyPolicy',
+		component: () => import('@/pages/Legal/PrivacyPolicy.vue'),
+	},
+	{
+		path: '/terms',
+		name: 'TermsOfService',
+		component: () => import('@/pages/Legal/TermsOfService.vue'),
+	},
+	{
+		path: '/cookies',
+		name: 'CookiePolicy',
+		component: () => import('@/pages/Legal/CookiePolicy.vue'),
+	},
 ]
 
 let router = createRouter({
@@ -251,7 +266,13 @@ router.beforeEach(async (to, from, next) => {
 		if (to.name == 'Home') router.push({ name: 'Courses' })
 
 		await settings.promise
-		const guestAllowedRoutes = ['Resources', 'ResourceDetail']
+		const guestAllowedRoutes = [
+			'Resources',
+			'ResourceDetail',
+			'PrivacyPolicy',
+			'TermsOfService',
+			'CookiePolicy',
+		]
 		if (!settings.data.allow_guest_access && !guestAllowedRoutes.includes(to.name)) {
 			window.location.href = '/login'
 			return

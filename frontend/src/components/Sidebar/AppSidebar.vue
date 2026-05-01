@@ -208,12 +208,6 @@
 							@click="redirectToWebsite()"
 						/>
 					</Tooltip>
-					<Tooltip :text="__('Source Code (AGPL v3)')">
-						<Github
-							class="size-4 stroke-1.5 text-ink-gray-7 cursor-pointer"
-							@click="redirectToSourceCode()"
-						/>
-					</Tooltip>
 				</div>
 				<Tooltip
 					:text="
@@ -292,7 +286,6 @@ import {
 	Users,
 	BookText,
 	Zap,
-	Github,
 } from 'lucide-vue-next'
 import {
 	TrialBanner,
@@ -618,10 +611,6 @@ const updateSidebarLinks = () => {
 
 const redirectToWebsite = () => {
 	window.open('https://www.ppt4ed.org', '_blank')
-}
-
-const redirectToSourceCode = () => {
-	window.open('https://github.com/Spearlance/ppt4ed-lms', '_blank')
 }
 
 const isStudent = computed(() => {
