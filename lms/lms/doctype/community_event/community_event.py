@@ -8,6 +8,10 @@ from lms.lms.utils import generate_slug
 
 class CommunityEvent(WebsiteGenerator):
 	website = frappe._dict(
+		# Path is relative to the app root. Frappe's DocumentPage renderer
+		# uses this to resolve the Jinja template; without it, template_path
+		# is None and rendering crashes inside Jinja's loader.
+		template="templates/generators/community_event.html",
 		condition_field="published",
 		page_title_field="title",
 	)
