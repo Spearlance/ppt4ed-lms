@@ -44,6 +44,7 @@ from lms.lms.utils import (
 	get_lms_route,
 	has_lms_role,
 	has_moderator_role,
+	lms_send_template_mail,
 )
 
 
@@ -793,6 +794,132 @@ def get_announcements(batch: str):
 		communication.image = frappe.get_cached_value("User", communication.sender, "user_image")
 
 	return communications
+
+
+@frappe.whitelist()
+def post_event_announcement(event: str, subject: str, body: str):
+	"""Post an announcement to an event. Records a Communication doc, then
+	enqueues a single BCC email to enrolled students plus an in-app
+	Notification Log fan-out (mirrors the PR #43 published-event pattern).
+	"""
+	if not can_modify_event(event):
+		frappe.throw(
+			_("You do not have permission to post announcements for this event."),
+			frappe.PermissionError,
+		)
+
+	subject = (subject or "").strip()
+	body = (body or "").strip()
+	if not subject:
+		frappe.throw(_("Subject is required."))
+	if not body:
+		frappe.throw(_("Announcement body is required."))
+
+	students = frappe.get_all(
+		"LMS Event Registration", {"event": event}, pluck="member"
+	)
+	if not students:
+		frappe.throw(_("This event has no enrolled attendees yet."))
+
+	event_doc = frappe.db.get_value(
+		"LMS Event", event, ["name", "title"], as_dict=True
+	)
+	if not event_doc:
+		frappe.throw(_("Event not found."))
+
+	sender = frappe.session.user
+	sender_email = frappe.db.get_value("User", sender, "email") or sender
+	sender_full_name = frappe.db.get_value("User", sender, "full_name") or sender
+
+	communication = frappe.get_doc(
+		{
+			"doctype": "Communication",
+			"communication_type": "Communication",
+			"communication_medium": "Email",
+			"sent_or_received": "Sent",
+			"subject": subject,
+			"content": body,
+			"sender": sender,
+			"sender_full_name": sender_full_name,
+			"recipients": sender_email,
+			"reference_doctype": "LMS Event",
+			"reference_name": event,
+			"communication_date": now(),
+		}
+	)
+	communication.flags.ignore_permissions = True
+	communication.insert()
+
+	frappe.enqueue(
+		"lms.lms.api._fan_out_event_announcement",
+		queue="short",
+		timeout=300,
+		event=event_doc.name,
+		event_title=event_doc.title,
+		subject=subject,
+		body=body,
+		sender=sender,
+		sender_email=sender_email,
+		sender_full_name=sender_full_name,
+		students=students,
+	)
+
+	return communication.name
+
+
+def _fan_out_event_announcement(
+	event,
+	event_title,
+	subject,
+	body,
+	sender,
+	sender_email,
+	sender_full_name,
+	students,
+):
+	"""Background job: send the BCC email and create in-app notifications."""
+	from frappe.desk.doctype.notification_log.notification_log import make_notification_logs
+
+	brand_name = frappe.db.get_single_value("Website Settings", "app_name") or "PPT4Ed"
+	brand_logo = frappe.db.get_single_value("Website Settings", "banner_image")
+	event_url = frappe.utils.get_url(get_lms_route(f"events/{event}"))
+
+	args = {
+		"brand_name": brand_name,
+		"brand_logo": brand_logo,
+		"event_title": event_title,
+		"event_url": event_url,
+		"instructor_name": sender_full_name,
+		"announcement_subject": subject,
+		"announcement_body": body,
+	}
+
+	lms_send_template_mail(
+		recipients=[sender_email],
+		default_subject=f"[{event_title}] {subject}",
+		jinja_template="event_announcement",
+		args=args,
+		template_name="Event Announcement",
+		bcc=students,
+		reply_to=sender_email,
+		reference_doctype="LMS Event",
+		reference_name=event,
+	)
+
+	notification = frappe._dict(
+		{
+			"subject": _("{0} posted an announcement in {1}").format(
+				frappe.bold(sender_full_name), frappe.bold(event_title)
+			),
+			"email_content": subject,
+			"document_type": "LMS Event",
+			"document_name": event,
+			"from_user": sender,
+			"type": "Alert",
+			"link": get_lms_route(f"events/{event}#announcements"),
+		}
+	)
+	make_notification_logs(notification, students)
 
 
 @frappe.whitelist()
