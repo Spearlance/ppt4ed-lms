@@ -51,6 +51,14 @@
 							/>
 						</div>
 
+						<Announcements
+							v-else-if="tab.label == 'Announcements'"
+							:batch="batch"
+							:canPost="canMakeAnnouncement()"
+							@open-modal="openAnnouncementModal"
+							ref="announcementsRef"
+						/>
+
 						<component
 							v-else
 							:is="tab.component"
@@ -70,8 +78,9 @@
 	<AnnouncementModal
 		v-if="showAnnouncementModal"
 		v-model="showAnnouncementModal"
-		:batch="batch.data.name"
-		:students="batch.data.students"
+		:event="batch.data.name"
+		:eventTitle="batch.data.title"
+		@posted="announcementsRef?.reload?.()"
 	/>
 </template>
 <script setup>
@@ -114,6 +123,7 @@ const route = useRoute()
 const { brand } = sessionStore()
 const user = inject('$user')
 const childRef = ref(null)
+const announcementsRef = ref(null)
 const tabIndex = ref(0)
 const tabs = ref([])
 const openCertificateDialog = ref(false)
