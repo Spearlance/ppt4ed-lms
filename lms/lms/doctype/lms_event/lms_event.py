@@ -250,12 +250,15 @@ def send_email_notification_for_published_event(batch):
 		"batch_url": frappe.utils.get_url(get_lms_route(f"events/{batch.name}")),
 	}
 
-	frappe.sendmail(
+	from lms.lms.utils import lms_send_template_mail
+
+	lms_send_template_mail(
 		recipients=instructors,
-		bcc=students,
-		subject=subject,
-		template=template,
+		default_subject=subject,
+		jinja_template=template,
 		args=args,
+		template_name="New Event Published",
+		bcc=students,
 	)
 	frappe.db.set_value("LMS Event", batch.name, "notification_sent", 1)
 
@@ -513,8 +516,9 @@ def send_event_start_reminder():
 
 
 def send_mail(event, student):
+	from lms.lms.utils import lms_send_template_mail
+
 	subject = _("Your event {0} is starting tomorrow").format(event.title)
-	template = "live_class_reminder"
 
 	args = {
 		"student_name": student.member_name,
@@ -528,11 +532,12 @@ def send_mail(event, student):
 		"zoom_link": event.zoom_link,
 	}
 
-	frappe.sendmail(
+	lms_send_template_mail(
 		recipients=student.member,
-		subject=subject,
-		template=template,
+		default_subject=subject,
+		jinja_template="live_class_reminder",
 		args=args,
+		template_name="Event Starting Tomorrow",
 		header=[_(f"Event Start Reminder: {event.title}"), "orange"],
 	)
 
@@ -590,6 +595,8 @@ def send_event_one_hour_reminder():
 
 
 def send_starting_soon_mail(event, student):
+	from lms.lms.utils import lms_send_template_mail
+
 	subject = _("Your event {0} starts in about an hour").format(event.title)
 
 	args = {
@@ -604,11 +611,12 @@ def send_starting_soon_mail(event, student):
 		"zoom_link": event.zoom_link,
 	}
 
-	frappe.sendmail(
+	lms_send_template_mail(
 		recipients=student.member,
-		subject=subject,
-		template="event_starting_soon",
+		default_subject=subject,
+		jinja_template="event_starting_soon",
 		args=args,
+		template_name="Event Starting in One Hour",
 		header=[_(f"Starting Soon: {event.title}"), "blue"],
 	)
 
