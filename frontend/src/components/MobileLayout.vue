@@ -1,7 +1,10 @@
 <template>
 	<div class="flex h-full flex-col relative">
-		<div class="h-full pb-10" id="scrollContainer">
-			<slot />
+		<div class="h-full pb-10 flex flex-col" id="scrollContainer">
+			<div class="flex-1">
+				<slot />
+			</div>
+			<AppFooter />
 		</div>
 
 		<div class="relative z-20">
@@ -62,6 +65,7 @@ import { sessionStore } from '@/stores/session'
 import { useSettings } from '@/stores/settings'
 import { usersStore } from '@/stores/user'
 import * as icons from 'lucide-vue-next'
+import AppFooter from '@/components/AppFooter.vue'
 
 const { logout, user } = sessionStore()
 let { isLoggedIn } = sessionStore()

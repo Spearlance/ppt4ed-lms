@@ -4,10 +4,14 @@
 			<AppSidebar />
 		</div>
 		<div class="flex-1 flex flex-col h-full overflow-auto bg-surface-white">
-			<slot />
+			<div class="flex-1">
+				<slot />
+			</div>
+			<AppFooter />
 		</div>
 	</div>
 </template>
 <script setup>
 import AppSidebar from '@/components/Sidebar/AppSidebar.vue'
+import AppFooter from '@/components/AppFooter.vue'
 </script>
