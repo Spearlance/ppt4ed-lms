@@ -2,9 +2,62 @@ import json
 
 import frappe
 from frappe import _
-from frappe.utils import now_datetime
+from frappe.utils import get_url, now_datetime
 
-from lms.lms.utils import LMS_MODERATOR_ROLES
+from lms.lms.utils import LMS_MODERATOR_ROLES, lms_send_template_mail
+
+
+def remove_member_and_notify(user: str, company: str) -> dict:
+    """Mark a Company Member row as Removed and email the user a heads-up.
+
+    Shared by PPT-staff (`admin_remove_member_from_company`) and
+    company-admin (`remove_company_member`) flows so the personal-signup
+    email goes out regardless of who initiated the removal.
+
+    Email is best-effort — the membership change still commits if mail fails.
+    """
+    doc = frappe.get_doc("Company Account", company)
+
+    target_row = None
+    for m in doc.members:
+        if m.user == user:
+            if m.status == "Removed":
+                return {"status": "already_removed"}
+            m.status = "Removed"
+            target_row = m
+            break
+
+    if not target_row:
+        frappe.throw(_("User is not a member of this company"))
+
+    user_data = frappe.db.get_value(
+        "User", user, ["first_name", "email"], as_dict=True
+    ) or frappe._dict({"first_name": "", "email": user})
+
+    doc.save(ignore_permissions=True)
+
+    try:
+        lms_send_template_mail(
+            recipients=user_data.email,
+            default_subject=_("You've been removed from {0} on PPT4ed").format(
+                doc.company_name
+            ),
+            jinja_template="removed_from_company",
+            args={
+                "first_name": user_data.first_name or user_data.email,
+                "company_name": doc.company_name,
+                "login_url": get_url("/login"),
+            },
+            template_name="Removed from Company",
+            retry=3,
+        )
+    except Exception:
+        frappe.log_error(
+            title="Removed-from-company email failed",
+            message=frappe.get_traceback(),
+        )
+
+    return {"status": "removed"}
 
 
 @frappe.whitelist()
@@ -254,13 +307,7 @@ def admin_update_company(company: str, fields: "dict | str"):
 def admin_remove_member_from_company(user: str, company: str):
     """Remove a member from a company (sets status to Removed)."""
     frappe.only_for(LMS_MODERATOR_ROLES)
-
-    doc = frappe.get_doc("Company Account", company)
-    for m in doc.members:
-        if m.user == user:
-            m.status = "Removed"
-    doc.save(ignore_permissions=True)
-    return {"status": "removed"}
+    return remove_member_and_notify(user, company)
 
 
 @frappe.whitelist()

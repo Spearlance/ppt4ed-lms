@@ -292,6 +292,35 @@ class TestCEUAdmin(IntegrationTestCase):
         statuses = [m.status for m in fresh.members if m.user == "Administrator"]
         self.assertEqual(statuses, ["Removed"])
 
+    def test_admin_remove_member_sends_personal_signup_email(self):
+        """Triggers the 'Removed from Company' email to the user."""
+        from unittest.mock import patch
+        from lms.lms.ceu_admin import admin_remove_member_from_company
+
+        company = self._make_company("RemoveEmail")
+
+        with patch("lms.lms.ceu_admin.lms_send_template_mail") as mock_send:
+            admin_remove_member_from_company("Administrator", company.name)
+
+        self.assertTrue(mock_send.called)
+        kwargs = mock_send.call_args.kwargs
+        self.assertEqual(kwargs["template_name"], "Removed from Company")
+        self.assertEqual(kwargs["args"]["company_name"], company.company_name)
+
+    def test_admin_remove_member_idempotent_on_already_removed(self):
+        """Second call returns already_removed and does not re-email."""
+        from unittest.mock import patch
+        from lms.lms.ceu_admin import admin_remove_member_from_company
+
+        company = self._make_company("RemoveTwice")
+        admin_remove_member_from_company("Administrator", company.name)
+
+        with patch("lms.lms.ceu_admin.lms_send_template_mail") as mock_send:
+            result = admin_remove_member_from_company("Administrator", company.name)
+
+        self.assertEqual(result["status"], "already_removed")
+        self.assertFalse(mock_send.called)
+
     # ─────────────────────────────────────────────
     # admin_promote_to_company_admin
     # ─────────────────────────────────────────────
