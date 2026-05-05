@@ -779,6 +779,7 @@ def get_announcements(batch: str):
 			"reference_name": batch,
 		},
 		fields=[
+			"name",
 			"subject",
 			"content",
 			"recipients",
@@ -865,6 +866,29 @@ def post_event_announcement(event: str, subject: str, body: str):
 	)
 
 	return communication.name
+
+
+@frappe.whitelist()
+def delete_event_announcement(communication: str):
+	"""Delete an event announcement (stored as a Communication record).
+	Permitted for users who can_modify_event the linked event."""
+	row = frappe.db.get_value(
+		"Communication",
+		communication,
+		["name", "reference_doctype", "reference_name"],
+		as_dict=True,
+	)
+	if not row or row.reference_doctype != "LMS Event":
+		frappe.throw(_("Announcement not found."))
+
+	if not can_modify_event(row.reference_name):
+		frappe.throw(
+			_("You do not have permission to delete announcements for this event."),
+			frappe.PermissionError,
+		)
+
+	frappe.delete_doc("Communication", row.name, ignore_permissions=True)
+	return row.name
 
 
 def _fan_out_event_announcement(

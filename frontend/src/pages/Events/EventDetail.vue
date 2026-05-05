@@ -76,7 +76,7 @@
 		:batch="batch.data"
 	/>
 	<AnnouncementModal
-		v-if="showAnnouncementModal"
+		v-if="batch.data"
 		v-model="showAnnouncementModal"
 		:event="batch.data.name"
 		:eventTitle="batch.data.title"

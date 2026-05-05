@@ -2331,6 +2331,9 @@ def can_modify_course(course: str) -> bool:
 
 
 def can_modify_event(batch: str) -> bool:
+	roles = frappe.get_roles()
+	if any(role in roles for role in LMS_MODERATOR_ROLES):
+		return True
 	is_instructor = frappe.db.exists(
 		"Course Instructor",
 		{
@@ -2339,9 +2342,7 @@ def can_modify_event(batch: str) -> bool:
 			"parenttype": "LMS Event",
 		},
 	)
-	if not (has_moderator_role() or is_instructor):
-		return False
-	return True
+	return bool(is_instructor)
 
 
 def has_lms_role():

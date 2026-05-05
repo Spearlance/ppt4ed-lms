@@ -16,7 +16,7 @@
 			</Button>
 		</div>
 		<div v-if="communications.data?.length">
-			<div v-for="comm in communications.data" :key="comm.communication_date">
+			<div v-for="comm in communications.data" :key="comm.name">
 				<div class="mb-8">
 					<div class="flex items-center justify-between mb-2">
 						<div class="flex items-center">
@@ -30,8 +30,22 @@
 								</div>
 							</div>
 						</div>
-						<div class="text-sm text-ink-gray-6">
-							{{ timeAgo(comm.communication_date) }}
+						<div class="flex items-center gap-2">
+							<div class="text-sm text-ink-gray-6">
+								{{ timeAgo(comm.communication_date) }}
+							</div>
+							<Button
+								v-if="canPost"
+								variant="ghost"
+								theme="gray"
+								:loading="deleteResource.loading && pendingDelete === comm.name"
+								@click="confirmDelete(comm)"
+								:title="__('Delete announcement')"
+							>
+								<template #icon>
+									<Trash2 class="w-4 h-4 stroke-1.5" />
+								</template>
+							</Button>
 						</div>
 					</div>
 					<div
@@ -60,8 +74,9 @@
 	</div>
 </template>
 <script setup>
-import { createResource, Avatar, Button } from 'frappe-ui'
-import { Megaphone } from 'lucide-vue-next'
+import { ref } from 'vue'
+import { createResource, Avatar, Button, toast } from 'frappe-ui'
+import { Megaphone, Trash2 } from 'lucide-vue-next'
 import { timeAgo } from '@/utils'
 
 const props = defineProps({
@@ -87,6 +102,31 @@ const communications = createResource({
 	auto: true,
 	cache: ['announcement', props.batch],
 })
+
+const pendingDelete = ref(null)
+const deleteResource = createResource({
+	url: 'lms.lms.api.delete_event_announcement',
+	makeParams() {
+		return { communication: pendingDelete.value }
+	},
+	onSuccess() {
+		toast.success(__('Announcement deleted'))
+		pendingDelete.value = null
+		communications.reload()
+	},
+	onError(err) {
+		pendingDelete.value = null
+		toast.error(__(err.messages?.[0] || err))
+	},
+})
+
+const confirmDelete = (comm) => {
+	if (!window.confirm(__('Delete this announcement? Recipients will keep any email already sent.'))) {
+		return
+	}
+	pendingDelete.value = comm.name
+	deleteResource.submit()
+}
 
 defineExpose({
 	reload: () => communications.reload(),
