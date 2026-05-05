@@ -82,9 +82,16 @@
 		:eventTitle="batch.data.title"
 		@posted="announcementsRef?.reload?.()"
 	/>
+	<EventSurveyQRModal
+		v-if="batch.data"
+		v-model="showSurveyQRModal"
+		:event="batch.data.name"
+		:eventTitle="batch.data.title"
+	/>
 </template>
 <script setup>
 import {
+	ClipboardList,
 	ClipboardPen,
 	EllipsisVertical,
 	Laptop,
@@ -114,6 +121,8 @@ import EventOverview from '@/pages/Events/EventOverview.vue'
 import LiveClass from '@/pages/Events/components/LiveClass.vue'
 import Announcements from '@/pages/Events/components/Announcements.vue'
 import AnnouncementModal from '@/pages/Events/components/AnnouncementModal.vue'
+import EventSurvey from '@/pages/Events/components/EventSurvey.vue'
+import EventSurveyQRModal from '@/pages/Events/components/EventSurveyQRModal.vue'
 import EventForm from '@/pages/Events/EventForm.vue'
 import BulkCertificates from '@/pages/Events/components/BulkCertificates.vue'
 import Discussions from '@/components/Discussions.vue'
@@ -128,6 +137,7 @@ const tabIndex = ref(0)
 const tabs = ref([])
 const openCertificateDialog = ref(false)
 const showAnnouncementModal = ref(false)
+const showSurveyQRModal = ref(false)
 const readOnlyMode = window.read_only_mode
 
 const props = defineProps({
@@ -174,6 +184,11 @@ watch(batch, () => {
 	updateTabIndex()
 })
 
+watch(
+	() => route.hash,
+	() => updateTabIndex()
+)
+
 const updateTabs = () => {
 	addToTabs('Overview', markRaw(EventOverview), List)
 	if (!user.data) return
@@ -184,6 +199,12 @@ const updateTabs = () => {
 	}
 	addToTabs('Classes', markRaw(LiveClass), Laptop)
 	addToTabs('Announcements', markRaw(Announcements), Mail)
+	if (
+		batch.data?.survey_quiz &&
+		(isAdmin.value || (isStudent.value && batch.data?.survey_open))
+	) {
+		addToTabs('Survey', markRaw(EventSurvey), ClipboardList)
+	}
 	addToTabs('Discussions', markRaw(Discussions), MessageCircle)
 	if (isAdmin.value) {
 		addToTabs('Settings', markRaw(EventForm), Settings2)
@@ -222,7 +243,11 @@ const canMakeAnnouncement = () => {
 }
 
 const batchMenu = computed(() => {
-	if (!batch.data?.certification && !canMakeAnnouncement()) {
+	if (
+		!batch.data?.certification &&
+		!canMakeAnnouncement() &&
+		!batch.data?.survey_quiz
+	) {
 		return []
 	}
 	let options = [
@@ -239,6 +264,13 @@ const batchMenu = computed(() => {
 				openAnnouncementModal()
 			},
 			condition: () => canMakeAnnouncement(),
+		},
+		{
+			label: __('Download Survey QR Code'),
+			onClick() {
+				showSurveyQRModal.value = true
+			},
+			condition: () => batch.data?.survey_quiz && isAdmin.value,
 		},
 	]
 	return options

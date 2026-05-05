@@ -1317,6 +1317,7 @@ def get_event_details(batch: str):
 			"event_type",
 			"venue",
 			"credit_hours",
+			"survey_quiz",
 		],
 		as_dict=True,
 	)
@@ -1370,7 +1371,44 @@ def get_event_details(batch: str):
 	if event_details.seat_count:
 		event_details.seats_left = event_details.seat_count - len(batch_students)
 
+	event_details.survey_open = compute_event_survey_open(event_details)
+	event_details.survey_submitted = bool(
+		is_student_enrolled
+		and event_details.survey_quiz
+		and frappe.db.exists(
+			"LMS Quiz Submission",
+			{
+				"event_name": batch,
+				"member": frappe.session.user,
+				"quiz": event_details.survey_quiz,
+			},
+		)
+	)
+
 	return event_details
+
+
+def compute_event_survey_open(event_details):
+	"""Return True when the post-event survey window has opened.
+
+	Window opens once the final scheduled `event_day.end_time` is in the past
+	(falling back to top-level `end_date` + `end_time` for events that pre-date
+	the event_days child table). Requires certification + a configured survey_quiz.
+	"""
+	if not event_details.get("certification") or not event_details.get("survey_quiz"):
+		return False
+	days = event_details.get("event_days") or []
+	if days:
+		last_day = days[-1]
+		date_str = last_day.get("date")
+		time_str = last_day.get("end_time")
+	else:
+		date_str = event_details.get("end_date")
+		time_str = event_details.get("end_time")
+	if not date_str or not time_str:
+		return False
+	end_dt = get_datetime(f"{date_str} {time_str}")
+	return now_datetime() > end_dt
 
 
 def categorize_batches(batches: list) -> dict:

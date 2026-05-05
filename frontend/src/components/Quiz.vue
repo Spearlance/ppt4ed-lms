@@ -532,7 +532,17 @@ const props = defineProps({
 		type: Function,
 		default: () => {},
 	},
+	submitUrl: {
+		type: String,
+		default: 'lms.lms.doctype.lms_quiz.lms_quiz.submit_quiz',
+	},
+	submitExtraParams: {
+		type: Object,
+		default: () => ({}),
+	},
 })
+
+const emit = defineEmits(['submitted'])
 
 onMounted(() => {
 	window.addEventListener('pagehide', handlePageHide)
@@ -680,9 +690,10 @@ watch(
 )
 
 const quizSubmission = createResource({
-	url: 'lms.lms.doctype.lms_quiz.lms_quiz.submit_quiz',
+	url: props.submitUrl,
 	makeParams(values) {
 		return {
+			...props.submitExtraParams,
 			quiz: quiz.data.name,
 			results: localStorage.getItem(quiz.data.title),
 		}
@@ -885,6 +896,7 @@ const createSubmission = () => {
 				markLessonProgress()
 				if (quiz.data && quiz.data.max_attempts) attempts.reload()
 				if (quiz.data.duration) clearInterval(timerInterval)
+				emit('submitted', data)
 			},
 			onError(err) {
 				const errorTitle = err?.message || ''

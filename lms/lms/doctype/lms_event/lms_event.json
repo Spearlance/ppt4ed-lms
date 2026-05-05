@@ -32,6 +32,8 @@
   "evaluation_end_date",
   "column_break_wfkz",
   "certification",
+  "survey_quiz",
+  "survey_announcement_sent",
   "section_break_6",
   "description",
   "instructors",
@@ -425,6 +427,22 @@
    "fieldtype": "Check",
    "in_standard_filter": 1,
    "label": "Certification"
+  },
+  {
+   "depends_on": "certification",
+   "description": "Quiz used as the post-event feedback survey. Defaults to the shared Course Survey.",
+   "fieldname": "survey_quiz",
+   "fieldtype": "Link",
+   "label": "Survey Quiz",
+   "options": "LMS Quiz"
+  },
+  {
+   "default": "0",
+   "fieldname": "survey_announcement_sent",
+   "fieldtype": "Check",
+   "hidden": 1,
+   "label": "Survey Announcement Sent",
+   "read_only": 1
   },
   {
    "fieldname": "section_break_earo",
