@@ -8,6 +8,7 @@
   "quiz",
   "quiz_title",
   "course",
+  "event_name",
   "column_break_3",
   "member",
   "member_name",
@@ -71,6 +72,13 @@
    "fieldtype": "Link",
    "label": "Course",
    "options": "LMS Course",
+   "read_only": 1
+  },
+  {
+   "fieldname": "event_name",
+   "fieldtype": "Link",
+   "label": "Event",
+   "options": "LMS Event",
    "read_only": 1
   },
   {

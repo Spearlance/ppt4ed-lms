@@ -32,17 +32,28 @@ class LMSCertificate(Document):
 		self.send_certification_email()
 
 	def populate_ceu_fields(self):
-		"""Copy CEU hours and disciplines from the course to the certificate."""
-		if not self.course:
+		"""Copy CEU hours and disciplines from the course or event to the certificate."""
+		if self.course:
+			ceu_hours = frappe.db.get_value("LMS Course", self.course, "ceu_hours")
+			if not ceu_hours:
+				return
+			disciplines = frappe.get_all(
+				"CEU Discipline Link",
+				filters={"parent": self.course, "parenttype": "LMS Course"},
+				fields=["discipline"],
+			)
+		elif self.event_name:
+			ceu_hours = frappe.db.get_value("LMS Event", self.event_name, "credit_hours")
+			if not ceu_hours:
+				return
+			disciplines = frappe.get_all(
+				"CEU Discipline Link",
+				filters={"parent": self.event_name, "parenttype": "LMS Event"},
+				fields=["discipline"],
+			)
+		else:
 			return
-		ceu_hours = frappe.db.get_value("LMS Course", self.course, "ceu_hours")
-		if not ceu_hours:
-			return
-		disciplines = frappe.get_all(
-			"CEU Discipline Link",
-			filters={"parent": self.course, "parenttype": "LMS Course"},
-			fields=["discipline"],
-		)
+
 		discipline_names = ", ".join(d.discipline for d in disciplines) if disciplines else ""
 		self.db_set("ceu_hours", ceu_hours, update_modified=False)
 		self.db_set("ceu_disciplines", discipline_names, update_modified=False)
@@ -53,7 +64,8 @@ class LMSCertificate(Document):
 		Prefers structured fields on the User profile (professional_license_number,
 		license_type, license_state). Falls back to the free-form answer captured by
 		the Course Survey (LMS Quiz with is_survey=1, attached to every certified
-		course per patch v2_0.attach_feedback_survey_to_certified_courses).
+		course per patch v2_0.attach_feedback_survey_to_certified_courses, and
+		also used as the post-event survey for certified events).
 
 		If the user's structured fields are blank but the survey answer parses
 		cleanly into (state, type, number), the parsed values are written back to
@@ -67,7 +79,7 @@ class LMSCertificate(Document):
 			self.db_set("license_info", structured, update_modified=False)
 			return
 
-		if not self.course:
+		if not (self.course or self.event_name):
 			return
 
 		survey_answer = self._fetch_survey_license_answer()
@@ -99,9 +111,17 @@ class LMSCertificate(Document):
 		return f"{state} {ltype} {number}"
 
 	def _fetch_survey_license_answer(self):
+		filters = {"member": self.member}
+		if self.event_name:
+			filters["event_name"] = self.event_name
+		elif self.course:
+			filters["course"] = self.course
+		else:
+			return None
+
 		submissions = frappe.get_all(
 			"LMS Quiz Submission",
-			filters={"member": self.member, "course": self.course},
+			filters=filters,
 			fields=["name", "quiz"],
 			order_by="creation desc",
 		)
@@ -147,10 +167,13 @@ class LMSCertificate(Document):
 		custom_template = frappe.db.get_single_value("LMS Settings", "certification_template")
 
 		course_title = frappe.db.get_value("LMS Course", self.course, "title") if self.course else None
+		event_title = frappe.db.get_value("LMS Event", self.event_name, "title") if self.event_name else None
 		args = {
 			"student_name": self.member_name,
-			"course_name": self.course,
-			"course_title": course_title,
+			"course_name": self.course or self.event_name,
+			"course_title": course_title or event_title,
+			"event_name": self.event_name,
+			"event_title": event_title,
 			"certificate_name": self.name,
 			"template": self.template,
 		}
@@ -162,7 +185,7 @@ class LMSCertificate(Document):
 
 		attachments = []
 		if self.template:
-			safe_title = (course_title or self.course or "Certificate").replace("/", "-")
+			safe_title = (course_title or event_title or self.course or self.event_name or "Certificate").replace("/", "-")
 			try:
 				attachments.append(
 					frappe.attach_print(

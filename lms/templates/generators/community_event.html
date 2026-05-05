@@ -373,7 +373,7 @@
 						window.location.href = result.checkout_url;
 					} else if (result.confirmed) {
 						form.style.display = 'none';
-						showBanner('success', "{{ _("You're all set! A confirmation email is on its way.") }}");
+						showBanner('success', "{{ _('All set! A confirmation email is on its way.') }}");
 					} else {
 						showBanner('error', "{{ _('Something went wrong. Please try again.') }}");
 						submitBtn.disabled = false;
@@ -405,7 +405,7 @@
 		showBanner('success', "{{ _('Thanks for your donation! Your registration is confirmed and a receipt is on the way.') }}");
 		if (form) form.style.display = 'none';
 	} else if (params.get('status') === 'cancelled') {
-		showBanner('info', "{{ _('Checkout cancelled. Your spot was not reserved — try again whenever you\\'re ready.') }}");
+		showBanner('info', "{{ _('Checkout cancelled. Your spot was not reserved — try again whenever you are ready.') }}");
 	}
 })();
 </script>

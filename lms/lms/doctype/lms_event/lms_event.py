@@ -621,6 +621,157 @@ def send_starting_soon_mail(event, student):
 	)
 
 
+def maybe_auto_mint_event_certificate(member, event):
+	"""Mint an event certificate for `member` if one doesn't already exist.
+
+	Caller is expected to have just recorded a survey submission. We re-check
+	the survey gate here so the helper is safe to call from any path.
+	Returns the new certificate name, or None if not minted.
+	"""
+	event_doc = frappe.db.get_value(
+		"LMS Event",
+		event,
+		["name", "title", "certification", "survey_quiz"],
+		as_dict=True,
+	)
+	if not event_doc or not event_doc.certification:
+		return None
+
+	if frappe.db.exists("LMS Certificate", {"member": member, "event_name": event}):
+		return None
+
+	if event_doc.survey_quiz and not frappe.db.exists(
+		"LMS Quiz Submission",
+		{"event_name": event, "member": member, "quiz": event_doc.survey_quiz},
+	):
+		return None
+
+	template = frappe.db.get_value(
+		"Property Setter",
+		{"doc_type": "LMS Certificate", "property": "default_print_format"},
+		"value",
+	) or frappe.db.get_value("Print Format", {"doc_type": "LMS Certificate"})
+
+	cert = frappe.get_doc(
+		{
+			"doctype": "LMS Certificate",
+			"member": member,
+			"event_name": event,
+			"issue_date": nowdate(),
+			"template": template,
+		}
+	)
+	cert.insert(ignore_permissions=True)
+	return cert.name
+
+
+def open_event_surveys_after_event_ends():
+	"""Daily. For each certified event whose final scheduled day has ended and
+	whose survey announcement has not yet been sent, fire an announcement
+	pointing students at the survey, then flip the dedup flag."""
+	now = now_datetime()
+
+	events = frappe.get_all(
+		"LMS Event",
+		filters={
+			"published": 1,
+			"certification": 1,
+			"survey_announcement_sent": 0,
+		},
+		fields=["name", "title", "end_date", "end_time", "survey_quiz"],
+	)
+
+	for event in events:
+		if not event.survey_quiz:
+			continue
+
+		days = frappe.get_all(
+			"LMS Event Day",
+			filters={"parent": event.name, "parenttype": "LMS Event"},
+			fields=["date", "end_time"],
+			order_by="idx desc",
+		)
+		if days:
+			last_day = days[0]
+			date_str, time_str = last_day["date"], last_day["end_time"]
+		else:
+			date_str, time_str = event.end_date, event.end_time
+
+		if not date_str or not time_str:
+			continue
+		try:
+			end_dt = get_datetime(f"{date_str} {time_str}")
+		except Exception:
+			continue
+		if now <= end_dt:
+			continue
+
+		try:
+			_send_survey_open_announcement(event.name, event.title)
+		except Exception:
+			frappe.log_error(
+				frappe.get_traceback(),
+				f"open_event_surveys_after_event_ends failed for {event.name}",
+			)
+			continue
+
+		frappe.db.set_value(
+			"LMS Event", event.name, "survey_announcement_sent", 1, update_modified=False
+		)
+
+
+def _send_survey_open_announcement(event, event_title):
+	"""Post a system announcement that the event survey is now open."""
+	from lms.lms.api import _fan_out_event_announcement
+
+	students = frappe.get_all(
+		"LMS Event Registration", {"event": event}, pluck="member"
+	)
+	if not students:
+		return
+
+	subject = _("Your feedback survey for {0} is now open").format(event_title)
+	event_url = frappe.utils.get_url(get_lms_route(f"events/{event}"))
+	body = _(
+		"Thanks for joining {0}. Your feedback survey is now available — submitting it "
+		"will issue your certificate. Visit the event page to take it: {1}"
+	).format(event_title, event_url)
+
+	sender = frappe.session.user if frappe.session.user != "Guest" else "Administrator"
+	sender_email = frappe.db.get_value("User", sender, "email") or sender
+	sender_full_name = frappe.db.get_value("User", sender, "full_name") or sender
+
+	communication = frappe.get_doc(
+		{
+			"doctype": "Communication",
+			"communication_type": "Communication",
+			"communication_medium": "Email",
+			"sent_or_received": "Sent",
+			"subject": subject,
+			"content": body,
+			"sender": sender,
+			"sender_full_name": sender_full_name,
+			"recipients": sender_email,
+			"reference_doctype": "LMS Event",
+			"reference_name": event,
+			"communication_date": now_datetime(),
+		}
+	)
+	communication.flags.ignore_permissions = True
+	communication.insert()
+
+	_fan_out_event_announcement(
+		event=event,
+		event_title=event_title,
+		subject=subject,
+		body=body,
+		sender=sender,
+		sender_email=sender_email,
+		sender_full_name=sender_full_name,
+		students=students,
+	)
+
+
 def has_permission(doc, ptype="read", user=None):
 	user = user or frappe.session.user
 	if user == "Guest" and not guest_access_allowed():

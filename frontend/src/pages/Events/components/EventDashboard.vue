@@ -46,6 +46,38 @@
 						{{ __('Not started') }}
 					</Badge>
 				</div>
+				<div
+					v-if="
+						batch.data?.survey_quiz &&
+						batch.data?.survey_open &&
+						!batch.data?.survey_submitted
+					"
+					class="mb-8 flex items-center justify-between gap-4 rounded-lg border border-outline-gray-2 bg-surface-blue-2 p-4"
+				>
+					<div>
+						<div class="text-base font-semibold text-ink-gray-9">
+							{{ __('Feedback survey is open') }}
+						</div>
+						<div class="text-sm text-ink-gray-7">
+							{{
+								__(
+									'Submit your feedback to receive your certificate.'
+								)
+							}}
+						</div>
+					</div>
+					<router-link
+						:to="{ hash: '#survey' }"
+						replace
+					>
+						<Button variant="solid">
+							<template #prefix>
+								<ClipboardList class="size-4 stroke-1.5" />
+							</template>
+							{{ __('Take Survey') }}
+						</Button>
+					</router-link>
+				</div>
 				<div class="mb-8 space-y-2">
 					<div class="text-lg text-ink-gray-9 font-semibold">
 						{{ __('Curriculum') }}
@@ -122,7 +154,7 @@ import {
 	ListRow,
 	ListRowItem,
 } from 'frappe-ui'
-import { Clock, Video } from 'lucide-vue-next'
+import { ClipboardList, Clock, Video } from 'lucide-vue-next'
 import { formatTime } from '@/utils'
 
 const user = inject('$user')

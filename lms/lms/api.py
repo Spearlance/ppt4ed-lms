@@ -891,6 +891,126 @@ def delete_event_announcement(communication: str):
 	return row.name
 
 
+@frappe.whitelist()
+def submit_event_survey(event: str, results, quiz: str = None):
+	"""Submit the post-event feedback survey for an event the caller is enrolled in.
+
+	Mirrors `submit_quiz` but keys the submission to the event (not a course)
+	and skips the course-progress side effect of `save_progress_after_quiz`.
+	On success, auto-mints the event certificate. The `quiz` arg is accepted
+	(and ignored) so the frontend Quiz component can pass its standard params
+	without modification — the survey quiz is always derived from the event.
+	"""
+	from lms.lms.doctype.lms_quiz.lms_quiz import create_submission, process_results
+	from lms.lms.doctype.lms_event.lms_event import maybe_auto_mint_event_certificate
+
+	if isinstance(results, str):
+		results = json.loads(results)
+
+	event_doc = frappe.db.get_value(
+		"LMS Event",
+		event,
+		["name", "title", "certification", "survey_quiz"],
+		as_dict=True,
+	)
+	if not event_doc:
+		frappe.throw(_("Event not found."))
+	if not event_doc.certification or not event_doc.survey_quiz:
+		frappe.throw(_("This event does not have a feedback survey."))
+
+	user = frappe.session.user
+	if user == "Guest":
+		frappe.throw(_("You must be logged in to submit a survey."), frappe.PermissionError)
+
+	is_enrolled = frappe.db.exists(
+		"LMS Event Registration", {"event": event, "member": user}
+	)
+	if not is_enrolled:
+		frappe.throw(_("You are not enrolled in this event."), frappe.PermissionError)
+
+	details = get_event_details(event)
+	if not details.get("survey_open"):
+		frappe.throw(_("The feedback survey is not yet available for this event."))
+
+	if frappe.db.exists(
+		"LMS Quiz Submission",
+		{"event_name": event, "member": user, "quiz": event_doc.survey_quiz},
+	):
+		frappe.throw(_("You have already submitted the survey for this event."))
+
+	quiz_details = frappe.db.get_value(
+		"LMS Quiz",
+		event_doc.survey_quiz,
+		[
+			"name",
+			"total_marks",
+			"passing_percentage",
+			"lesson",
+			"course",
+			"enable_negative_marking",
+			"marks_to_cut",
+			"is_survey",
+		],
+		as_dict=1,
+	)
+	if not quiz_details or not quiz_details.is_survey:
+		frappe.throw(_("Survey quiz misconfigured."))
+
+	data = process_results(results, quiz_details)
+	submission = create_submission(
+		event_doc.survey_quiz,
+		data["results"],
+		quiz_details.total_marks,
+		quiz_details.passing_percentage,
+	)
+	submission.db_set("event_name", event, update_modified=False)
+	# The shared survey quiz may have a course set via fetch_from; clear it so
+	# license/CEU lookups branch on event_name cleanly.
+	submission.db_set("course", None, update_modified=False)
+
+	cert_name = maybe_auto_mint_event_certificate(user, event)
+
+	# Match the shape returned by lms.lms.doctype.lms_quiz.lms_quiz.submit_quiz
+	# so the shared Quiz Vue component can read quizSubmission.data uniformly.
+	return {
+		"score": 0,
+		"score_out_of": quiz_details.total_marks,
+		"submission": submission.name,
+		"pass": True,
+		"percentage": 100,
+		"is_open_ended": data.get("is_open_ended", False),
+		"is_survey": True,
+		"certificate": cert_name,
+	}
+
+
+@frappe.whitelist()
+def get_event_survey_qr(event: str):
+	"""Return a base64 PNG QR code that points at the event detail page.
+	Restricted to instructors/admins (anyone who can_modify_event)."""
+	if not can_modify_event(event):
+		frappe.throw(
+			_("You do not have permission to access this event's QR code."),
+			frappe.PermissionError,
+		)
+
+	import base64
+	import io
+
+	import qrcode
+
+	event_url = frappe.utils.get_url(get_lms_route(f"events/{event}"))
+	img = qrcode.make(event_url, box_size=10, border=2)
+	buf = io.BytesIO()
+	img.save(buf, format="PNG")
+	encoded = base64.b64encode(buf.getvalue()).decode("ascii")
+
+	return {
+		"url": event_url,
+		"data_uri": f"data:image/png;base64,{encoded}",
+	}
+
+
 def _fan_out_event_announcement(
 	event,
 	event_title,
