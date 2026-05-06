@@ -1388,12 +1388,18 @@ def get_event_details(batch: str):
 	return event_details
 
 
+SURVEY_OPEN_OFFSET_MINUTES = 30
+
+
 def compute_event_survey_open(event_details):
 	"""Return True when the post-event survey window has opened.
 
-	Window opens once the final scheduled `event_day.end_time` is in the past
-	(falling back to top-level `end_date` + `end_time` for events that pre-date
-	the event_days child table). Requires certification + a configured survey_quiz.
+	Window opens `SURVEY_OPEN_OFFSET_MINUTES` before the final scheduled
+	`event_day.end_time` (falling back to top-level `end_date` + `end_time`
+	for events that pre-date the event_days child table). The offset gives
+	presenters room to show the QR code before they actually wrap, since
+	they often end a few minutes early. Requires certification + a configured
+	survey_quiz.
 	"""
 	if not event_details.get("certification") or not event_details.get("survey_quiz"):
 		return False
@@ -1408,7 +1414,7 @@ def compute_event_survey_open(event_details):
 	if not date_str or not time_str:
 		return False
 	end_dt = get_datetime(f"{date_str} {time_str}")
-	return now_datetime() > end_dt
+	return now_datetime() >= end_dt - timedelta(minutes=SURVEY_OPEN_OFFSET_MINUTES)
 
 
 def categorize_batches(batches: list) -> dict:
