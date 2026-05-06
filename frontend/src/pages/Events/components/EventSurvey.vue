@@ -22,7 +22,7 @@
 		>
 			{{
 				__(
-					'The feedback survey will be available once the event has ended. Check back after the final session.'
+					'The feedback survey opens 30 minutes before the end of the final session.'
 				)
 			}}
 		</div>

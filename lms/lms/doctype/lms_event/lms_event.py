@@ -665,10 +665,17 @@ def maybe_auto_mint_event_certificate(member, event):
 	return cert.name
 
 
-def open_event_surveys_after_event_ends():
-	"""Daily. For each certified event whose final scheduled day has ended and
-	whose survey announcement has not yet been sent, fire an announcement
-	pointing students at the survey, then flip the dedup flag."""
+def send_event_survey_open_announcements():
+	"""Hourly. For each certified event whose survey window has opened
+	(now >= last event_day.end_time - SURVEY_OPEN_OFFSET_MINUTES) and whose
+	survey announcement has not yet been sent, fire an announcement pointing
+	students at the survey, then flip the dedup flag.
+
+	Hourly (not daily) so the email/in-app announcement lands close to when
+	the QR-code-on-slides window actually opens — presenters who end early
+	want attendees to see the announcement around the same time."""
+	from lms.lms.utils import SURVEY_OPEN_OFFSET_MINUTES
+
 	now = now_datetime()
 
 	events = frappe.get_all(
@@ -703,7 +710,7 @@ def open_event_surveys_after_event_ends():
 			end_dt = get_datetime(f"{date_str} {time_str}")
 		except Exception:
 			continue
-		if now <= end_dt:
+		if now < end_dt - timedelta(minutes=SURVEY_OPEN_OFFSET_MINUTES):
 			continue
 
 		try:
@@ -711,7 +718,7 @@ def open_event_surveys_after_event_ends():
 		except Exception:
 			frappe.log_error(
 				frappe.get_traceback(),
-				f"open_event_surveys_after_event_ends failed for {event.name}",
+				f"send_event_survey_open_announcements failed for {event.name}",
 			)
 			continue
 
