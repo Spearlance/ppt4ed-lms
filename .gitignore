@@ -5,6 +5,7 @@
 tags
 lms/docs/current
 lms/public/dist
+lms/lms/public/
 __pycache__/
 *.py[cod]
 *$py.class
