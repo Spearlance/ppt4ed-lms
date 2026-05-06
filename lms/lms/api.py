@@ -1011,6 +1011,61 @@ def get_event_survey_qr(event: str):
 	}
 
 
+@frappe.whitelist()
+def get_event_attendees_csv(event: str):
+	"""Stream a CSV of an event's attendee list. Restricted to instructors/admins
+	(anyone who can_modify_event). Columns: First Name, Last Name, License Number,
+	License State, License Type — license fields ship from PR #42."""
+	if not can_modify_event(event):
+		frappe.throw(
+			_("You do not have permission to export this event's attendee list."),
+			frappe.PermissionError,
+		)
+
+	import csv
+	import io
+
+	rows = frappe.db.sql(
+		"""
+		SELECT
+			u.first_name,
+			u.last_name,
+			u.professional_license_number,
+			u.license_state,
+			u.license_type
+		FROM `tabLMS Event Registration` reg
+		INNER JOIN `tabUser` u ON u.name = reg.member
+		WHERE reg.event = %(event)s
+		ORDER BY u.last_name, u.first_name
+		""",
+		{"event": event},
+		as_dict=True,
+	)
+
+	buf = io.StringIO()
+	writer = csv.writer(buf)
+	writer.writerow(
+		["First Name", "Last Name", "License Number", "License State", "License Type"]
+	)
+	for r in rows:
+		writer.writerow(
+			[
+				r.first_name or "",
+				r.last_name or "",
+				r.professional_license_number or "",
+				r.license_state or "",
+				r.license_type or "",
+			]
+		)
+
+	event_title = frappe.db.get_value("LMS Event", event, "title") or event
+	safe_title = re.sub(r"[^A-Za-z0-9_-]+", "_", event_title).strip("_") or event
+
+	frappe.response["type"] = "binary"
+	frappe.response["filename"] = f"{safe_title}_attendees.csv"
+	frappe.response["filecontent"] = buf.getvalue().encode("utf-8")
+
+
 def _fan_out_event_announcement(
 	event,
 	event_title,

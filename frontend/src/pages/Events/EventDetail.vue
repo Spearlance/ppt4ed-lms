@@ -242,12 +242,17 @@ const canMakeAnnouncement = () => {
 	)
 }
 
+const downloadAttendeeCSV = () => {
+	const url = `/api/method/lms.lms.api.get_event_attendees_csv?event=${encodeURIComponent(batch.data.name)}`
+	const a = document.createElement('a')
+	a.href = url
+	document.body.appendChild(a)
+	a.click()
+	document.body.removeChild(a)
+}
+
 const batchMenu = computed(() => {
-	if (
-		!batch.data?.certification &&
-		!canMakeAnnouncement() &&
-		!batch.data?.survey_quiz
-	) {
+	if (!isAdmin.value && !canMakeAnnouncement()) {
 		return []
 	}
 	let options = [
@@ -271,6 +276,11 @@ const batchMenu = computed(() => {
 				showSurveyQRModal.value = true
 			},
 			condition: () => batch.data?.survey_quiz && isAdmin.value,
+		},
+		{
+			label: __('Download Attendee CSV'),
+			onClick: downloadAttendeeCSV,
+			condition: () => isAdmin.value,
 		},
 	]
 	return options
