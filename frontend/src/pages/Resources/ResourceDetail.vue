@@ -116,7 +116,6 @@
 <script setup>
 import {
 	Badge,
-	Breadcrumbs,
 	Button,
 	call,
 	createResource,
@@ -126,6 +125,7 @@ import {
 	toast,
 	usePageMeta,
 } from 'frappe-ui'
+import Breadcrumbs from '@/components/PageBreadcrumbs.vue'
 import { computed, inject, markRaw, ref, watch } from 'vue'
 import { Link2, List, Settings2, Trash2 } from 'lucide-vue-next'
 import { sessionStore } from '@/stores/session'

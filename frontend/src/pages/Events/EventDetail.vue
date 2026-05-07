@@ -122,7 +122,6 @@ import { computed, inject, markRaw, onMounted, ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import {
 	Badge,
-	Breadcrumbs,
 	Button,
 	createResource,
 	Dropdown,
@@ -130,6 +129,7 @@ import {
 	toast,
 	usePageMeta,
 } from 'frappe-ui'
+import Breadcrumbs from '@/components/PageBreadcrumbs.vue'
 import { sessionStore } from '@/stores/session'
 import AdminEventDashboard from '@/pages/Events/components/AdminEventDashboard.vue'
 import StudentEventDashboard from '@/pages/Events/components/EventDashboard.vue'
