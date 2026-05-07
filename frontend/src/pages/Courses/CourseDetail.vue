@@ -4,18 +4,32 @@
 			class="sticky top-0 z-10 flex items-center justify-between border-b bg-surface-white px-3 py-2.5 sm:px-5"
 		>
 			<Breadcrumbs class="h-7" :items="breadcrumbs" />
-			<div v-if="tabIndex == 2" class="flex items-center space-x-2">
-				<Badge v-if="childRef?.isDirty" theme="orange">
-					{{ __('Not Saved') }}
-				</Badge>
-				<Button @click="childRef.trashCourse()">
-					<template #icon>
-						<Trash2 class="w-4 h-4 stroke-1.5" />
-					</template>
-				</Button>
-				<Button variant="solid" @click="childRef.submitCourse()">
-					{{ __('Save') }}
-				</Button>
+			<div class="flex items-center space-x-2">
+				<a
+					v-if="course.data.published && publicUrl"
+					:href="publicUrl"
+					target="_blank"
+					rel="noopener"
+					class="hidden sm:inline-flex items-center gap-1.5 text-xs font-medium text-ink-gray-7 hover:text-ink-gray-9 border border-outline-gray-2 hover:border-outline-gray-3 rounded-md px-2 py-1 max-w-xs truncate"
+					:title="publicUrl"
+					@click.prevent="copyPublicUrl"
+				>
+					<Link2 class="w-3.5 h-3.5 stroke-1.5 shrink-0" />
+					<span class="truncate">{{ publicUrlShort }}</span>
+				</a>
+				<div v-if="tabIndex == 2" class="flex items-center space-x-2">
+					<Badge v-if="childRef?.isDirty" theme="orange">
+						{{ __('Not Saved') }}
+					</Badge>
+					<Button @click="childRef.trashCourse()">
+						<template #icon>
+							<Trash2 class="w-4 h-4 stroke-1.5" />
+						</template>
+					</Button>
+					<Button variant="solid" @click="childRef.submitCourse()">
+						{{ __('Save') }}
+					</Button>
+				</div>
 			</div>
 		</header>
 		<CourseOverview v-if="!isAdmin" :course="course" />
@@ -41,7 +55,7 @@ import {
 import { computed, inject, markRaw, onMounted, ref, watch } from 'vue'
 import { sessionStore } from '@/stores/session'
 import { useRouter, useRoute } from 'vue-router'
-import { List, Settings2, Trash2, TrendingUp } from 'lucide-vue-next'
+import { Link2, List, Settings2, Trash2, TrendingUp } from 'lucide-vue-next'
 import CourseOverview from '@/pages/Courses/CourseOverview.vue'
 import CourseDashboard from '@/pages/Courses/CourseDashboard.vue'
 import CourseForm from '@/pages/Courses/CourseForm.vue'
@@ -105,6 +119,26 @@ const course = createResource({
 	},
 	auto: true,
 })
+
+const publicUrl = computed(() => {
+	const r = course.data?.route
+	return r ? `${window.location.origin}/${r}` : null
+})
+
+const publicUrlShort = computed(() => {
+	const r = course.data?.route
+	return r ? `/${r}` : ''
+})
+
+async function copyPublicUrl() {
+	if (!publicUrl.value) return
+	try {
+		await navigator.clipboard.writeText(publicUrl.value)
+		toast.success(__('Public link copied'))
+	} catch (e) {
+		window.open(publicUrl.value, '_blank', 'noopener')
+	}
+}
 
 const tabs = ref([
 	{

@@ -931,6 +931,7 @@ def get_course_fields():
 		"ceu_hours",
 		"course_type",
 		"resource_type",
+		"route",
 	]
 
 
