@@ -36,6 +36,15 @@
 							:placeholder="__('Search by name')"
 							type="text"
 						/>
+						<Button
+							:loading="attendeeExport.loading"
+							@click="downloadAttendees"
+						>
+							<template #prefix>
+								<Download class="size-4 stroke-1.5" />
+							</template>
+							{{ __('Export CSV') }}
+						</Button>
 						<Button @click="showEnrollmentModal = true">
 							<template #prefix>
 								<Plus class="size-4 stroke-1.5" />
@@ -171,10 +180,11 @@ import {
 	ListRowItem,
 	Avatar,
 	Button,
+	toast,
 } from 'frappe-ui'
 import { computed, ref, watch } from 'vue'
 import { formatAmount } from '@/utils'
-import { Plus } from 'lucide-vue-next'
+import { Download, Plus } from 'lucide-vue-next'
 import NumberChartGraph from '@/components/NumberChartGraph.vue'
 import StudentModal from '@/components/Modals/StudentModal.vue'
 
@@ -201,6 +211,34 @@ const certificationCount = createResource({
 	},
 	auto: true,
 })
+
+const attendeeExport = createResource({
+	url: 'lms.lms.api.export_event_attendees_csv',
+	makeParams() {
+		return { event: props.batch?.data?.name }
+	},
+})
+
+async function downloadAttendees() {
+	try {
+		const res = await attendeeExport.submit()
+		if (!res?.count) {
+			toast.info(__('No attendees to export yet'))
+			return
+		}
+		const blob = new Blob([res.csv], { type: 'text/csv;charset=utf-8;' })
+		const url = URL.createObjectURL(blob)
+		const a = document.createElement('a')
+		a.href = url
+		a.download = res.filename
+		document.body.appendChild(a)
+		a.click()
+		document.body.removeChild(a)
+		URL.revokeObjectURL(url)
+	} catch (e) {
+		toast.error(e.messages?.[0] || __('Could not export attendees'))
+	}
+}
 
 const students = createListResource({
 	doctype: 'LMS Event Registration',
