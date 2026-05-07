@@ -103,7 +103,7 @@ import {
 	Trash2,
 	TrendingUp,
 } from 'lucide-vue-next'
-import { computed, inject, markRaw, ref, watch } from 'vue'
+import { computed, inject, markRaw, onMounted, ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import {
 	Badge,
@@ -112,6 +112,7 @@ import {
 	createResource,
 	Dropdown,
 	Tabs,
+	toast,
 	usePageMeta,
 } from 'frappe-ui'
 import { sessionStore } from '@/stores/session'
@@ -145,6 +146,19 @@ const props = defineProps({
 		type: String,
 		required: true,
 	},
+})
+
+onMounted(() => {
+	const status = route.query.payment
+	if (status === 'success') {
+		toast.success(__('Payment received — registering you now'))
+		setTimeout(() => batch.reload(), 2000)
+	} else if (status === 'cancelled') {
+		toast.info(__('Payment cancelled'))
+	}
+	if (status) {
+		router.replace({ query: { ...route.query, payment: undefined } })
+	}
 })
 
 const updateTabIndex = () => {

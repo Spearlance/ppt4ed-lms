@@ -230,6 +230,14 @@
 			</div>
 		</template>
 	</Dialog>
+	<RegisterModal
+		v-model:open="showRegister"
+		target-type="course"
+		:target-slug="course.data.name"
+		:intent="registerIntent"
+		:context-label="course.data.title"
+		:redirect-url="`/lms/courses/${course.data.name}`"
+	/>
 </template>
 <script setup>
 import {
@@ -247,6 +255,7 @@ import { Badge, Button, call, createResource, Dialog, toast } from 'frappe-ui'
 import { formatAmount } from '@/utils/'
 import { useRouter } from 'vue-router'
 import CertificationLinks from '@/components/CertificationLinks.vue'
+import RegisterModal from '@/components/Modals/RegisterModal.vue'
 import { useTelemetry } from 'frappe-ui/frappe'
 
 const router = useRouter()
@@ -270,39 +279,36 @@ const video_link = computed(() => {
 
 function enrollStudent() {
 	if (!user.data) {
-		toast.warning(__('You need to login first to enroll for this course'))
-		setTimeout(() => {
-			window.location.href = `/login?redirect-to=${window.location.pathname}`
-		}, 500)
-	} else {
-		call('frappe.client.insert', {
-			doc: {
-				doctype: 'LMS Enrollment',
-				course: props.course.data.name,
-				member: user.data.name,
-			},
-		})
-			.then(() => {
-				capture('enrolled_in_course', {
-					course: props.course.data.name,
-				})
-				toast.success(__('You have been enrolled in this course'))
-				setTimeout(() => {
-					router.push({
-						name: 'Lesson',
-						params: {
-							courseName: props.course.data.name,
-							chapterNumber: 1,
-							lessonNumber: 1,
-						},
-					})
-				}, 1000)
-			})
-			.catch((err) => {
-				toast.warning(__(err.messages?.[0] || err))
-				console.error(err)
-			})
+		openRegisterFor('free')
+		return
 	}
+	call('frappe.client.insert', {
+		doc: {
+			doctype: 'LMS Enrollment',
+			course: props.course.data.name,
+			member: user.data.name,
+		},
+	})
+		.then(() => {
+			capture('enrolled_in_course', {
+				course: props.course.data.name,
+			})
+			toast.success(__('You have been enrolled in this course'))
+			setTimeout(() => {
+				router.push({
+					name: 'Lesson',
+					params: {
+						courseName: props.course.data.name,
+						chapterNumber: 1,
+						lessonNumber: 1,
+					},
+				})
+			}, 1000)
+		})
+		.catch((err) => {
+			toast.warning(__(err.messages?.[0] || err))
+			console.error(err)
+		})
 }
 
 const is_instructor = () => {
@@ -410,13 +416,17 @@ async function enrollViaCompany() {
 const pptVerificationSent = ref(false)
 const showConfirmDialog = ref(false)
 const purchasing = ref(false)
+const showRegister = ref(false)
+const registerIntent = ref('free')
+
+function openRegisterFor(intent) {
+	registerIntent.value = intent
+	showRegister.value = true
+}
 
 async function purchaseCourse() {
 	if (!user.data) {
-		toast.warning(__('You need to login first to purchase this course'))
-		setTimeout(() => {
-			window.location.href = `/login?redirect-to=${window.location.pathname}`
-		}, 500)
+		openRegisterFor('paid')
 		return
 	}
 	purchasing.value = true
