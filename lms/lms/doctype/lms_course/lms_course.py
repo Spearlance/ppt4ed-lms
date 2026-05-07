@@ -149,7 +149,7 @@ class LMSCourse(WebsiteGenerator):
 		context.no_cache = 1
 		context.course = self
 		context.title = self.title
-		context.instructors = get_instructors(self.name)
+		context.instructors = get_instructors("LMS Course", self.name)
 		context.lesson_count = get_lesson_count(self.name)
 		context.chapters = _get_public_chapters(self.name)
 		context.rating = flt(get_average_rating(self.name) or 0, 2)

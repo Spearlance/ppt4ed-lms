@@ -243,7 +243,7 @@ class LMSEvent(WebsiteGenerator):
 		context.no_cache = 1
 		context.event = self
 		context.title = self.title
-		context.instructors = get_instructors(self.name)
+		context.instructors = get_instructors("LMS Event", self.name)
 		context.event_days = sorted(
 			self.event_days or [], key=lambda r: (r.date, str(r.start_time or ""))
 		)
