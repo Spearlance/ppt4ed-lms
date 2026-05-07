@@ -25,7 +25,16 @@ async function shot(page: Page, name: string) {
 async function shotAfterAppBoot(page: Page, name: string) {
 	await page.locator('div.bg-surface-menu-bar').first().waitFor({ state: 'visible', timeout: 20000 })
 	await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {})
-	await page.screenshot({ path: path.join(SHOTS_DIR, `${name}.png`), fullPage: true })
+	// DesktopLayout's main column uses overflow-auto (its own scroll container).
+	// `fullPage: true` resizes the viewport based on document.scrollHeight, but the
+	// inner scroller doesn't expand with it — and on shorter pages (e.g. ResourceDetail
+	// for non-admins) the resize ends up capturing the empty space below the inner
+	// scroller's clientHeight, blanking the main column. Viewport-only avoids the
+	// reflow entirely. The walkthrough is a surface smoke, not a full-page audit, so
+	// above-the-fold capture is sufficient.
+	await page.waitForTimeout(800)
+	await page.locator('header').first().waitFor({ state: 'visible', timeout: 8000 }).catch(() => {})
+	await page.screenshot({ path: path.join(SHOTS_DIR, `${name}.png`), fullPage: false })
 }
 
 test.describe.configure({ mode: 'serial' })
