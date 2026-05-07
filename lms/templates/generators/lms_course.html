@@ -102,6 +102,47 @@
 .lms-landing__outline li:last-child { border-bottom: 0; }
 .lms-landing__outline-title { color: #1f2933; font-weight: 500; }
 .lms-landing__outline-count { color: #829ab1; font-size: 0.82rem; }
+.lms-landing__instructor-card {
+	display: flex;
+	gap: 1rem;
+	align-items: flex-start;
+	padding: 1.25rem;
+	background: #f7fafc;
+	border: 1px solid #e4e9f0;
+	border-radius: 10px;
+	margin-bottom: 0.85rem;
+}
+.lms-landing__instructor-card:last-child { margin-bottom: 0; }
+.lms-landing__instructor-avatar {
+	flex: 0 0 64px;
+	width: 64px;
+	height: 64px;
+	border-radius: 50%;
+}
+img.lms-landing__instructor-avatar { object-fit: cover; }
+.lms-landing__instructor-avatar--initial {
+	background: #d9e2ec;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: #486581;
+	font-weight: 700;
+	font-size: 1.4rem;
+	text-transform: uppercase;
+}
+.lms-landing__instructor-name {
+	margin: 0 0 0.4rem;
+	font-size: 1.05rem;
+	font-weight: 600;
+	color: #1f2933;
+}
+.lms-landing__instructor-bio {
+	margin: 0;
+	color: #486581;
+	font-size: 0.95rem;
+	line-height: 1.55;
+	white-space: pre-line;
+}
 .lms-landing__rail {
 	align-self: start;
 }
@@ -192,9 +233,9 @@
 {% set is_paid = course.paid_course %}
 {% set price = course.amount_usd or course.course_price %}
 {% set is_guest = (frappe.session.user == 'Guest') %}
-{% set register_modal_target_type = 'course' %}
+{% set register_modal_target_type = 'resource' if is_resource else 'course' %}
 {% set register_modal_target_slug = course.name %}
-{% set register_modal_intent = 'paid' if is_paid else 'free' %}
+{% set register_modal_intent = 'free' if is_resource else ('paid' if is_paid else 'free') %}
 {% set register_modal_redirect_url = register_url %}
 {% set register_modal_context_label = course.title %}
 
@@ -219,6 +260,7 @@
 				</div>
 				{% endif %}
 				<div class="lms-landing__stats">
+					{% if is_resource and course.resource_type %}<span>{{ course.resource_type }}</span>{% endif %}
 					{% if rating %}<span>★ {{ "%.1f"|format(rating) }}</span>{% endif %}
 					{% if enrollment_count %}<span>{{ enrollment_count }} {{ _("enrolled") }}</span>{% endif %}
 					{% if lesson_count %}<span>{{ lesson_count }} {{ _("lesson") if lesson_count == 1 else _("lessons") }}</span>{% endif %}
@@ -228,8 +270,28 @@
 
 		{% if course.description %}
 		<section class="lms-landing__section">
-			<h2>{{ _("About this course") }}</h2>
+			<h2>{{ _("About this resource") if is_resource else _("About this course") }}</h2>
 			<div class="lms-landing__rich">{{ course.description | safe }}</div>
+		</section>
+		{% endif %}
+
+		{% if instructors %}
+		<section class="lms-landing__section">
+			<h2>{{ _("About the instructor") }}{% if instructors|length > 1 %}s{% endif %}</h2>
+			{% for ins in instructors %}
+			<div class="lms-landing__instructor-card">
+				{% if ins.user_image %}
+				<img class="lms-landing__instructor-avatar" src="{{ ins.user_image }}" alt="{{ ins.full_name or ins.name }}">
+				{% else %}
+				<div class="lms-landing__instructor-avatar lms-landing__instructor-avatar--initial">{{ (ins.full_name or ins.name)[:1] }}</div>
+				{% endif %}
+				<div class="lms-landing__instructor-body">
+					<h3 class="lms-landing__instructor-name">{{ ins.full_name or ins.name }}</h3>
+					{% set bio_text = (ins.bio or '') | striptags | trim %}
+					{% if bio_text %}<p class="lms-landing__instructor-bio">{{ bio_text }}</p>{% endif %}
+				</div>
+			</div>
+			{% endfor %}
 		</section>
 		{% endif %}
 
@@ -262,15 +324,22 @@
 			</div>
 
 			<ul class="lms-landing__includes">
-				{% if lesson_count %}<li>{{ lesson_count }} {{ _("lesson") if lesson_count == 1 else _("lessons") }}</li>{% endif %}
-				{% if course.enable_certification %}<li>{{ _("Certificate of completion") }}</li>{% endif %}
-				<li>{{ _("Self-paced") }}</li>
-				<li>{{ _("Lifetime access") }}</li>
+				{% if is_resource %}
+					{% if course.resource_type %}<li>{{ course.resource_type }}</li>{% endif %}
+					<li>{{ _("Free access") }}</li>
+				{% else %}
+					{% if lesson_count %}<li>{{ lesson_count }} {{ _("lesson") if lesson_count == 1 else _("lessons") }}</li>{% endif %}
+					{% if course.enable_certification %}<li>{{ _("Certificate of completion") }}</li>{% endif %}
+					<li>{{ _("Self-paced") }}</li>
+					<li>{{ _("Lifetime access") }}</li>
+				{% endif %}
 			</ul>
 
 			{% if is_guest %}
 			<button type="button" class="lms-landing__cta" data-action="open-register">
-				{% if is_paid and price %}
+				{% if is_resource %}
+					{{ _("Get this resource") }}
+				{% elif is_paid and price %}
 					{{ _("Enroll for ${0}").format("%.0f"|format(price|float)) }}
 				{% else %}
 					{{ _("Get started — it's free") }}
@@ -282,7 +351,7 @@
 			</p>
 			{% else %}
 			<a class="lms-landing__cta" href="{{ register_url }}" style="text-decoration: none; text-align: center;">
-				{{ _("Continue to course") }}
+				{{ _("Open resource") if is_resource else _("Continue to course") }}
 			</a>
 			{% endif %}
 		</div>

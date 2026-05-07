@@ -145,3 +145,4 @@ lms.patches.v2_0.seed_community_event_confirmation_template #01-05-2026
 lms.patches.v2_0.seed_event_survey_quiz #05-05-2026
 lms.patches.v2_0.backfill_course_event_routes #07-05-2026
 lms.patches.v2_0.replace_signature_image_with_text #07-05-2026
+lms.patches.v2_0.rewrite_resource_routes_to_r_prefix #07-05-2026
