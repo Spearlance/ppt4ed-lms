@@ -47,11 +47,11 @@ import {
 	Badge,
 	Button,
 	createResource,
-	Breadcrumbs,
 	Tabs,
 	toast,
 	usePageMeta,
 } from 'frappe-ui'
+import Breadcrumbs from '@/components/PageBreadcrumbs.vue'
 import { computed, inject, markRaw, onMounted, ref, watch } from 'vue'
 import { sessionStore } from '@/stores/session'
 import { useRouter, useRoute } from 'vue-router'
