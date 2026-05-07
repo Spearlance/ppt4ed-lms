@@ -19,6 +19,15 @@ async function shot(page: Page, name: string) {
 	await page.screenshot({ path: path.join(SHOTS_DIR, `${name}.png`), fullPage: true })
 }
 
+// For logged-in Vue pages, wait for the sidebar (proves app boot finished)
+// before screenshotting. Otherwise networkidle sometimes hits the silent
+// catch and we capture a blank page.
+async function shotAfterAppBoot(page: Page, name: string) {
+	await page.locator('div.bg-surface-menu-bar').first().waitFor({ state: 'visible', timeout: 20000 })
+	await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {})
+	await page.screenshot({ path: path.join(SHOTS_DIR, `${name}.png`), fullPage: true })
+}
+
 test.describe.configure({ mode: 'serial' })
 
 test.describe('Visual walkthrough — guest', () => {
@@ -79,43 +88,39 @@ test.describe('Visual walkthrough — logged in', () => {
 		await page.fill('#login_email', 'pro@test.com')
 		await page.fill('#login_password', 'TestUser@2026!')
 		await page.click('.btn-login')
-		await page.waitForURL('**/lms/**', { timeout: 15000 })
+		// Match either /lms or /lms/<anything> — Frappe sometimes lands on
+		// /lms exactly post-login, which `**/lms/**` would miss.
+		await page.waitForURL(/\/lms(\/|$|\?|#)/, { timeout: 15000 })
 	})
 
 	test('08 /lms dashboard', async ({ page }) => {
 		await page.goto('/lms')
-		await expect(page.locator('div.bg-surface-menu-bar').first()).toBeVisible()
-		await shot(page, '08-loggedin-dashboard')
+		await shotAfterAppBoot(page, '08-loggedin-dashboard')
 	})
 
 	test('09 /lms/membership-plans (logged in)', async ({ page }) => {
 		await page.goto('/lms/membership-plans')
 		await expect(page.getByRole('heading', { name: 'Choose Your Plan' })).toBeVisible()
-		await expect(page.locator('div.bg-surface-menu-bar').first()).toBeVisible()
-		await shot(page, '09-loggedin-plans')
+		await shotAfterAppBoot(page, '09-loggedin-plans')
 	})
 
 	test('10 /lms/events admin list (logged in)', async ({ page }) => {
 		await page.goto('/lms/events')
-		await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {})
-		await shot(page, '10-loggedin-events-list')
+		await shotAfterAppBoot(page, '10-loggedin-events-list')
 	})
 
 	test('11 /lms/events/<slug> detail with public-URL chip', async ({ page }) => {
 		await page.goto(`/lms/events/${EVENT_SLUG}`)
-		await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {})
-		await shot(page, '11-loggedin-event-detail')
+		await shotAfterAppBoot(page, '11-loggedin-event-detail')
 	})
 
 	test('12 /lms/courses/<slug> detail with public-URL chip', async ({ page }) => {
 		await page.goto(`/lms/courses/${FREE_COURSE_SLUG}`)
-		await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {})
-		await shot(page, '12-loggedin-course-detail')
+		await shotAfterAppBoot(page, '12-loggedin-course-detail')
 	})
 
 	test('13 /lms/resources/<slug> detail with public-URL chip', async ({ page }) => {
 		await page.goto('/lms/resources/navigating-the-iep-process-in-florida-schools-2')
-		await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {})
-		await shot(page, '13-loggedin-resource-detail')
+		await shotAfterAppBoot(page, '13-loggedin-resource-detail')
 	})
 })
