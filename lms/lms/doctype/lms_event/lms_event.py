@@ -842,6 +842,14 @@ def _send_survey_open_announcement(event, event_title):
 
 def has_permission(doc, ptype="read", user=None):
 	user = user or frappe.session.user
+
+	# Published events are publicly readable so the /e/<slug> Jinja landing
+	# renders for guests. The doctype JSON declares a Guest read perm, but
+	# this hook runs first and would otherwise short-circuit on the
+	# allow_guest_access setting before reaching the published-fallback below.
+	if ptype in ("read", "select", "print") and getattr(doc, "published", 0):
+		return True
+
 	if user == "Guest" and not guest_access_allowed():
 		return False
 
