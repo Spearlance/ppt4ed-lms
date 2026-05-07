@@ -88,6 +88,15 @@
 							/>
 						</div>
 						<FormControl
+							v-model="profile.signature_text"
+							:label="__('Signature')"
+							:description="
+								__(
+									'Rendered in cursive script on certificates when you are listed as a course instructor. Defaults to your full name when blank.'
+								)
+							"
+						/>
+						<FormControl
 							v-model="profile.notification_audience"
 							type="select"
 							:label="__('Notification Audience')"
@@ -154,6 +163,7 @@ const profile = reactive({
 	professional_license_number: '',
 	license_type: '',
 	license_state: '',
+	signature_text: '',
 	notification_audience: '',
 })
 
@@ -267,6 +277,7 @@ watch(
 				newVal.professional_license_number || ''
 			profile.license_type = newVal.license_type || ''
 			profile.license_state = newVal.license_state || ''
+			profile.signature_text = newVal.signature_text || ''
 			profile.notification_audience = newVal.notification_audience || ''
 			profile.image = newVal.user_image
 			isDirty.value = false
