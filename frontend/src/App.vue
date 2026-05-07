@@ -22,6 +22,7 @@
 <script setup>
 import { FrappeUIProvider, createResource } from 'frappe-ui'
 import { Dialogs } from '@/utils/dialogs'
+import { storeToRefs } from 'pinia'
 import { computed, onUnmounted, ref } from 'vue'
 import { useScreenSize } from './utils/composables'
 import { useSettings } from '@/stores/settings'
@@ -42,7 +43,12 @@ const { isMobile } = useScreenSize()
 const router = useRouter()
 const noSidebar = ref(false)
 const { settings } = useSettings()
-const { isLoggedIn } = sessionStore()
+// `storeToRefs` keeps the reactivity on the `isLoggedIn` computed so the
+// Layout `computed` below tracks login/logout. Plain destructure off the
+// store proxy returns the unwrapped boolean, which a) loses reactivity
+// and b) makes `.value` undefined — that bug shipped in #69 and locked
+// every logged-in user into NoSidebarLayout. Don't repeat that.
+const { isLoggedIn } = storeToRefs(sessionStore())
 
 router.beforeEach((to, from, next) => {
 	if (to.query.fromLesson || to.path === '/persona') {
