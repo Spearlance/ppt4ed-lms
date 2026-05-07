@@ -1,0 +1,385 @@
+{#
+  Public register/login modal — shared by /c/<slug> and /e/<slug> landings.
+
+  Caller sets these Jinja variables before {% include %}:
+    register_modal_target_type    'course' | 'event' | none
+    register_modal_target_slug    string | none
+    register_modal_intent         'free' | 'paid' | 'membership:<plan>' | none
+    register_modal_redirect_url   fallback URL after login (string, defaults to /lms)
+    register_modal_context_label  short label shown under the modal title (e.g. course title)
+
+  Triggers: any element with `data-action="open-register"` opens the modal.
+  Programmatic: window.openRegisterModal({ pane: 'login', email: 'x@y.com' }).
+#}
+<style>
+.register-modal[hidden] { display: none !important; }
+.register-modal {
+	position: fixed;
+	inset: 0;
+	z-index: 1000;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 1rem;
+}
+.register-modal__backdrop {
+	position: absolute;
+	inset: 0;
+	background: rgba(15, 23, 42, 0.55);
+	backdrop-filter: blur(2px);
+}
+.register-modal__panel {
+	position: relative;
+	background: #ffffff;
+	border-radius: 14px;
+	box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.35);
+	width: 100%;
+	max-width: 440px;
+	padding: 2rem 1.75rem 1.75rem;
+	max-height: calc(100vh - 2rem);
+	overflow-y: auto;
+}
+.register-modal__close {
+	position: absolute;
+	top: 0.75rem;
+	right: 0.85rem;
+	background: none;
+	border: 0;
+	font-size: 1.6rem;
+	line-height: 1;
+	color: #829ab1;
+	cursor: pointer;
+	padding: 0.25rem 0.5rem;
+}
+.register-modal__close:hover { color: #1f2933; }
+.register-modal__tabs {
+	display: flex;
+	border-bottom: 1px solid #e4e9f0;
+	margin-bottom: 1.25rem;
+	gap: 0.25rem;
+}
+.register-modal__tab {
+	flex: 1;
+	background: none;
+	border: 0;
+	border-bottom: 2px solid transparent;
+	padding: 0.6rem 0.5rem 0.7rem;
+	font-size: 0.95rem;
+	font-weight: 600;
+	color: #627d98;
+	cursor: pointer;
+}
+.register-modal__tab.is-active {
+	color: #2c5282;
+	border-bottom-color: #2c5282;
+}
+.register-modal__pane[hidden] { display: none; }
+.register-modal__pane h2 {
+	font-size: 1.35rem;
+	font-weight: 700;
+	margin: 0 0 0.25rem;
+	color: #1f2933;
+}
+.register-modal__sub {
+	font-size: 0.9rem;
+	color: #627d98;
+	margin: 0 0 1.25rem;
+}
+.register-modal__pane label {
+	display: block;
+	font-size: 0.8rem;
+	font-weight: 600;
+	color: #334e68;
+	margin-bottom: 0.85rem;
+}
+.register-modal__pane input {
+	display: block;
+	width: 100%;
+	margin-top: 0.3rem;
+	padding: 0.6rem 0.75rem;
+	border: 1px solid #d9e2ec;
+	border-radius: 8px;
+	font-size: 0.95rem;
+	color: #1f2933;
+	box-sizing: border-box;
+}
+.register-modal__pane input:focus {
+	outline: none;
+	border-color: #2c5282;
+	box-shadow: 0 0 0 3px rgba(44, 82, 130, 0.15);
+}
+.register-modal__hint {
+	font-size: 0.78rem;
+	color: #829ab1;
+	margin: -0.4rem 0 1rem;
+}
+.register-modal__submit {
+	display: block;
+	width: 100%;
+	padding: 0.75rem 1rem;
+	background: #2c5282;
+	color: #ffffff;
+	border: 0;
+	border-radius: 8px;
+	font-size: 0.98rem;
+	font-weight: 600;
+	cursor: pointer;
+	margin-top: 0.5rem;
+}
+.register-modal__submit:hover { background: #234268; }
+.register-modal__submit:disabled { opacity: 0.6; cursor: not-allowed; }
+.register-modal__terms {
+	font-size: 0.75rem;
+	color: #829ab1;
+	margin: 0.85rem 0 0;
+	text-align: center;
+}
+.register-modal__alert {
+	padding: 0.7rem 0.85rem;
+	border-radius: 8px;
+	margin-bottom: 1rem;
+	font-size: 0.88rem;
+}
+.register-modal__alert--error {
+	background: #fef2f2;
+	color: #991b1b;
+	border: 1px solid #fecaca;
+}
+.register-modal__alert--info {
+	background: #eff6ff;
+	color: #1e40af;
+	border: 1px solid #bfdbfe;
+}
+</style>
+
+<div id="register-modal" class="register-modal" hidden>
+	<div class="register-modal__backdrop" data-action="close"></div>
+	<div class="register-modal__panel" role="dialog" aria-modal="true" aria-labelledby="register-modal-title">
+		<button type="button" class="register-modal__close" data-action="close" aria-label="{{ _('Close') }}">&times;</button>
+
+		<div class="register-modal__tabs" role="tablist">
+			<button type="button" class="register-modal__tab is-active" data-pane="signup" role="tab">{{ _("Create account") }}</button>
+			<button type="button" class="register-modal__tab" data-pane="login" role="tab">{{ _("Log in") }}</button>
+		</div>
+
+		<div class="register-modal__alert" id="register-modal-alert" hidden></div>
+
+		<form class="register-modal__pane" data-pane="signup" id="register-modal-signup">
+			<h2 id="register-modal-title">{{ _("Create your account") }}</h2>
+			{% if register_modal_context_label %}
+			<p class="register-modal__sub">{{ _("To register for {0}").format(register_modal_context_label) }}</p>
+			{% else %}
+			<p class="register-modal__sub">{{ _("Free, takes about 30 seconds.") }}</p>
+			{% endif %}
+
+			<label>{{ _("Full name") }}
+				<input name="full_name" type="text" autocomplete="name" required>
+			</label>
+			<label>{{ _("Email") }}
+				<input name="email" type="email" autocomplete="email" required>
+			</label>
+			<label>{{ _("Password") }}
+				<input name="password" type="password" autocomplete="new-password" minlength="8" required>
+			</label>
+			<p class="register-modal__hint">{{ _("At least 8 characters.") }}</p>
+
+			<button type="submit" class="register-modal__submit">{{ _("Create account") }}</button>
+		</form>
+
+		<form class="register-modal__pane" data-pane="login" id="register-modal-login" hidden>
+			<h2>{{ _("Welcome back") }}</h2>
+			<p class="register-modal__sub">{{ _("Log in to continue.") }}</p>
+
+			<label>{{ _("Email") }}
+				<input name="usr" type="email" autocomplete="email" required>
+			</label>
+			<label>{{ _("Password") }}
+				<input name="pwd" type="password" autocomplete="current-password" required>
+			</label>
+
+			<button type="submit" class="register-modal__submit">{{ _("Log in") }}</button>
+		</form>
+	</div>
+</div>
+
+<script>
+(function() {
+	const CONFIG = {
+		target_type: {{ (register_modal_target_type or None) | tojson }},
+		target_slug: {{ (register_modal_target_slug or None) | tojson }},
+		intent: {{ (register_modal_intent or 'free') | tojson }},
+		redirect_url: {{ (register_modal_redirect_url or '/lms') | tojson }}
+	};
+
+	const modal = document.getElementById('register-modal');
+	const signupForm = document.getElementById('register-modal-signup');
+	const loginForm = document.getElementById('register-modal-login');
+	const alertEl = document.getElementById('register-modal-alert');
+	const tabs = modal.querySelectorAll('.register-modal__tab');
+
+	function showPane(name) {
+		tabs.forEach(t => t.classList.toggle('is-active', t.dataset.pane === name));
+		[signupForm, loginForm].forEach(f => { f.hidden = (f.dataset.pane !== name); });
+	}
+
+	function showAlert(kind, text) {
+		alertEl.className = 'register-modal__alert register-modal__alert--' + kind;
+		alertEl.textContent = text;
+		alertEl.hidden = false;
+	}
+
+	function hideAlert() {
+		alertEl.hidden = true;
+		alertEl.textContent = '';
+	}
+
+	function openModal(opts) {
+		opts = opts || {};
+		modal.hidden = false;
+		document.body.style.overflow = 'hidden';
+		hideAlert();
+		showPane(opts.pane || 'signup');
+		if (opts.email) {
+			const target = (opts.pane === 'login') ? loginForm.elements.usr : signupForm.elements.email;
+			if (target) target.value = opts.email;
+		}
+		setTimeout(() => {
+			const form = (opts.pane === 'login') ? loginForm : signupForm;
+			const input = form.querySelector('input:not([readonly])');
+			if (input) input.focus();
+		}, 30);
+	}
+
+	function closeModal() {
+		modal.hidden = true;
+		document.body.style.overflow = '';
+		hideAlert();
+	}
+
+	modal.addEventListener('click', (e) => {
+		if (e.target.dataset && e.target.dataset.action === 'close') closeModal();
+	});
+	document.addEventListener('keydown', (e) => {
+		if (e.key === 'Escape' && !modal.hidden) closeModal();
+	});
+	tabs.forEach(t => t.addEventListener('click', () => { hideAlert(); showPane(t.dataset.pane); }));
+
+	function extractError(err) {
+		const messages = err && err.responseJSON && err.responseJSON._server_messages;
+		if (messages) {
+			try {
+				const parsed = JSON.parse(messages);
+				if (parsed && parsed.length) {
+					const first = JSON.parse(parsed[0]);
+					if (first && first.message) return String(first.message).replace(/<[^>]+>/g, '');
+				}
+			} catch (e) {}
+		}
+		return null;
+	}
+
+	function setSubmitting(form, isSubmitting, busyLabel) {
+		const btn = form.querySelector('.register-modal__submit');
+		if (!btn) return;
+		if (isSubmitting) {
+			btn.dataset.label = btn.textContent;
+			btn.disabled = true;
+			btn.textContent = busyLabel;
+		} else {
+			btn.disabled = false;
+			if (btn.dataset.label) btn.textContent = btn.dataset.label;
+		}
+	}
+
+	signupForm.addEventListener('submit', (e) => {
+		e.preventDefault();
+		hideAlert();
+		setSubmitting(signupForm, true, "{{ _('Creating account…') }}");
+
+		frappe.call({
+			method: 'lms.lms.api.signup_and_enroll',
+			type: 'POST',
+			args: {
+				email: signupForm.elements.email.value.trim(),
+				password: signupForm.elements.password.value,
+				full_name: signupForm.elements.full_name.value.trim(),
+				target_type: CONFIG.target_type,
+				target_slug: CONFIG.target_slug,
+				intent: CONFIG.intent
+			},
+			callback: function(r) {
+				const result = (r && r.message) || {};
+				if (result.status === 'checkout_required' && result.checkout_url) {
+					window.location.href = result.checkout_url;
+					return;
+				}
+				if (result.status === 'logged_in') {
+					window.location.href = result.redirect_to || CONFIG.redirect_url;
+					return;
+				}
+				if (result.status === 'exists') {
+					const email = signupForm.elements.email.value.trim();
+					setSubmitting(signupForm, false);
+					showPane('login');
+					loginForm.elements.usr.value = email;
+					showAlert('info', "{{ _('That email is already registered. Log in to continue.') }}");
+					setTimeout(() => loginForm.elements.pwd.focus(), 30);
+					return;
+				}
+				setSubmitting(signupForm, false);
+				showAlert('error', "{{ _('Something went wrong. Please try again.') }}");
+			},
+			error: function(err) {
+				setSubmitting(signupForm, false);
+				const msg = extractError(err) || "{{ _('Something went wrong. Please try again.') }}";
+				showAlert('error', msg);
+			}
+		});
+	});
+
+	loginForm.addEventListener('submit', (e) => {
+		e.preventDefault();
+		hideAlert();
+		setSubmitting(loginForm, true, "{{ _('Logging in…') }}");
+
+		const fd = new FormData();
+		fd.append('cmd', 'login');
+		fd.append('usr', loginForm.elements.usr.value.trim());
+		fd.append('pwd', loginForm.elements.pwd.value);
+
+		fetch('/api/method/login', {
+			method: 'POST',
+			body: fd,
+			credentials: 'same-origin'
+		}).then(res => {
+			if (res.ok) {
+				window.location.href = CONFIG.redirect_url;
+				return;
+			}
+			res.json().then(data => {
+				const msg = (data && data.message) || "{{ _('Invalid email or password.') }}";
+				setSubmitting(loginForm, false);
+				showAlert('error', String(msg).replace(/<[^>]+>/g, ''));
+			}).catch(() => {
+				setSubmitting(loginForm, false);
+				showAlert('error', "{{ _('Invalid email or password.') }}");
+			});
+		}).catch(() => {
+			setSubmitting(loginForm, false);
+			showAlert('error', "{{ _('Login failed. Please try again.') }}");
+		});
+	});
+
+	document.addEventListener('click', (e) => {
+		const trigger = e.target.closest('[data-action="open-register"]');
+		if (!trigger) return;
+		e.preventDefault();
+		const pane = trigger.dataset.pane || 'signup';
+		const email = trigger.dataset.email || '';
+		openModal({ pane: pane, email: email });
+	});
+
+	window.openRegisterModal = openModal;
+	window.closeRegisterModal = closeModal;
+})();
+</script>

@@ -1,0 +1,309 @@
+{% extends "templates/web.html" %}
+
+{% block title %}{{ course.title }}{% endblock %}
+
+{% block head_include %}
+<meta name="description" content="{{ (course.short_introduction or course.title)|striptags }}">
+<meta property="og:title" content="{{ course.title }}">
+<meta property="og:description" content="{{ (course.short_introduction or course.title)|striptags }}">
+{% if course.image %}<meta property="og:image" content="{{ course.image }}">{% endif %}
+<style>
+.lms-landing {
+	max-width: 1080px;
+	margin: 0 auto;
+	padding: 1.5rem 1rem 4rem;
+	color: #1f2933;
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	gap: 2rem;
+}
+@media (min-width: 900px) {
+	.lms-landing { grid-template-columns: minmax(0, 1fr) 340px; }
+}
+.lms-landing__hero-img {
+	width: 100%;
+	max-height: 360px;
+	object-fit: cover;
+	border-radius: 12px;
+	margin-bottom: 1.5rem;
+}
+.lms-landing h1 {
+	font-size: 2.1rem;
+	font-weight: 700;
+	margin: 0 0 0.5rem;
+	line-height: 1.2;
+}
+.lms-landing__lede {
+	font-size: 1.1rem;
+	color: #486581;
+	margin: 0 0 1.25rem;
+	line-height: 1.5;
+}
+.lms-landing__meta {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 1rem 1.5rem;
+	margin-bottom: 2rem;
+	padding-bottom: 1.25rem;
+	border-bottom: 1px solid #e4e9f0;
+}
+.lms-landing__instructors {
+	font-size: 0.92rem;
+	color: #334e68;
+}
+.lms-landing__instructors-label {
+	font-size: 0.75rem;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: #829ab1;
+	margin-right: 0.4rem;
+}
+.lms-landing__stats {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 1rem;
+	font-size: 0.9rem;
+	color: #486581;
+}
+.lms-landing__stats span { display: inline-flex; align-items: center; gap: 0.3rem; }
+.lms-landing__section {
+	margin-bottom: 2.25rem;
+}
+.lms-landing__section h2 {
+	font-size: 1.3rem;
+	font-weight: 700;
+	margin: 0 0 0.85rem;
+	color: #1f2933;
+}
+.lms-landing__rich {
+	line-height: 1.65;
+	color: #334e68;
+}
+.lms-landing__rich p { margin: 0 0 1rem; }
+.lms-landing__rich h3 { font-size: 1.05rem; margin: 1.25rem 0 0.5rem; }
+.lms-landing__rich ul, .lms-landing__rich ol { padding-left: 1.4rem; }
+.lms-landing__outline {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+	border: 1px solid #e4e9f0;
+	border-radius: 10px;
+	overflow: hidden;
+}
+.lms-landing__outline li {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 0.85rem 1.1rem;
+	border-bottom: 1px solid #e4e9f0;
+	font-size: 0.95rem;
+}
+.lms-landing__outline li:last-child { border-bottom: 0; }
+.lms-landing__outline-title { color: #1f2933; font-weight: 500; }
+.lms-landing__outline-count { color: #829ab1; font-size: 0.82rem; }
+.lms-landing__rail {
+	align-self: start;
+}
+@media (min-width: 900px) {
+	.lms-landing__rail { position: sticky; top: 1.5rem; }
+}
+.lms-landing__card {
+	border: 1px solid #d9e2ec;
+	border-radius: 12px;
+	padding: 1.5rem 1.5rem 1.25rem;
+	background: #ffffff;
+	box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+}
+.lms-landing__price { margin-bottom: 1rem; }
+.lms-landing__price-amount {
+	font-size: 1.85rem;
+	font-weight: 700;
+	color: #1f2933;
+}
+.lms-landing__price-free {
+	font-size: 1.4rem;
+	font-weight: 700;
+	color: #047857;
+	letter-spacing: -0.01em;
+}
+.lms-landing__price-suffix {
+	font-size: 0.85rem;
+	color: #829ab1;
+	margin-left: 0.4rem;
+	font-weight: 500;
+}
+.lms-landing__includes {
+	list-style: none;
+	padding: 0;
+	margin: 0 0 1.25rem;
+	border-top: 1px solid #e4e9f0;
+	padding-top: 0.85rem;
+}
+.lms-landing__includes li {
+	font-size: 0.9rem;
+	color: #486581;
+	padding: 0.3rem 0;
+	padding-left: 1.25rem;
+	position: relative;
+}
+.lms-landing__includes li::before {
+	content: "✓";
+	position: absolute;
+	left: 0;
+	color: #047857;
+	font-weight: 700;
+}
+.lms-landing__cta {
+	display: block;
+	width: 100%;
+	padding: 0.85rem 1rem;
+	background: #2c5282;
+	color: #ffffff;
+	border: 0;
+	border-radius: 8px;
+	font-size: 1rem;
+	font-weight: 600;
+	cursor: pointer;
+}
+.lms-landing__cta:hover { background: #234268; }
+.lms-landing__signin {
+	font-size: 0.85rem;
+	color: #627d98;
+	text-align: center;
+	margin: 0.85rem 0 0;
+}
+.lms-landing__signin a { color: #2c5282; font-weight: 600; }
+.lms-landing__alert {
+	padding: 0.8rem 1rem;
+	border-radius: 8px;
+	font-size: 0.9rem;
+	margin-bottom: 1.5rem;
+}
+.lms-landing__alert--info {
+	background: #eff6ff;
+	color: #1e40af;
+	border: 1px solid #bfdbfe;
+}
+</style>
+{% endblock %}
+
+{% block page_content %}
+{% set is_paid = course.paid_course %}
+{% set price = course.amount_usd or course.course_price %}
+{% set is_guest = (frappe.session.user == 'Guest') %}
+{% set register_modal_target_type = 'course' %}
+{% set register_modal_target_slug = course.name %}
+{% set register_modal_intent = 'paid' if is_paid else 'free' %}
+{% set register_modal_redirect_url = register_url %}
+{% set register_modal_context_label = course.title %}
+
+<div class="lms-landing">
+	<div class="lms-landing__main">
+		<div id="lms-landing-banner"></div>
+
+		<header>
+			{% if course.image %}
+			<img src="{{ course.image }}" alt="{{ course.title }}" class="lms-landing__hero-img">
+			{% endif %}
+			<h1>{{ course.title }}</h1>
+			{% if course.short_introduction %}
+			<p class="lms-landing__lede">{{ course.short_introduction }}</p>
+			{% endif %}
+
+			<div class="lms-landing__meta">
+				{% if instructors %}
+				<div class="lms-landing__instructors">
+					<span class="lms-landing__instructors-label">{{ _("Instructor") }}{% if instructors|length > 1 %}s{% endif %}</span>
+					{% for ins in instructors %}{{ ins.full_name or ins.name }}{% if not loop.last %}, {% endif %}{% endfor %}
+				</div>
+				{% endif %}
+				<div class="lms-landing__stats">
+					{% if rating %}<span>★ {{ "%.1f"|format(rating) }}</span>{% endif %}
+					{% if enrollment_count %}<span>{{ enrollment_count }} {{ _("enrolled") }}</span>{% endif %}
+					{% if lesson_count %}<span>{{ lesson_count }} {{ _("lesson") if lesson_count == 1 else _("lessons") }}</span>{% endif %}
+				</div>
+			</div>
+		</header>
+
+		{% if course.description %}
+		<section class="lms-landing__section">
+			<h2>{{ _("About this course") }}</h2>
+			<div class="lms-landing__rich">{{ course.description | safe }}</div>
+		</section>
+		{% endif %}
+
+		{% if chapters %}
+		<section class="lms-landing__section">
+			<h2>{{ _("Course outline") }}</h2>
+			<ol class="lms-landing__outline">
+				{% for ch in chapters %}
+				<li>
+					<span class="lms-landing__outline-title">{{ loop.index }}. {{ ch.title }}</span>
+					{% if ch.lesson_count %}
+					<span class="lms-landing__outline-count">{{ ch.lesson_count }} {{ _("lesson") if ch.lesson_count == 1 else _("lessons") }}</span>
+					{% endif %}
+				</li>
+				{% endfor %}
+			</ol>
+		</section>
+		{% endif %}
+	</div>
+
+	<aside class="lms-landing__rail">
+		<div class="lms-landing__card">
+			<div class="lms-landing__price">
+				{% if is_paid and price %}
+					<span class="lms-landing__price-amount">${{ "%.0f"|format(price|float) }}</span>
+					<span class="lms-landing__price-suffix">{{ _("USD") }}</span>
+				{% else %}
+					<span class="lms-landing__price-free">{{ _("Free") }}</span>
+				{% endif %}
+			</div>
+
+			<ul class="lms-landing__includes">
+				{% if lesson_count %}<li>{{ lesson_count }} {{ _("lesson") if lesson_count == 1 else _("lessons") }}</li>{% endif %}
+				{% if course.enable_certification %}<li>{{ _("Certificate of completion") }}</li>{% endif %}
+				<li>{{ _("Self-paced") }}</li>
+				<li>{{ _("Lifetime access") }}</li>
+			</ul>
+
+			{% if is_guest %}
+			<button type="button" class="lms-landing__cta" data-action="open-register">
+				{% if is_paid and price %}
+					{{ _("Enroll for ${0}").format("%.0f"|format(price|float)) }}
+				{% else %}
+					{{ _("Get started — it's free") }}
+				{% endif %}
+			</button>
+
+			<p class="lms-landing__signin">
+				{{ _("Already a member?") }} <a href="#" data-action="open-register" data-pane="login">{{ _("Log in") }}</a>
+			</p>
+			{% else %}
+			<a class="lms-landing__cta" href="{{ register_url }}" style="text-decoration: none; text-align: center;">
+				{{ _("Continue to course") }}
+			</a>
+			{% endif %}
+		</div>
+	</aside>
+</div>
+
+{% if is_guest %}
+{% include "templates/includes/register_modal.html" %}
+{% endif %}
+
+<script>
+(function() {
+	const params = new URLSearchParams(window.location.search);
+	if (params.get('payment') === 'cancelled') {
+		const banner = document.getElementById('lms-landing-banner');
+		if (banner) {
+			banner.innerHTML = '<div class="lms-landing__alert lms-landing__alert--info">' +
+				"{{ _('Checkout was cancelled. You can try again whenever you are ready.') }}" +
+				'</div>';
+		}
+	}
+})();
+</script>
+{% endblock %}
