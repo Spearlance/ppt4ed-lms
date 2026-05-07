@@ -36,7 +36,10 @@ export const sessionStore = defineStore('lms-session', () => {
 		auto: true,
 		onSuccess(data) {
 			brand.name = data.app_name
-			brand.logo = data.app_logo
+			// `get_branding` returns app_logo/favicon as File objects, not URL
+			// strings — extract `.file_url` so consumers can drop these
+			// straight into <img :src>. Falls back gracefully if absent.
+			brand.logo = data.app_logo?.file_url || null
 			brand.favicon =
 				data.favicon?.file_url || '/assets/lms/frontend/learning.svg'
 		},

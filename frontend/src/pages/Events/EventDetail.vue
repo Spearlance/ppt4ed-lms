@@ -4,33 +4,47 @@
 			class="sticky top-0 z-10 border-b flex items-center justify-between bg-surface-white px-3 py-2.5 sm:px-5"
 		>
 			<Breadcrumbs :items="breadcrumbs" />
-			<div v-if="tabIndex == 5 && isAdmin" class="flex items-center space-x-2">
-				<Badge v-if="childRef?.isDirty" theme="orange">
-					{{ __('Not Saved') }}
-				</Badge>
-				<Button @click="childRef.deleteEvent()">
-					<template #icon>
-						<Trash2 class="w-4 h-4 stroke-1.5" />
-					</template>
-				</Button>
-				<Button variant="solid" @click="childRef.submitEvent()">
-					{{ __('Save') }}
-				</Button>
-			</div>
-			<Dropdown
-				v-else-if="isAdmin && batchMenu.length"
-				:options="batchMenu"
-				placement="left"
-				side="left"
-			>
-				<template v-slot="{ open }">
-					<Button variant="ghost">
+			<div class="flex items-center space-x-2">
+				<a
+					v-if="batch.data.published && publicUrl"
+					:href="publicUrl"
+					target="_blank"
+					rel="noopener"
+					class="hidden sm:inline-flex items-center gap-1.5 text-xs font-medium text-ink-gray-7 hover:text-ink-gray-9 border border-outline-gray-2 hover:border-outline-gray-3 rounded-md px-2 py-1 max-w-xs truncate"
+					:title="publicUrl"
+					@click.prevent="copyPublicUrl"
+				>
+					<Link2 class="w-3.5 h-3.5 stroke-1.5 shrink-0" />
+					<span class="truncate">{{ publicUrlShort }}</span>
+				</a>
+				<div v-if="tabIndex == 5 && isAdmin" class="flex items-center space-x-2">
+					<Badge v-if="childRef?.isDirty" theme="orange">
+						{{ __('Not Saved') }}
+					</Badge>
+					<Button @click="childRef.deleteEvent()">
 						<template #icon>
-							<EllipsisVertical class="w-4 h-4 stroke-1.5" />
+							<Trash2 class="w-4 h-4 stroke-1.5" />
 						</template>
 					</Button>
-				</template>
-			</Dropdown>
+					<Button variant="solid" @click="childRef.submitEvent()">
+						{{ __('Save') }}
+					</Button>
+				</div>
+				<Dropdown
+					v-else-if="isAdmin && batchMenu.length"
+					:options="batchMenu"
+					placement="left"
+					side="left"
+				>
+					<template v-slot="{ open }">
+						<Button variant="ghost">
+							<template #icon>
+								<EllipsisVertical class="w-4 h-4 stroke-1.5" />
+							</template>
+						</Button>
+					</template>
+				</Dropdown>
+			</div>
 		</header>
 		<div>
 			<EventOverview v-if="!isAdmin && !isStudent" :batch="batch" />
@@ -95,6 +109,7 @@ import {
 	ClipboardPen,
 	EllipsisVertical,
 	Laptop,
+	Link2,
 	List,
 	Mail,
 	MessageCircle,
@@ -289,6 +304,28 @@ const batchMenu = computed(() => {
 	]
 	return options
 })
+
+const publicUrl = computed(() => {
+	const route = batch.data?.route
+	if (!route) return null
+	return `${window.location.origin}/${route}`
+})
+
+const publicUrlShort = computed(() => {
+	const route = batch.data?.route
+	return route ? `/${route}` : ''
+})
+
+async function copyPublicUrl() {
+	if (!publicUrl.value) return
+	try {
+		await navigator.clipboard.writeText(publicUrl.value)
+		toast.success(__('Public link copied'))
+	} catch (e) {
+		// Older browsers / insecure contexts: fall back to opening the link
+		window.open(publicUrl.value, '_blank', 'noopener')
+	}
+}
 
 const breadcrumbs = computed(() => {
 	let crumbs = [{ label: __('Events'), route: { name: 'Events' } }]

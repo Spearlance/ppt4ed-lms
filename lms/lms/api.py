@@ -2620,10 +2620,16 @@ def create_company_account(company_name, admin_email, max_seats=0):
 
 @frappe.whitelist(allow_guest=True)
 def get_membership_plans():
-	"""Get active membership plans for the pricing page."""
+	"""Get active membership plans for the public pricing page.
+
+	`PPT Employee` plans are internal-only — they're created automatically
+	when a PPT4ed staffer logs in, never purchased — so we hide them from
+	the public listing. The admin settings UI still sees them via
+	`get_all_membership_plans`.
+	"""
 	plans = frappe.get_all(
 		"CEU Membership Plan",
-		filters={"active": 1},
+		filters={"active": 1, "plan_type": ["!=", "PPT Employee"]},
 		fields=["name", "title", "plan_type", "ceu_hours", "price", "stripe_price_id", "display_order", "is_recommended"],
 		order_by="display_order asc, price asc"
 	)

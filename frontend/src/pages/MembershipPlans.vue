@@ -89,9 +89,37 @@
                     </div>
                 </div>
 
-                <!-- Individual plans: centered two-card layout -->
-                <div v-else class="w-full max-w-2xl">
-                    <div class="grid md:grid-cols-2 gap-6">
+                <!-- Individual plans: free tier + paid cards -->
+                <div v-else class="w-full max-w-4xl">
+                    <div
+                        class="grid gap-6"
+                        :style="{ gridTemplateColumns: `repeat(${individualPlans.length + 1}, minmax(0, 1fr))` }"
+                    >
+                        <!-- Free tier card -->
+                        <div class="border border-outline-gray-3 rounded-xl p-6 flex flex-col">
+                            <div class="flex items-center justify-between mb-2">
+                                <h3 class="text-lg font-semibold text-ink-gray-9">
+                                    {{ __('Free') }}
+                                </h3>
+                                <Badge theme="gray">{{ __('Browse') }}</Badge>
+                            </div>
+                            <div class="mt-2">
+                                <span class="text-3xl font-bold text-ink-gray-9">
+                                    $0
+                                </span>
+                                <span class="text-sm text-ink-gray-5">/year</span>
+                            </div>
+                            <div class="text-sm text-ink-gray-5 mt-2 mb-6">
+                                {{ __('Free courses, no commitment') }}
+                            </div>
+                            <Button
+                                class="mt-auto w-full"
+                                variant="outline"
+                                @click="startFreeFlow()"
+                            >
+                                {{ __('Get Started') }}
+                            </Button>
+                        </div>
                         <div
                             v-for="plan in individualPlans"
                             :key="plan.name"
@@ -172,8 +200,11 @@
 <script setup>
 import { Badge, Breadcrumbs, Button, createResource, Dialog, FormControl, toast, usePageMeta, call } from 'frappe-ui'
 import { computed, inject, reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { sessionStore } from '@/stores/session'
 import RegisterModal from '@/components/Modals/RegisterModal.vue'
+
+const router = useRouter()
 
 const user = inject('$user')
 const { brand } = sessionStore()
@@ -207,6 +238,16 @@ const individualPlans = computed(() =>
 
 const formatPrice = (price) => {
     return Number(price).toLocaleString('en-US', { maximumFractionDigits: 0 })
+}
+
+const startFreeFlow = () => {
+    if (!user?.data?.name) {
+        registerIntent.value = 'free'
+        registerContextLabel.value = __('Free access')
+        showRegister.value = true
+        return
+    }
+    router.push({ name: 'Courses' })
 }
 
 const startCheckout = async (plan) => {
