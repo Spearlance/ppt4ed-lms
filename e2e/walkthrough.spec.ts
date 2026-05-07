@@ -106,4 +106,16 @@ test.describe('Visual walkthrough — logged in', () => {
 		await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {})
 		await shot(page, '11-loggedin-event-detail')
 	})
+
+	test('12 /lms/courses/<slug> detail with public-URL chip', async ({ page }) => {
+		await page.goto(`/lms/courses/${FREE_COURSE_SLUG}`)
+		await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {})
+		await shot(page, '12-loggedin-course-detail')
+	})
+
+	test('13 /lms/resources/<slug> detail with public-URL chip', async ({ page }) => {
+		await page.goto('/lms/resources/navigating-the-iep-process-in-florida-schools-2')
+		await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {})
+		await shot(page, '13-loggedin-resource-detail')
+	})
 })
