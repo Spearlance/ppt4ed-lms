@@ -251,6 +251,11 @@ const routes = [
 		name: 'CookiePolicy',
 		component: () => import('@/pages/Legal/CookiePolicy.vue'),
 	},
+	{
+		path: '/signup',
+		name: 'Signup',
+		component: () => import('@/pages/Signup.vue'),
+	},
 ]
 
 let router = createRouter({
@@ -284,6 +289,8 @@ router.beforeEach(async (to, from, next) => {
 			'PrivacyPolicy',
 			'TermsOfService',
 			'CookiePolicy',
+			'Signup',
+			'MembershipPlans',
 		]
 		if (!settings.data.allow_guest_access && !guestAllowedRoutes.includes(to.name)) {
 			window.location.href = '/login'
