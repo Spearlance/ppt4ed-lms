@@ -1961,6 +1961,7 @@ def get_profile_details(username: str):
 			"professional_license_number",
 			"license_type",
 			"license_state",
+			"signature_text",
 			"notification_audience",
 		],
 		as_dict=True,
