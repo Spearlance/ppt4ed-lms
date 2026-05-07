@@ -1318,6 +1318,7 @@ def get_event_details(batch: str):
 			"venue",
 			"credit_hours",
 			"survey_quiz",
+			"route",
 		],
 		as_dict=True,
 	)
