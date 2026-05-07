@@ -116,6 +116,26 @@ test.describe('Post-deploy smoke (PR #68)', () => {
 		await expect(page.locator(sidebar)).toHaveCount(0)
 	})
 
+	test('AppSidebar IS visible for logged-in users (regression test for #69)', async ({ page }) => {
+		// PR #69 originally shipped a broken layout selector — the Pinia
+		// destructure unwrapped `isLoggedIn` to a plain boolean, so
+		// `isLoggedIn.value` was undefined and `!isLoggedIn.value` was
+		// always true. Every logged-in user got NoSidebarLayout. Don't
+		// regress.
+		await page.goto('/login')
+		await page.fill('#login_email', 'pro@test.com')
+		await page.fill('#login_password', 'TestUser@2026!')
+		await page.click('.btn-login')
+		await page.waitForURL('**/lms/**', { timeout: 15000 })
+
+		// Sidebar root must render now that we're authenticated
+		await expect(page.locator('div.bg-surface-menu-bar').first()).toBeVisible({ timeout: 10000 })
+
+		// Clean up so subsequent tests start as a guest
+		await page.goto('/api/method/logout')
+		await page.waitForLoadState('networkidle')
+	})
+
 	test('event landing modal: submitting an existing email pivots to Log In tab', async ({ page }) => {
 		// Uses a known seeded user from company-employee.spec.ts:
 		//   pro@test.com / TestUser@2026!
