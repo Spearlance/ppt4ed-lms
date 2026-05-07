@@ -25,6 +25,7 @@ import { Dialogs } from '@/utils/dialogs'
 import { computed, onUnmounted, ref } from 'vue'
 import { useScreenSize } from './utils/composables'
 import { useSettings } from '@/stores/settings'
+import { sessionStore } from '@/stores/session'
 import { useRouter } from 'vue-router'
 import DesktopLayout from './components/DesktopLayout.vue'
 import MobileLayout from './components/MobileLayout.vue'
@@ -41,6 +42,7 @@ const { isMobile } = useScreenSize()
 const router = useRouter()
 const noSidebar = ref(false)
 const { settings } = useSettings()
+const { isLoggedIn } = sessionStore()
 
 router.beforeEach((to, from, next) => {
 	if (to.query.fromLesson || to.path === '/persona') {
@@ -52,7 +54,11 @@ router.beforeEach((to, from, next) => {
 })
 
 const Layout = computed(() => {
-	if (noSidebar.value) {
+	// Guests on the public guest-allowed routes (/signup, /membership-plans,
+	// resources, legal pages) shouldn't see the dashboard sidebar — its links
+	// (My Credits, Notifications, etc.) require auth and just confuse the
+	// signup funnel.
+	if (!isLoggedIn.value || noSidebar.value) {
 		return NoSidebarLayout
 	}
 	if (isMobile.value) {
