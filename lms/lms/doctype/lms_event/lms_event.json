@@ -11,6 +11,7 @@
   "section_break_earo",
   "published",
   "title",
+  "route",
   "start_date",
   "end_date",
   "column_break_4",
@@ -93,6 +94,14 @@
    "in_list_view": 1,
    "label": "Title",
    "reqd": 1
+  },
+  {
+   "description": "Auto-generated public URL slug. Don't edit unless you know what you're doing.",
+   "fieldname": "route",
+   "fieldtype": "Data",
+   "label": "Route",
+   "read_only": 1,
+   "unique": 1
   },
   {
    "fieldname": "end_date",
@@ -534,7 +543,9 @@
   }
  ],
  "grid_page_length": 50,
+ "has_web_view": 1,
  "index_web_pages_for_search": 1,
+ "is_published_field": "published",
  "links": [
   {
    "link_doctype": "LMS Event Registration",
@@ -582,6 +593,10 @@
   {
    "read": 1,
    "role": "LMS Student"
+  },
+  {
+   "read": 1,
+   "role": "Guest"
   }
  ],
  "row_format": "Dynamic",
@@ -590,5 +605,6 @@
  "sort_order": "DESC",
  "states": [],
  "title_field": "title",
- "track_changes": 1
+ "track_changes": 1,
+ "website_search_field": "title"
 }

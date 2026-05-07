@@ -1,5 +1,32 @@
 <template>
 	<div class="w-full px-5 pt-5 pb-10">
+		<div
+			v-if="showUpsellBanner"
+			class="mb-4 flex items-center justify-between gap-3 rounded-lg border border-blue-200 bg-surface-blue-2 px-4 py-3"
+		>
+			<div class="text-sm text-ink-gray-9">
+				<span class="font-semibold">{{ __('Unlock more courses') }}</span>
+				<span class="text-ink-gray-7 ml-1">
+					{{ __('— a membership opens unlimited CEU access.') }}
+				</span>
+			</div>
+			<div class="flex items-center gap-2 shrink-0">
+				<router-link
+					:to="{ name: 'MembershipPlans' }"
+					class="text-sm font-semibold text-ink-blue-link"
+				>
+					{{ __('See plans') }} →
+				</router-link>
+				<button
+					type="button"
+					class="text-ink-gray-5 hover:text-ink-gray-7 text-lg leading-none px-1"
+					:aria-label="__('Dismiss')"
+					@click="dismissUpsell"
+				>
+					&times;
+				</button>
+			</div>
+		</div>
 		<div class="space-y-2">
 			<div class="flex items-center justify-between">
 				<div class="text-xl font-bold text-ink-gray-9">
@@ -75,12 +102,43 @@ const isAdmin = computed(() => {
 	return user.data?.is_moderator
 })
 
+const upsellDismissedAt = ref<string | null>(null)
+const upsellStorageKey = computed(() => `lms.upsell.dismissed.${user.data?.name || ''}`)
+
+const isFreeUser = computed(() => {
+	const u = user.data
+	if (!u) return false
+	if (u.is_company_member) return false
+	if (u.membership_type === 'ppt_employee') return false
+	if (u.membership_type === 'professional' && u.membership_status === 'Active') return false
+	return true
+})
+
+const showUpsellBanner = computed(() => {
+	if (isAdmin.value) return false
+	if (!isFreeUser.value) return false
+	return !upsellDismissedAt.value
+})
+
+function dismissUpsell() {
+	const stamp = new Date().toISOString()
+	upsellDismissedAt.value = stamp
+	try {
+		localStorage.setItem(upsellStorageKey.value, stamp)
+	} catch (e) {}
+}
+
 onMounted(() => {
 	if (isAdmin.value) {
 		currentTab.value = 'instructor'
 	} else {
 		currentTab.value = 'student'
 		fetchEvalCount()
+	}
+	try {
+		upsellDismissedAt.value = localStorage.getItem(upsellStorageKey.value)
+	} catch (e) {
+		upsellDismissedAt.value = null
 	}
 })
 

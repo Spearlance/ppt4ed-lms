@@ -186,6 +186,14 @@
 				{{ __('Join link unlocks 15 min before start.') }}
 			</div>
 		</div>
+		<RegisterModal
+			v-model:open="showRegister"
+			target-type="event"
+			:target-slug="batch.data.name"
+			:intent="registerIntent"
+			:context-label="batch.data.title"
+			:redirect-url="`/lms/events/${batch.data.name}`"
+		/>
 	</div>
 </template>
 <script setup>
@@ -209,6 +217,7 @@ import {
 } from 'lucide-vue-next'
 import { formatNumberIntoCurrency, formatTime } from '@/utils'
 import DateRange from '@/components/Common/DateRange.vue'
+import RegisterModal from '@/components/Modals/RegisterModal.vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
@@ -216,6 +225,13 @@ const user = inject('$user')
 const readOnlyMode = window.read_only_mode
 const { capture } = useTelemetry()
 const purchasing = ref(false)
+const showRegister = ref(false)
+const registerIntent = ref('free')
+
+function openRegisterFor(intent) {
+	registerIntent.value = intent
+	showRegister.value = true
+}
 
 const props = defineProps({
 	batch: {
@@ -235,10 +251,7 @@ const enroll = createResource({
 
 async function purchaseEvent() {
 	if (!user.data) {
-		toast.warning(__('You need to login first to register for this event'))
-		setTimeout(() => {
-			window.location.href = `/login?redirect-to=${window.location.pathname}`
-		}, 500)
+		openRegisterFor('paid')
 		return
 	}
 	purchasing.value = true
@@ -258,7 +271,8 @@ async function purchaseEvent() {
 
 const enrollInBatch = () => {
 	if (!user.data) {
-		window.location.href = `/login?redirect-to=/events/${props.batch.data.name}`
+		openRegisterFor('free')
+		return
 	}
 	enroll.submit(
 		{},

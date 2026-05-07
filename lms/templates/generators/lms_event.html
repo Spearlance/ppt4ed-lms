@@ -1,0 +1,387 @@
+{% extends "templates/web.html" %}
+
+{% block title %}{{ event.title }}{% endblock %}
+
+{% block head_include %}
+<meta name="description" content="{{ (event.description or event.title)|striptags }}">
+<meta property="og:title" content="{{ event.title }}">
+<meta property="og:description" content="{{ (event.description or event.title)|striptags }}">
+{% if event.meta_image %}<meta property="og:image" content="{{ event.meta_image }}">{% endif %}
+<style>
+.lms-landing {
+	max-width: 1080px;
+	margin: 0 auto;
+	padding: 1.5rem 1rem 4rem;
+	color: #1f2933;
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	gap: 2rem;
+}
+@media (min-width: 900px) {
+	.lms-landing { grid-template-columns: minmax(0, 1fr) 340px; }
+}
+.lms-landing__hero-img {
+	width: 100%;
+	max-height: 360px;
+	object-fit: cover;
+	border-radius: 12px;
+	margin-bottom: 1.5rem;
+}
+.lms-landing h1 {
+	font-size: 2.1rem;
+	font-weight: 700;
+	margin: 0 0 0.5rem;
+	line-height: 1.2;
+}
+.lms-landing__lede {
+	font-size: 1.05rem;
+	color: #486581;
+	margin: 0 0 1.25rem;
+	line-height: 1.5;
+}
+.lms-landing__categories {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.4rem;
+	margin: 0 0 1rem;
+}
+.lms-landing__category {
+	background: #eff6ff;
+	color: #1e40af;
+	font-size: 0.78rem;
+	font-weight: 600;
+	padding: 0.25rem 0.65rem;
+	border-radius: 999px;
+}
+.lms-landing__meta {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 1rem 1.5rem;
+	margin-bottom: 2rem;
+	padding-bottom: 1.25rem;
+	border-bottom: 1px solid #e4e9f0;
+}
+.lms-landing__instructors {
+	font-size: 0.92rem;
+	color: #334e68;
+}
+.lms-landing__instructors-label {
+	font-size: 0.75rem;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: #829ab1;
+	margin-right: 0.4rem;
+}
+.lms-landing__stats {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 1rem;
+	font-size: 0.9rem;
+	color: #486581;
+}
+.lms-landing__section {
+	margin-bottom: 2.25rem;
+}
+.lms-landing__section h2 {
+	font-size: 1.3rem;
+	font-weight: 700;
+	margin: 0 0 0.85rem;
+	color: #1f2933;
+}
+.lms-landing__rich {
+	line-height: 1.65;
+	color: #334e68;
+	white-space: pre-wrap;
+}
+.lms-landing__schedule {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+	border: 1px solid #e4e9f0;
+	border-radius: 10px;
+	overflow: hidden;
+}
+.lms-landing__schedule li {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 0.85rem 1.1rem;
+	border-bottom: 1px solid #e4e9f0;
+	font-size: 0.95rem;
+}
+.lms-landing__schedule li:last-child { border-bottom: 0; }
+.lms-landing__schedule-date { color: #1f2933; font-weight: 600; }
+.lms-landing__schedule-time { color: #627d98; font-size: 0.88rem; }
+.lms-landing__venue {
+	background: #f7f9fc;
+	border-radius: 10px;
+	padding: 1rem 1.25rem;
+}
+.lms-landing__venue-label {
+	font-size: 0.75rem;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: #829ab1;
+	margin-bottom: 0.3rem;
+}
+.lms-landing__venue-value {
+	font-size: 0.95rem;
+	color: #1f2933;
+	white-space: pre-wrap;
+}
+.lms-landing__rail { align-self: start; }
+@media (min-width: 900px) {
+	.lms-landing__rail { position: sticky; top: 1.5rem; }
+}
+.lms-landing__card {
+	border: 1px solid #d9e2ec;
+	border-radius: 12px;
+	padding: 1.5rem 1.5rem 1.25rem;
+	background: #ffffff;
+	box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+}
+.lms-landing__price { margin-bottom: 0.5rem; }
+.lms-landing__price-amount {
+	font-size: 1.85rem;
+	font-weight: 700;
+	color: #1f2933;
+}
+.lms-landing__price-strike {
+	font-size: 1rem;
+	color: #829ab1;
+	text-decoration: line-through;
+	margin-left: 0.4rem;
+}
+.lms-landing__price-free {
+	font-size: 1.4rem;
+	font-weight: 700;
+	color: #047857;
+}
+.lms-landing__price-suffix {
+	font-size: 0.85rem;
+	color: #829ab1;
+	margin-left: 0.4rem;
+	font-weight: 500;
+}
+.lms-landing__early-bird {
+	font-size: 0.82rem;
+	color: #92400e;
+	background: #fef3c7;
+	padding: 0.35rem 0.6rem;
+	border-radius: 6px;
+	margin-bottom: 1rem;
+	display: inline-block;
+}
+.lms-landing__includes {
+	list-style: none;
+	padding: 0;
+	margin: 0 0 1.25rem;
+	border-top: 1px solid #e4e9f0;
+	padding-top: 0.85rem;
+}
+.lms-landing__includes li {
+	font-size: 0.9rem;
+	color: #486581;
+	padding: 0.3rem 0;
+	padding-left: 1.25rem;
+	position: relative;
+}
+.lms-landing__includes li::before {
+	content: "✓";
+	position: absolute;
+	left: 0;
+	color: #047857;
+	font-weight: 700;
+}
+.lms-landing__cta {
+	display: block;
+	width: 100%;
+	padding: 0.85rem 1rem;
+	background: #2c5282;
+	color: #ffffff;
+	border: 0;
+	border-radius: 8px;
+	font-size: 1rem;
+	font-weight: 600;
+	cursor: pointer;
+}
+.lms-landing__cta:hover { background: #234268; }
+.lms-landing__cta:disabled { opacity: 0.55; cursor: not-allowed; background: #627d98; }
+.lms-landing__signin {
+	font-size: 0.85rem;
+	color: #627d98;
+	text-align: center;
+	margin: 0.85rem 0 0;
+}
+.lms-landing__signin a { color: #2c5282; font-weight: 600; }
+.lms-landing__seats {
+	font-size: 0.82rem;
+	color: #92400e;
+	margin: 0.5rem 0 1rem;
+	text-align: center;
+}
+.lms-landing__alert {
+	padding: 0.8rem 1rem;
+	border-radius: 8px;
+	font-size: 0.9rem;
+	margin-bottom: 1.5rem;
+}
+.lms-landing__alert--info { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
+.lms-landing__alert--warn { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; }
+</style>
+{% endblock %}
+
+{% block page_content %}
+{% set is_paid = event.paid_event %}
+{% set base_amount = event.amount_usd or event.amount %}
+{% set display_amount = display_amount_usd or base_amount %}
+{% set is_guest = (frappe.session.user == 'Guest') %}
+{% set register_modal_target_type = 'event' %}
+{% set register_modal_target_slug = event.name %}
+{% set register_modal_intent = 'paid' if is_paid else 'free' %}
+{% set register_modal_redirect_url = register_url %}
+{% set register_modal_context_label = event.title %}
+
+<div class="lms-landing">
+	<div class="lms-landing__main">
+		<div id="lms-landing-banner"></div>
+
+		<header>
+			{% if event.meta_image %}
+			<img src="{{ event.meta_image }}" alt="{{ event.title }}" class="lms-landing__hero-img">
+			{% endif %}
+
+			{% if categories %}
+			<div class="lms-landing__categories">
+				{% for cat in categories %}
+				<span class="lms-landing__category">{{ cat }}</span>
+				{% endfor %}
+			</div>
+			{% endif %}
+
+			<h1>{{ event.title }}</h1>
+
+			<div class="lms-landing__meta">
+				{% if instructors %}
+				<div class="lms-landing__instructors">
+					<span class="lms-landing__instructors-label">{{ _("Speaker") }}{% if instructors|length > 1 %}s{% endif %}</span>
+					{% for ins in instructors %}{{ ins.full_name or ins.name }}{% if not loop.last %}, {% endif %}{% endfor %}
+				</div>
+				{% endif %}
+				<div class="lms-landing__stats">
+					{% if event.event_type %}<span>{{ event.event_type }}</span>{% endif %}
+					{% if event.credit_hours %}<span>{{ event.credit_hours }} {{ _("CEU") if event.credit_hours == 1 else _("CEUs") }}</span>{% endif %}
+					{% if event.timezone %}<span>{{ event.timezone }}</span>{% endif %}
+				</div>
+			</div>
+		</header>
+
+		{% if event.description %}
+		<section class="lms-landing__section">
+			<h2>{{ _("About this event") }}</h2>
+			<div class="lms-landing__rich">{{ event.description }}</div>
+		</section>
+		{% endif %}
+
+		{% if event_days %}
+		<section class="lms-landing__section">
+			<h2>{{ _("Schedule") }}</h2>
+			<ol class="lms-landing__schedule">
+				{% for day in event_days %}
+				<li>
+					<span class="lms-landing__schedule-date">{{ frappe.utils.format_date(day.date, "long") }}</span>
+					<span class="lms-landing__schedule-time">
+						{% if day.start_time %}{{ day.start_time }}{% if day.end_time %} – {{ day.end_time }}{% endif %}{% endif %}
+					</span>
+				</li>
+				{% endfor %}
+			</ol>
+		</section>
+		{% endif %}
+
+		{% if event.event_type == 'In-Person' and event.venue %}
+		<section class="lms-landing__section">
+			<div class="lms-landing__venue">
+				<div class="lms-landing__venue-label">{{ _("Venue") }}</div>
+				<div class="lms-landing__venue-value">{{ event.venue }}</div>
+			</div>
+		</section>
+		{% endif %}
+	</div>
+
+	<aside class="lms-landing__rail">
+		<div class="lms-landing__card">
+			<div class="lms-landing__price">
+				{% if is_paid and display_amount %}
+					<span class="lms-landing__price-amount">${{ "%.0f"|format(display_amount|float) }}</span>
+					{% if is_early_bird and base_amount and base_amount|float > display_amount|float %}
+					<span class="lms-landing__price-strike">${{ "%.0f"|format(base_amount|float) }}</span>
+					{% else %}
+					<span class="lms-landing__price-suffix">{{ _("USD") }}</span>
+					{% endif %}
+				{% else %}
+					<span class="lms-landing__price-free">{{ _("Free") }}</span>
+				{% endif %}
+			</div>
+
+			{% if is_early_bird and event.early_bird_deadline %}
+			<div class="lms-landing__early-bird">
+				{{ _("Early-bird ends {0}").format(frappe.utils.format_date(event.early_bird_deadline, "long")) }}
+			</div>
+			{% endif %}
+
+			<ul class="lms-landing__includes">
+				{% if event.event_type %}<li>{{ event.event_type }}</li>{% endif %}
+				{% if event.credit_hours %}<li>{{ event.credit_hours }} {{ _("CEU") if event.credit_hours == 1 else _("CEUs") }}</li>{% endif %}
+				{% if event.certification %}<li>{{ _("Certificate of attendance") }}</li>{% endif %}
+				{% if event_days|length > 1 %}<li>{{ event_days|length }} {{ _("days") }}</li>{% endif %}
+			</ul>
+
+			{% if seats_remaining is not none and seats_remaining <= 5 and seats_remaining > 0 %}
+			<p class="lms-landing__seats">{{ _("Only {0} seat{1} left").format(seats_remaining, "" if seats_remaining == 1 else "s") }}</p>
+			{% endif %}
+
+			{% if is_full %}
+			<button type="button" class="lms-landing__cta" disabled>{{ _("Sold out") }}</button>
+			{% elif is_guest %}
+			<button type="button" class="lms-landing__cta" data-action="open-register">
+				{% if is_paid and display_amount %}
+					{{ _("Register for ${0}").format("%.0f"|format(display_amount|float)) }}
+				{% else %}
+					{{ _("Register — it's free") }}
+				{% endif %}
+			</button>
+			{% else %}
+			<a class="lms-landing__cta" href="{{ register_url }}" style="text-decoration: none; text-align: center;">
+				{{ _("Continue to event") }}
+			</a>
+			{% endif %}
+
+			{% if is_guest and not is_full %}
+			<p class="lms-landing__signin">
+				{{ _("Already a member?") }} <a href="#" data-action="open-register" data-pane="login">{{ _("Log in") }}</a>
+			</p>
+			{% endif %}
+		</div>
+	</aside>
+</div>
+
+{% if is_guest and not is_full %}
+{% include "templates/includes/register_modal.html" %}
+{% endif %}
+
+<script>
+(function() {
+	const params = new URLSearchParams(window.location.search);
+	if (params.get('payment') === 'cancelled') {
+		const banner = document.getElementById('lms-landing-banner');
+		if (banner) {
+			banner.innerHTML = '<div class="lms-landing__alert lms-landing__alert--info">' +
+				"{{ _('Checkout was cancelled. You can try again whenever you are ready.') }}" +
+				'</div>';
+		}
+	}
+})();
+</script>
+{% endblock %}

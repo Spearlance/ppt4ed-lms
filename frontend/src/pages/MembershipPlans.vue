@@ -159,6 +159,13 @@
                 />
             </template>
         </Dialog>
+
+        <RegisterModal
+            v-model:open="showRegister"
+            :intent="registerIntent"
+            :context-label="registerContextLabel"
+            redirect-url="/lms/membership-plans"
+        />
     </div>
 </template>
 
@@ -166,6 +173,7 @@
 import { Badge, Breadcrumbs, Button, createResource, Dialog, FormControl, toast, usePageMeta, call } from 'frappe-ui'
 import { computed, inject, reactive, ref } from 'vue'
 import { sessionStore } from '@/stores/session'
+import RegisterModal from '@/components/Modals/RegisterModal.vue'
 
 const user = inject('$user')
 const { brand } = sessionStore()
@@ -175,6 +183,9 @@ const companyNames = reactive({})
 const showCompanyDialog = ref(false)
 const pendingCompanyName = ref('')
 const pendingPlan = ref(null)
+const showRegister = ref(false)
+const registerIntent = ref('free')
+const registerContextLabel = ref('')
 
 const tabs = [
     { label: __('Company'), value: 'Company' },
@@ -200,7 +211,14 @@ const formatPrice = (price) => {
 
 const startCheckout = async (plan) => {
     if (!user?.data?.name) {
-        window.location.href = `/login?redirect-to=/lms/membership-plans`
+        // Guest path: open the unified register modal. signup_and_enroll
+        // will create the user, log them in, and bounce to Stripe Checkout
+        // for the chosen plan. Company-name capture for guests on Company
+        // plans is a v2 follow-up — for now they sign up first then attach
+        // their company on the dashboard.
+        registerIntent.value = `membership:${plan.name}`
+        registerContextLabel.value = plan.title
+        showRegister.value = true
         return
     }
 

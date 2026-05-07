@@ -6,8 +6,8 @@ import random
 import frappe
 from frappe import _
 from frappe.desk.doctype.notification_log.notification_log import make_notification_logs
-from frappe.model.document import Document
 from frappe.utils import cint, flt, today
+from frappe.website.website_generator import WebsiteGenerator
 
 from ...utils import (
 	ensure_instructors_have_moderator_role,
@@ -21,8 +21,28 @@ from ...utils import (
 )
 
 
-class LMSCourse(Document):
+class LMSCourse(WebsiteGenerator):
+	website = frappe._dict(
+		# Path is relative to the app root. Frappe's DocumentPage renderer
+		# uses this to resolve the Jinja template; without it, template_path
+		# is None and rendering crashes inside Jinja's loader.
+		template="templates/generators/lms_course.html",
+		condition_field="published",
+		page_title_field="title",
+	)
+
+	def make_route(self):
+		# Public landing URL is /c/<slug>. WebsiteGenerator only invokes this
+		# when self.route is unset, so admins can override the path manually
+		# if they ever need to.
+		return f"c/{self.name}"
+
 	def validate(self):
+		# WebsiteGenerator's auto-fill only runs when the doc is already
+		# website-published. Courses are usually drafted then published later,
+		# so force-fill on every save (mirrors community_event.py).
+		if not self.route:
+			self.route = self.make_route()
 		self.validate_published()
 		self.validate_instructors()
 		self.validate_video_link()
@@ -116,6 +136,52 @@ class LMSCourse(Document):
 
 	def __repr__(self):
 		return f"<Course#{self.name}>"
+
+	def get_context(self, context):
+		"""Populate the public landing page Jinja context.
+
+		Rendered for `/c/<slug>`. The page is reachable by guests, so only
+		expose conversion-shaped fields — never admin metadata.
+		"""
+		if not self.published:
+			raise frappe.DoesNotExistError
+
+		context.no_cache = 1
+		context.course = self
+		context.title = self.title
+		context.instructors = get_instructors(self.name)
+		context.lesson_count = get_lesson_count(self.name)
+		context.chapters = _get_public_chapters(self.name)
+		context.rating = flt(get_average_rating(self.name) or 0, 2)
+		context.enrollment_count = frappe.db.count(
+			"LMS Enrollment", {"course": self.name, "member_type": "Student"}
+		) or 0
+		# `register_url` is the deep-link the CTA falls through to once a
+		# visitor is logged in. The Jinja-side register modal short-circuits
+		# this for guests.
+		context.register_url = f"/lms/courses/{self.name}"
+
+
+def _get_public_chapters(course: str) -> list:
+	"""Lightweight chapter+lesson summary for the public landing page.
+
+	Avoids the heavier `get_course_outline` because we only need titles and
+	counts here — no progress data, no SCORM details.
+	"""
+	chapter_refs = frappe.get_all(
+		"Chapter Reference", {"parent": course}, ["chapter", "idx"], order_by="idx"
+	)
+	chapters = []
+	for ref in chapter_refs:
+		chapter = frappe.db.get_value(
+			"Course Chapter", ref.chapter, ["name", "title"], as_dict=True
+		)
+		if not chapter:
+			continue
+		chapter["idx"] = ref.idx
+		chapter["lesson_count"] = frappe.db.count("Lesson Reference", {"parent": chapter.name})
+		chapters.append(chapter)
+	return chapters
 
 
 def send_notification_for_published_courses():

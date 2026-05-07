@@ -9,7 +9,6 @@ import frappe
 import requests
 from frappe import _
 from frappe.desk.doctype.notification_log.notification_log import make_notification_logs
-from frappe.model.document import Document
 from frappe.utils import (
 	add_days,
 	cint,
@@ -20,6 +19,7 @@ from frappe.utils import (
 	now_datetime,
 	nowdate,
 )
+from frappe.website.website_generator import WebsiteGenerator
 
 from lms.lms.utils import (
 	LMS_MODERATOR_ROLES,
@@ -36,8 +36,27 @@ from lms.lms.utils import (
 )
 
 
-class LMSEvent(Document):
+class LMSEvent(WebsiteGenerator):
+	website = frappe._dict(
+		# Path is relative to the app root. Frappe's DocumentPage renderer
+		# uses this to resolve the Jinja template; without it, template_path
+		# is None and rendering crashes inside Jinja's loader.
+		template="templates/generators/lms_event.html",
+		condition_field="published",
+		page_title_field="title",
+	)
+
+	def make_route(self):
+		# Public landing URL is /e/<slug>. WebsiteGenerator only invokes this
+		# when self.route is unset.
+		return f"e/{self.name}"
+
 	def validate(self):
+		# WebsiteGenerator's auto-fill only runs when the doc is already
+		# website-published. Events are usually drafted then published later,
+		# so force-fill on every save (mirrors community_event.py).
+		if not self.route:
+			self.route = self.make_route()
 		self.derive_schedule_from_event_days()
 		self.validate_seats_left()
 		self.validate_event_end_date()
@@ -211,6 +230,48 @@ class LMSEvent(Document):
 		elif self.conferencing_provider == "Zoom":
 			if not self.zoom_account:
 				frappe.throw(_("Please select a Zoom account for this event."))
+
+	def get_context(self, context):
+		"""Populate the public landing page Jinja context.
+
+		Rendered for `/e/<slug>`. Only conversion-shaped fields — never admin
+		or live-class metadata.
+		"""
+		if not self.published:
+			raise frappe.DoesNotExistError
+
+		context.no_cache = 1
+		context.event = self
+		context.title = self.title
+		context.instructors = get_instructors(self.name)
+		context.event_days = sorted(
+			self.event_days or [], key=lambda r: (r.date, str(r.start_time or ""))
+		)
+		context.categories = [row.category for row in (self.categories or [])]
+
+		seats_total = cint(self.seat_count)
+		registered = frappe.db.count("LMS Event Registration", {"event": self.name})
+		context.seats_total = seats_total or None
+		context.seats_remaining = max(seats_total - registered, 0) if seats_total else None
+		context.is_full = bool(seats_total) and registered >= seats_total
+
+		# Early-bird auto-discount: same logic as create_event_checkout. Mirror
+		# it here so the landing page price reflects what the visitor would
+		# actually pay if they checked out right now.
+		is_early_bird = False
+		if self.early_bird_deadline and getdate(nowdate()) <= getdate(self.early_bird_deadline):
+			eb = self.early_bird_amount_usd or self.early_bird_amount or 0
+			if eb and float(eb) > 0:
+				is_early_bird = True
+		context.is_early_bird = is_early_bird
+		context.display_amount_usd = (
+			(self.early_bird_amount_usd or self.early_bird_amount or 0)
+			if is_early_bird
+			else (self.amount_usd or self.amount or 0)
+		)
+
+		context.register_url = f"/lms/events/{self.name}"
+
 
 def send_notification_for_published_event(batch):
 	send_notification = frappe.db.get_single_value("LMS Settings", "send_notification_for_published_eventes")

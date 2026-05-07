@@ -2821,3 +2821,125 @@ def verify_resource_access(token: str):
 
 	frappe.local.response["type"] = "redirect"
 	frappe.local.response["location"] = f"/lms/resources/{verification.resource}"
+
+
+@frappe.whitelist(allow_guest=True, methods=["POST"])
+def signup_and_enroll(
+	email: str,
+	password: str,
+	full_name: str,
+	target_type: str | None = None,
+	target_slug: str | None = None,
+	intent: str | None = None,
+):
+	"""Public signup. Creates a free LMS Student, logs them in, then either
+	enrolls them in `target_slug` or returns a Stripe checkout URL.
+
+	`target_type`: 'course' | 'event' | None
+	`intent`: 'free' | 'paid' | f'membership:{plan_name}' | None
+
+	Mirrors the `login_as` pattern in `verify_resource_access` (no 2FA reprompt
+	on the freshly-created session).
+	"""
+	from frappe.utils import validate_email_address
+
+	email = (email or "").strip().lower()
+	full_name = (full_name or "").strip()
+
+	if not validate_email_address(email):
+		frappe.throw(_("Please enter a valid email address."))
+	if not full_name:
+		frappe.throw(_("Please enter your name."))
+	if not password or len(password) < 8:
+		frappe.throw(_("Password must be at least 8 characters."))
+
+	if frappe.db.exists("User", email):
+		# Frontend pivots to the Log In tab with email prefilled.
+		return {"status": "exists"}
+
+	# Validate target before creating any user state.
+	if target_type == "course":
+		if not target_slug or not frappe.db.exists("LMS Course", target_slug):
+			frappe.throw(_("Course not found."))
+		if not frappe.db.get_value("LMS Course", target_slug, "published"):
+			frappe.throw(_("Course is not available."))
+	elif target_type == "event":
+		if not target_slug or not frappe.db.exists("LMS Event", target_slug):
+			frappe.throw(_("Event not found."))
+		if not frappe.db.get_value("LMS Event", target_slug, "published"):
+			frappe.throw(_("Event is not available."))
+	elif target_type is not None:
+		frappe.throw(_("Invalid target type."))
+
+	plan_name = None
+	plan_price_id = None
+	if intent and intent.startswith("membership:"):
+		plan_name = intent.split(":", 1)[1]
+		plan = frappe.db.get_value(
+			"CEU Membership Plan",
+			plan_name,
+			["name", "stripe_price_id", "active"],
+			as_dict=True,
+		)
+		if not plan or not plan.active:
+			frappe.throw(_("Membership plan is not available."))
+		if not plan.stripe_price_id:
+			frappe.throw(_("Membership plan is not configured for purchase."))
+		plan_price_id = plan.stripe_price_id
+
+	parts = full_name.split(None, 1)
+	first_name = parts[0]
+	last_name = parts[1] if len(parts) > 1 else ""
+
+	user = frappe.get_doc({
+		"doctype": "User",
+		"email": email,
+		"first_name": first_name,
+		"last_name": last_name,
+		"enabled": 1,
+		"send_welcome_email": 0,
+		"user_type": "Website User",
+		"new_password": password,
+	})
+	user.flags.ignore_permissions = True
+	user.insert()
+	user.add_roles("LMS Student")
+	frappe.db.commit()
+
+	frappe.local.login_manager.login_as(email)
+
+	if intent and intent.startswith("membership:"):
+		from lms.lms.ceu_stripe import create_subscription_checkout
+		result = create_subscription_checkout(plan_name, plan_price_id, email)
+		return {"status": "checkout_required", "checkout_url": result["url"]}
+
+	if target_type == "course":
+		is_paid = bool(frappe.db.get_value("LMS Course", target_slug, "paid_course"))
+		if is_paid:
+			from lms.lms.ceu_stripe import create_one_off_checkout
+			result = create_one_off_checkout(target_slug)
+			return {"status": "checkout_required", "checkout_url": result["url"]}
+		if not frappe.db.exists("LMS Enrollment", {"course": target_slug, "member": email}):
+			frappe.get_doc({
+				"doctype": "LMS Enrollment",
+				"course": target_slug,
+				"member": email,
+			}).insert(ignore_permissions=True)
+		return {"status": "logged_in", "redirect_to": f"/lms/courses/{target_slug}"}
+
+	if target_type == "event":
+		is_paid = bool(frappe.db.get_value("LMS Event", target_slug, "paid_event"))
+		if is_paid:
+			from lms.lms.ceu_stripe import create_event_checkout
+			result = create_event_checkout(target_slug)
+			return {"status": "checkout_required", "checkout_url": result["url"]}
+		if not frappe.db.exists("LMS Event Registration", {"event": target_slug, "member": email}):
+			frappe.get_doc({
+				"doctype": "LMS Event Registration",
+				"event": target_slug,
+				"member": email,
+				"member_name": full_name,
+			}).insert(ignore_permissions=True)
+		return {"status": "logged_in", "redirect_to": f"/lms/events/{target_slug}"}
+
+	return {"status": "logged_in", "redirect_to": "/lms"}
