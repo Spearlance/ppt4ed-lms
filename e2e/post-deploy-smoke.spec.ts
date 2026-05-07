@@ -136,6 +136,49 @@ test.describe('Post-deploy smoke (PR #68)', () => {
 		await page.waitForLoadState('networkidle')
 	})
 
+	test('EditProfile: signature_text persists across save (PR #76)', async ({ page }) => {
+		// Logs in as the seeded pro user (sarah / pro@test.com), opens
+		// EditProfile from /lms/user/sarah, sets a unique Signature value,
+		// saves, reloads, and asserts the value round-trips. The Signature
+		// field is the new typed-cursive replacement for the deprecated
+		// signature_image attach field.
+		const SIG_VALUE = `E2E Sig ${Date.now()}`
+
+		await page.goto('/login')
+		await page.fill('#login_email', 'pro@test.com')
+		await page.fill('#login_password', 'TestUser@2026!')
+		await page.click('.btn-login')
+		await page.waitForURL('**/lms/**', { timeout: 15000 })
+
+		await page.goto('/lms/user/sarah')
+		await page.getByRole('button', { name: 'Edit Profile' }).click()
+
+		const dialog = page.getByRole('dialog')
+		await expect(dialog.getByText('Edit Profile').first()).toBeVisible()
+
+		const sigInput = dialog.getByLabel('Signature', { exact: true })
+		await sigInput.fill(SIG_VALUE)
+
+		// "Save" button lives in the dialog's body-header
+		await dialog.getByRole('button', { name: 'Save' }).click()
+		await expect(dialog).toBeHidden({ timeout: 10000 })
+
+		// Re-open the modal and assert the value persisted
+		await page.getByRole('button', { name: 'Edit Profile' }).click()
+		const reopened = page.getByRole('dialog')
+		await expect(reopened.getByText('Edit Profile').first()).toBeVisible()
+		await expect(reopened.getByLabel('Signature', { exact: true })).toHaveValue(SIG_VALUE)
+
+		// Cleanup so the field doesn't leak across runs
+		await reopened.getByLabel('Signature', { exact: true }).fill('')
+		await reopened.getByRole('button', { name: 'Save' }).click()
+		await expect(reopened).toBeHidden({ timeout: 10000 })
+
+		// Logout so subsequent guest-only tests start clean
+		await page.goto('/api/method/logout')
+		await page.waitForLoadState('networkidle')
+	})
+
 	test('event landing modal: submitting an existing email pivots to Log In tab', async ({ page }) => {
 		// Uses a known seeded user from company-employee.spec.ts:
 		//   pro@test.com / TestUser@2026!
