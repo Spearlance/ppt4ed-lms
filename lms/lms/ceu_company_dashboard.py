@@ -1,6 +1,6 @@
 import frappe
 from frappe import _
-from frappe.utils import add_days, cint, flt, now_datetime, nowdate
+from frappe.utils import add_days, cint, flt, get_url, now_datetime, nowdate
 
 
 def _get_user_company():
@@ -131,8 +131,18 @@ def get_company_invites():
 
 
 @frappe.whitelist()
-def send_company_invite(email):
-    """Send an invite to join the company."""
+def send_company_invite(email, role="Member"):
+    """Send an invite to join the company.
+
+    `role` is "Member" (default) or "Admin". Admin invites grant Company Admin
+    privileges in addition to membership when accepted via the /invite/<token>
+    landing page.
+    """
+    from lms.lms.utils import lms_send_template_mail
+
+    if role not in ("Member", "Admin"):
+        frappe.throw(_("Invalid invite role"))
+
     company_name = _get_user_company()
 
     existing = frappe.db.exists(
@@ -146,14 +156,46 @@ def send_company_invite(email):
         "doctype": "Company Invite",
         "company": company_name,
         "email": email,
+        "role": role,
         "status": "Pending",
     }).insert(ignore_permissions=True)
 
-    frappe.sendmail(
+    company_title = frappe.db.get_value(
+        "Company Account", company_name, "company_name"
+    ) or company_name
+    inviter_name = (
+        frappe.db.get_value("User", frappe.session.user, "full_name")
+        or frappe.session.user
+    )
+    accept_url = get_url(f"/lms/invite/{invite.token}")
+
+    args = {
+        "company_name": company_title,
+        "inviter_name": inviter_name,
+        "invitee_email": email,
+        "accept_url": accept_url,
+        "expires_on": invite.expires_on,
+        "role": role,
+    }
+    template_name = (
+        "Company Admin Invite" if role == "Admin" else "Company Member Invite"
+    )
+    jinja_template = (
+        "company_admin_invite" if role == "Admin" else "company_member_invite"
+    )
+    default_subject = (
+        f"You're invited to manage {company_title} on PPT4ed"
+        if role == "Admin"
+        else f"You're invited to join {company_title} on PPT4ed"
+    )
+    lms_send_template_mail(
         recipients=[email],
-        subject=f"You're invited to join {company_name} on PPT4ed",
-        message=f"You have been invited to join {company_name}. "
-                f"Use invite code: {invite.token}"
+        default_subject=default_subject,
+        jinja_template=jinja_template,
+        args=args,
+        template_name=template_name,
+        now=True,
+        retry=3,
     )
 
     return {"invite": invite.name, "status": "sent"}
@@ -172,6 +214,121 @@ def revoke_company_invite(invite_name):
     invite.save(ignore_permissions=True)
 
     return {"status": "revoked"}
+
+
+def _load_invite_for_token(token: str):
+    """Fetch + validate a Company Invite by token. Marks expired invites
+    on read so the UI sees the right status.
+    """
+    invite = frappe.db.get_value(
+        "Company Invite",
+        {"token": token},
+        ["name", "email", "company", "role", "status", "expires_on"],
+        as_dict=True,
+    )
+    if not invite:
+        frappe.throw(_("Invalid invite link."), frappe.DoesNotExistError)
+
+    if invite.status == "Pending" and invite.expires_on and now_datetime() > invite.expires_on:
+        frappe.db.set_value("Company Invite", invite.name, "status", "Expired")
+        frappe.db.commit()
+        invite.status = "Expired"
+
+    return invite
+
+
+@frappe.whitelist(allow_guest=True)
+def get_invite_details(token: str):
+    """Public endpoint — returns minimal invite info for the /invite/<token>
+    Vue page so it can render the right UI before submission.
+    """
+    invite = _load_invite_for_token(token)
+    company_title = (
+        frappe.db.get_value("Company Account", invite.company, "company_name")
+        or invite.company
+    )
+    user_exists = bool(frappe.db.exists("User", invite.email))
+
+    return {
+        "email": invite.email,
+        "company": invite.company,
+        "company_title": company_title,
+        "role": invite.role or "Member",
+        "status": invite.status,
+        "user_exists": user_exists,
+    }
+
+
+@frappe.whitelist(allow_guest=True, methods=["POST"])
+def accept_company_invite(
+    token: str,
+    full_name: str | None = None,
+    password: str | None = None,
+):
+    """Accept a Company Invite. Adds the user to the company, optionally
+    creating a brand-new User if the invitee doesn't already have an account,
+    grants Company Admin role for admin invites, then logs the user in.
+
+    Mirrors the `login_as` pattern in `verify_resource_access` so the freshly
+    accepted session skips a 2FA reprompt.
+    """
+    invite = _load_invite_for_token(token)
+
+    if invite.status != "Pending":
+        frappe.throw(_("This invite has already been {0}.").format(invite.status.lower()))
+
+    user_exists = bool(frappe.db.exists("User", invite.email))
+
+    if not user_exists:
+        if not (full_name and password):
+            frappe.throw(_("Name and password are required to create your account."))
+        parts = full_name.strip().split(None, 1)
+        first_name = parts[0]
+        last_name = parts[1] if len(parts) > 1 else ""
+
+        user = frappe.get_doc({
+            "doctype": "User",
+            "email": invite.email,
+            "first_name": first_name,
+            "last_name": last_name,
+            "enabled": 1,
+            "send_welcome_email": 0,
+            "user_type": "Website User",
+            "new_password": password,
+        })
+        user.flags.ignore_permissions = True
+        user.insert()
+        user.add_roles("LMS Student")
+
+    company = frappe.get_doc("Company Account", invite.company)
+    if not any(m.user == invite.email for m in company.members):
+        company.append("members", {
+            "user": invite.email,
+            "status": "Active",
+            "joined_on": frappe.utils.today(),
+        })
+    if invite.role == "Admin" and not any(a.user == invite.email for a in company.admins):
+        company.append("admins", {
+            "user": invite.email,
+            "added_on": frappe.utils.today(),
+        })
+    company.save(ignore_permissions=True)
+
+    frappe.db.set_value("Company Invite", invite.name, {
+        "status": "Accepted",
+        "accepted_by": invite.email,
+        "accepted_on": now_datetime(),
+    })
+    frappe.db.commit()
+
+    frappe.local.login_manager.login_as(invite.email)
+
+    redirect_to = "/lms/company" if invite.role == "Admin" else "/lms"
+    return {
+        "status": "accepted",
+        "redirect_to": redirect_to,
+        "user": invite.email,
+    }
 
 
 @frappe.whitelist()

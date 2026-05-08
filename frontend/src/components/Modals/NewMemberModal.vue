@@ -126,18 +126,6 @@ watch(show, (isOpen) => {
 	}
 })
 
-const assignRoles = async (userEmail: string) => {
-	const selectedRoles = Object.entries(roles).filter(([_, checked]) => checked)
-
-	for (const [key, _] of selectedRoles) {
-		await call('lms.lms.api.save_role', {
-			user: userEmail,
-			role: ROLE_MAP[key],
-			value: 1,
-		})
-	}
-}
-
 const addMember = async (close?: () => void) => {
 	if (!member.email?.trim()) {
 		toast.error(__('Email is required'))
@@ -155,27 +143,16 @@ const addMember = async (close?: () => void) => {
 
 	submitting.value = true
 	try {
-		const user = await call('frappe.client.insert', {
-			doc: {
-				doctype: 'User',
-				email: member.email.trim(),
-				first_name: member.first_name.trim() || undefined,
-				last_name: member.last_name.trim() || undefined,
-				roles: selectedRoleNames.map((role) => ({ role })),
-			},
+		const result = await call('lms.lms.api.invite_lms_member', {
+			email: member.email.trim(),
+			first_name: member.first_name.trim() || '',
+			last_name: member.last_name.trim() || '',
+			roles: selectedRoleNames,
+			company: member.company || undefined,
 		})
 
-		await assignRoles(user.name)
-
-		if (member.company) {
-			await call('lms.lms.api.add_member_to_company', {
-				user_email: user.name,
-				company_name: member.company,
-			})
-		}
-
-		toast.success(__('Member added successfully'))
-		emit('created', user)
+		toast.success(__('Invite sent. They will receive a welcome email shortly.'))
+		emit('created', { name: result.user, email: result.user })
 		resetForm()
 		close?.()
 	} catch (err: any) {
