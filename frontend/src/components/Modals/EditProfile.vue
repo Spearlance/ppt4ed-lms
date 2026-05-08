@@ -45,6 +45,11 @@
 								:required="true"
 							/>
 							<FormControl v-model="profile.headline" :label="__('Headline')" />
+							<FormControl
+								v-model="profile.mobile_no"
+								type="tel"
+								:label="__('Phone')"
+							/>
 
 							<FormControl
 								v-model="profile.linkedin"
@@ -160,6 +165,7 @@ const profile = reactive({
 	linkedin: '',
 	github: '',
 	twitter: '',
+	mobile_no: '',
 	professional_license_number: '',
 	license_type: '',
 	license_state: '',
@@ -273,6 +279,7 @@ watch(
 			profile.linkedin = newVal.linkedin
 			profile.github = newVal.github
 			profile.twitter = newVal.twitter
+			profile.mobile_no = newVal.mobile_no || ''
 			profile.professional_license_number =
 				newVal.professional_license_number || ''
 			profile.license_type = newVal.license_type || ''

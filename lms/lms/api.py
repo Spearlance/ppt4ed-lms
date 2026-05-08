@@ -2025,6 +2025,8 @@ def get_profile_details(username: str):
 			"linkedin",
 			"github",
 			"twitter",
+			"email",
+			"mobile_no",
 			"professional_license_number",
 			"license_type",
 			"license_state",

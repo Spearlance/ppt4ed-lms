@@ -108,6 +108,19 @@
 										>
 											{{ Math.ceil(row[column.key]) }}%
 										</div>
+										<router-link
+											v-else-if="
+												column.key == 'member_name' && row.member_username
+											"
+											:to="{
+												name: 'Profile',
+												params: { username: row.member_username },
+											}"
+											class="hover:underline"
+											@click.stop
+										>
+											{{ row[column.key].toString() }}
+										</router-link>
 										<div v-else>
 											{{ row[column.key].toString() }}
 										</div>
