@@ -4,7 +4,7 @@
     "creation": "2026-04-08 00:00:00.000000",
     "doctype": "DocType",
     "engine": "InnoDB",
-    "field_order": ["company", "email", "token", "status", "expires_on"],
+    "field_order": ["company", "email", "role", "token", "status", "expires_on", "accepted_by", "accepted_on"],
     "fields": [
         {
             "fieldname": "company",
@@ -23,6 +23,13 @@
             "reqd": 1
         },
         {
+            "default": "Member",
+            "fieldname": "role",
+            "fieldtype": "Select",
+            "label": "Role",
+            "options": "Member\nAdmin"
+        },
+        {
             "fieldname": "token",
             "fieldtype": "Data",
             "label": "Token",
@@ -36,18 +43,31 @@
             "in_list_view": 1,
             "in_standard_filter": 1,
             "label": "Status",
-            "options": "\nPending\nAccepted\nExpired"
+            "options": "\nPending\nAccepted\nRevoked\nExpired"
         },
         {
             "fieldname": "expires_on",
             "fieldtype": "Datetime",
             "in_list_view": 1,
             "label": "Expires On"
+        },
+        {
+            "fieldname": "accepted_by",
+            "fieldtype": "Link",
+            "label": "Accepted By",
+            "options": "User",
+            "read_only": 1
+        },
+        {
+            "fieldname": "accepted_on",
+            "fieldtype": "Datetime",
+            "label": "Accepted On",
+            "read_only": 1
         }
     ],
     "index_web_pages_for_search": 1,
     "links": [],
-    "modified": "2026-04-08 00:00:00.000000",
+    "modified": "2026-05-08 00:00:00.000000",
     "modified_by": "Administrator",
     "module": "LMS",
     "name": "Company Invite",

@@ -529,6 +529,104 @@ def update_chapter_index(chapter: str, course: str, idx: int):
 
 
 @frappe.whitelist()
+def invite_lms_member(
+	email: str,
+	first_name: str = "",
+	last_name: str = "",
+	roles: list[str] | str | None = None,
+	company: str | None = None,
+):
+	"""Server-side replacement for the multi-step "add new member" flow that
+	previously fired three calls from NewMemberModal.vue (frappe.client.insert
+	+ save_role + add_member_to_company). Creates the User with
+	`send_welcome_email=0` so we can deliver an LMS-branded welcome ourselves
+	via the editable Email Template system.
+
+	Frappe's stock welcome includes a `/update-password?key=...` magic link;
+	we generate the same key but wrap it in our own template + brand. The
+	standard /update-password page logs the user in after they set a password.
+	"""
+	frappe.only_for(LMS_MODERATOR_ROLES)
+
+	email = (email or "").strip()
+	if not email:
+		frappe.throw(_("Email is required."))
+
+	if isinstance(roles, str):
+		try:
+			roles = json.loads(roles)
+		except (TypeError, ValueError):
+			roles = [roles]
+	roles = roles or []
+	allowed_roles = {"Moderator", "LMS Student"}
+	if not roles or not all(r in allowed_roles for r in roles):
+		frappe.throw(_("Select at least one valid role."))
+
+	if frappe.db.exists("User", email):
+		frappe.throw(_("A user with this email already exists."))
+
+	user = frappe.get_doc({
+		"doctype": "User",
+		"email": email,
+		"first_name": (first_name or "").strip() or None,
+		"last_name": (last_name or "").strip() or None,
+		"enabled": 1,
+		"send_welcome_email": 0,
+		"user_type": "Website User",
+		"roles": [{"role": role} for role in roles],
+	})
+	user.flags.ignore_permissions = True
+	user.insert()
+
+	# Generate the password-reset key Frappe normally embeds in its welcome
+	# email. We use the same `/update-password` endpoint downstream — only
+	# the wrapper email changes.
+	reset_key = frappe.generate_hash(length=64)
+	user.db_set("reset_password_key", reset_key, update_modified=False)
+	user.db_set(
+		"last_reset_password_key_generated_on",
+		frappe.utils.now_datetime(),
+		update_modified=False,
+	)
+
+	if company:
+		add_member_to_company(user_email=email, company_name=company)
+
+	full_name = " ".join(filter(None, [first_name, last_name])).strip() or email
+	inviter_name = (
+		frappe.db.get_value("User", frappe.session.user, "full_name")
+		or frappe.session.user
+	)
+	setup_url = frappe.utils.get_url(
+		f"/update-password?key={reset_key}&password_expired=true&redirect_to=/lms"
+	)
+	role_label = "Instructor" if "Moderator" in roles else "Student"
+
+	lms_send_template_mail(
+		recipients=[email],
+		default_subject=f"Welcome to PPT4ed, {first_name or full_name}",
+		jinja_template="lms_member_welcome",
+		args={
+			"first_name": first_name or full_name,
+			"full_name": full_name,
+			"inviter_name": inviter_name,
+			"setup_url": setup_url,
+			"role_label": role_label,
+			"company": company,
+		},
+		template_name="LMS Member Welcome",
+		now=True,
+		retry=3,
+	)
+
+	return {
+		"status": "invited",
+		"user": user.name,
+		"name": user.name,
+	}
+
+
+@frappe.whitelist()
 def get_members(start: int = 0, search: str = None):
 	frappe.only_for(["Moderator"])
 	filters = {"enabled": 1, "name": ["not in", ["Administrator", "Guest"]]}
@@ -2719,19 +2817,33 @@ def create_company_account(company_name, admin_email, max_seats=0):
 		"doctype": "Company Invite",
 		"company": company.name,
 		"email": admin_email,
+		"role": "Admin",
 		"status": "Pending",
 	}).insert(ignore_permissions=True)
 
-	frappe.sendmail(
+	inviter_name = (
+		frappe.db.get_value("User", frappe.session.user, "full_name")
+		or frappe.session.user
+	)
+	accept_url = frappe.utils.get_url(f"/lms/invite/{invite.token}")
+	lms_send_template_mail(
 		recipients=[admin_email],
-		subject=f"You've been invited to manage {company_name} on PPT4ed",
-		message=f"You have been invited as the admin for {company_name}. "
-				f"Use invite code: {invite.token}"
+		default_subject=f"You're invited to manage {company_name} on PPT4ed",
+		jinja_template="company_admin_invite",
+		args={
+			"company_name": company_name,
+			"inviter_name": inviter_name,
+			"invitee_email": admin_email,
+			"accept_url": accept_url,
+			"expires_on": invite.expires_on,
+			"role": "Admin",
+		},
+		template_name="Company Admin Invite",
+		now=True,
+		retry=3,
 	)
 
 	return {"company": company.name, "invite": invite.name}
-
-	return {"status": "added", "company": company_name}
 
 
 @frappe.whitelist(allow_guest=True)

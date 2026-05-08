@@ -256,6 +256,12 @@ const routes = [
 		name: 'Signup',
 		component: () => import('@/pages/Signup.vue'),
 	},
+	{
+		path: '/invite/:token',
+		name: 'AcceptInvite',
+		component: () => import('@/pages/AcceptInvite.vue'),
+		props: true,
+	},
 ]
 
 let router = createRouter({
@@ -290,6 +296,7 @@ router.beforeEach(async (to, from, next) => {
 			'TermsOfService',
 			'CookiePolicy',
 			'Signup',
+			'AcceptInvite',
 			'MembershipPlans',
 		]
 		if (!settings.data.allow_guest_access && !guestAllowedRoutes.includes(to.name)) {
