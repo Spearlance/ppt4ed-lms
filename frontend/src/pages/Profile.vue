@@ -71,6 +71,27 @@
 					<div class="text-base text-ink-gray-7 mt-1">
 						{{ profile.data.headline }}
 					</div>
+					<div
+						v-if="profile.data.email || profile.data.mobile_no"
+						class="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm text-ink-gray-7"
+					>
+						<a
+							v-if="profile.data.email"
+							:href="`mailto:${profile.data.email}`"
+							class="flex items-center gap-1.5 hover:underline"
+						>
+							<Mail class="size-4 text-ink-gray-5" />
+							{{ profile.data.email }}
+						</a>
+						<a
+							v-if="profile.data.mobile_no"
+							:href="`tel:${profile.data.mobile_no}`"
+							class="flex items-center gap-1.5 hover:underline"
+						>
+							<Phone class="size-4 text-ink-gray-5" />
+							{{ profile.data.mobile_no }}
+						</a>
+					</div>
 					<div class="flex items-center space-x-4 mt-2">
 						<Twitter
 							v-if="profile.data.twitter"
@@ -133,6 +154,8 @@ import {
 	Edit,
 	Github,
 	Linkedin,
+	Mail,
+	Phone,
 	RefreshCcw,
 	Twitter,
 } from 'lucide-vue-next'

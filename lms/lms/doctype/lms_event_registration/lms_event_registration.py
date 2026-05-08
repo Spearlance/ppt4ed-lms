@@ -8,6 +8,8 @@ from frappe import _
 from frappe.email.doctype.email_template.email_template import get_email_template
 from frappe.model.document import Document
 
+from lms.lms.utils import LMS_MODERATOR_ROLES
+
 
 class LMSEventRegistration(Document):
 	def after_insert(self):
@@ -27,7 +29,7 @@ class LMSEventRegistration(Document):
 			return
 
 		roles = frappe.get_roles()
-		if "Moderator" not in roles and "Moderator" not in roles:
+		if not any(role in roles for role in LMS_MODERATOR_ROLES):
 			frappe.throw(_("You must be a Moderator to register users for an event."))
 
 	def validate_payment(self):
@@ -58,7 +60,7 @@ class LMSEventRegistration(Document):
 
 	def is_admin(self):
 		roles = frappe.get_roles(frappe.session.user)
-		return "Moderator" in roles or "Moderator" in roles
+		return any(role in roles for role in LMS_MODERATOR_ROLES)
 
 	def validate_duplicate_members(self):
 		if frappe.db.exists(
@@ -111,7 +113,7 @@ def send_confirmation_email(doc: Document):
 		doc = frappe._dict(json.loads(doc))
 
 	roles = frappe.get_roles()
-	is_admin = "Moderator" in roles or "Moderator" in roles
+	is_admin = any(role in roles for role in LMS_MODERATOR_ROLES)
 	is_member = doc.member == frappe.session.user
 
 	if not is_member and not is_admin:

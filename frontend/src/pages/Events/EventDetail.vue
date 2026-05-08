@@ -51,22 +51,8 @@
 			<div v-else>
 				<Tabs v-if="tabs.length" :tabs="tabs" v-model="tabIndex">
 					<template #tab-panel="{ tab }">
-						<div
-							v-if="tab.label == 'Discussions'"
-							class="w-[90%] lg:w-[75%] mx-auto mt-5"
-						>
-							<Discussions
-								doctype="LMS Event"
-								:docname="batch.data.name"
-								:title="__('Discussions')"
-								:key="batch.data.name"
-								:singleThread="true"
-								:scrollToBottom="false"
-							/>
-						</div>
-
 						<Announcements
-							v-else-if="tab.label == 'Announcements'"
+							v-if="tab.label == 'Announcements'"
 							:batch="batch"
 							:canPost="canMakeAnnouncement()"
 							@open-modal="openAnnouncementModal"
@@ -108,11 +94,9 @@ import {
 	ClipboardList,
 	ClipboardPen,
 	EllipsisVertical,
-	Laptop,
 	Link2,
 	List,
 	Mail,
-	MessageCircle,
 	SendIcon,
 	Settings2,
 	Trash2,
@@ -134,14 +118,12 @@ import { sessionStore } from '@/stores/session'
 import AdminEventDashboard from '@/pages/Events/components/AdminEventDashboard.vue'
 import StudentEventDashboard from '@/pages/Events/components/EventDashboard.vue'
 import EventOverview from '@/pages/Events/EventOverview.vue'
-import LiveClass from '@/pages/Events/components/LiveClass.vue'
 import Announcements from '@/pages/Events/components/Announcements.vue'
 import AnnouncementModal from '@/pages/Events/components/AnnouncementModal.vue'
 import EventSurvey from '@/pages/Events/components/EventSurvey.vue'
 import EventSurveyQRModal from '@/pages/Events/components/EventSurveyQRModal.vue'
 import EventForm from '@/pages/Events/EventForm.vue'
 import BulkCertificates from '@/pages/Events/components/BulkCertificates.vue'
-import Discussions from '@/components/Discussions.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -226,7 +208,6 @@ const updateTabs = () => {
 	} else if (isStudent.value) {
 		addToTabs('Dashboard', markRaw(StudentEventDashboard), ClipboardPen)
 	}
-	addToTabs('Classes', markRaw(LiveClass), Laptop)
 	addToTabs('Announcements', markRaw(Announcements), Mail)
 	if (
 		batch.data?.survey_quiz &&
@@ -234,7 +215,6 @@ const updateTabs = () => {
 	) {
 		addToTabs('Survey', markRaw(EventSurvey), ClipboardList)
 	}
-	addToTabs('Discussions', markRaw(Discussions), MessageCircle)
 	if (isAdmin.value) {
 		addToTabs('Settings', markRaw(EventForm), Settings2)
 	}
