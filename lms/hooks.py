@@ -133,6 +133,7 @@ doc_events = {
 scheduler_events = {
 	"all": [
 		"lms.sqlite.build_index_in_background",
+		"lms.lms.doctype.lms_event.lms_event.send_event_15_minute_reminder",
 	],
 	"hourly": [
 		"lms.lms.doctype.lms_course.lms_course.update_course_statistics",
