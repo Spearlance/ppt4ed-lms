@@ -8,7 +8,15 @@ from frappe import _
 from frappe.email.doctype.email_template.email_template import get_email_template
 from frappe.model.document import Document
 
-from lms.lms.utils import LMS_MODERATOR_ROLES
+
+def _moderator_roles():
+	"""Lazy import — lms.lms.utils imports from sibling doctype modules
+	at top level, so importing LMS_MODERATOR_ROLES at module level here
+	creates a circular import that breaks `bench migrate`'s scheduler
+	validation pass."""
+	from lms.lms.utils import LMS_MODERATOR_ROLES
+
+	return LMS_MODERATOR_ROLES
 
 
 class LMSEventRegistration(Document):
@@ -29,7 +37,7 @@ class LMSEventRegistration(Document):
 			return
 
 		roles = frappe.get_roles()
-		if not any(role in roles for role in LMS_MODERATOR_ROLES):
+		if not any(role in roles for role in _moderator_roles()):
 			frappe.throw(_("You must be a Moderator to register users for an event."))
 
 	def validate_payment(self):
@@ -60,7 +68,7 @@ class LMSEventRegistration(Document):
 
 	def is_admin(self):
 		roles = frappe.get_roles(frappe.session.user)
-		return any(role in roles for role in LMS_MODERATOR_ROLES)
+		return any(role in roles for role in _moderator_roles())
 
 	def validate_duplicate_members(self):
 		if frappe.db.exists(
@@ -113,7 +121,7 @@ def send_confirmation_email(doc: Document):
 		doc = frappe._dict(json.loads(doc))
 
 	roles = frappe.get_roles()
-	is_admin = any(role in roles for role in LMS_MODERATOR_ROLES)
+	is_admin = any(role in roles for role in _moderator_roles())
 	is_member = doc.member == frappe.session.user
 
 	if not is_member and not is_admin:

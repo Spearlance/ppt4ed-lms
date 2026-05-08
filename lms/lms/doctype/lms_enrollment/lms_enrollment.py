@@ -6,8 +6,6 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.utils import ceil, flt, nowdate
 
-from lms.lms.utils import LMS_MODERATOR_ROLES
-
 
 class LMSEnrollment(Document):
 	def before_insert(self):
@@ -123,6 +121,10 @@ class LMSEnrollment(Document):
 
 
 def is_admin():
+	# Imported lazily to avoid a circular import — lms.lms.utils
+	# imports from this module at top level.
+	from lms.lms.utils import LMS_MODERATOR_ROLES
+
 	roles = frappe.get_roles(frappe.session.user)
 	return any(role in roles for role in LMS_MODERATOR_ROLES)
 
