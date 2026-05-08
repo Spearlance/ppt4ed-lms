@@ -43,7 +43,17 @@
 							<template #prefix>
 								<Download class="size-4 stroke-1.5" />
 							</template>
-							{{ __('Export CSV') }}
+							{{ __('Attendees CSV') }}
+						</Button>
+						<Button
+							v-if="batch?.data?.survey_quiz"
+							:loading="surveyExport.loading"
+							@click="downloadSurveyResponses"
+						>
+							<template #prefix>
+								<Download class="size-4 stroke-1.5" />
+							</template>
+							{{ __('Survey CSV') }}
 						</Button>
 						<Button @click="showEnrollmentModal = true">
 							<template #prefix>
@@ -232,6 +242,25 @@ const attendeeExport = createResource({
 	},
 })
 
+const surveyExport = createResource({
+	url: 'lms.lms.api.export_event_survey_responses_csv',
+	makeParams() {
+		return { event: props.batch?.data?.name }
+	},
+})
+
+function triggerCsvDownload(res: { filename: string; csv: string }) {
+	const blob = new Blob([res.csv], { type: 'text/csv;charset=utf-8;' })
+	const url = URL.createObjectURL(blob)
+	const a = document.createElement('a')
+	a.href = url
+	a.download = res.filename
+	document.body.appendChild(a)
+	a.click()
+	document.body.removeChild(a)
+	URL.revokeObjectURL(url)
+}
+
 async function downloadAttendees() {
 	try {
 		const res = await attendeeExport.submit()
@@ -239,17 +268,22 @@ async function downloadAttendees() {
 			toast.info(__('No attendees to export yet'))
 			return
 		}
-		const blob = new Blob([res.csv], { type: 'text/csv;charset=utf-8;' })
-		const url = URL.createObjectURL(blob)
-		const a = document.createElement('a')
-		a.href = url
-		a.download = res.filename
-		document.body.appendChild(a)
-		a.click()
-		document.body.removeChild(a)
-		URL.revokeObjectURL(url)
+		triggerCsvDownload(res)
 	} catch (e) {
 		toast.error(e.messages?.[0] || __('Could not export attendees'))
+	}
+}
+
+async function downloadSurveyResponses() {
+	try {
+		const res = await surveyExport.submit()
+		if (!res?.count) {
+			toast.info(__('No survey responses yet'))
+			return
+		}
+		triggerCsvDownload(res)
+	} catch (e) {
+		toast.error(e.messages?.[0] || __('Could not export survey responses'))
 	}
 }
 
