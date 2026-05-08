@@ -11,23 +11,33 @@
 		</header>
 		<div class="px-5 pt-4">
 			<div class="flex items-center justify-between mb-4">
-				<div>
-					<h2 class="text-xl font-semibold text-ink-gray-9">
-						{{ dashboard.data.company_name }}
-					</h2>
-					<p class="text-sm text-ink-gray-5 mt-1">
-						{{ dashboard.data.member_count }} members · {{ dashboard.data.admin_count }} admins
-						<template v-if="dashboard.data.membership">
-							· {{ dashboard.data.membership.credit_balance }} credits available
-						</template>
-					</p>
-				</div>
-				<Badge
-					v-if="dashboard.data.membership"
-					:theme="dashboard.data.membership.status === 'Active' ? 'green' : 'orange'"
-				>
-					{{ dashboard.data.membership.status }}
-				</Badge>
+				<h2 class="text-xl font-semibold text-ink-gray-9 flex items-center gap-2">
+					{{ dashboard.data.company_name }}
+					<Badge
+						v-if="dashboard.data.membership"
+						:theme="dashboard.data.membership.status === 'Active' ? 'green' : 'orange'"
+					>
+						{{ dashboard.data.membership.status }}
+					</Badge>
+				</h2>
+			</div>
+			<div class="grid grid-cols-2 md:grid-cols-4 gap-5 mb-6">
+				<NumberChartGraph
+					:title="__('Members')"
+					:value="dashboard.data.member_count"
+				/>
+				<NumberChartGraph
+					:title="__('Active Enrollments')"
+					:value="dashboard.data.active_enrollments"
+				/>
+				<NumberChartGraph
+					:title="__('Completed Courses')"
+					:value="dashboard.data.completed_enrollments"
+				/>
+				<NumberChartGraph
+					:title="__('Credits Available')"
+					:value="dashboard.data.membership?.credit_balance ?? 0"
+				/>
 			</div>
 		</div>
 		<Tabs :tabs="tabs" v-model="tabIndex">
@@ -45,6 +55,7 @@
 import { markRaw, ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Badge, Breadcrumbs, Tabs, usePageMeta, createResource } from 'frappe-ui'
+import NumberChartGraph from '@/components/NumberChartGraph.vue'
 import CompanyEmployees from '@/pages/CompanyDashboard/CompanyEmployees.vue'
 import CompanyTeamActivity from '@/pages/CompanyDashboard/CompanyTeamActivity.vue'
 import CompanyInvites from '@/pages/CompanyDashboard/CompanyInvites.vue'

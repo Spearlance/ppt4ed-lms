@@ -45,10 +45,27 @@ def get_company_dashboard():
             "stripe_customer_id": membership.stripe_customer_id,
         }
 
+    active_members = [m.user for m in company.members if m.user and m.status != "Removed"]
+    active_enrollments = 0
+    completed_enrollments = 0
+    if active_members:
+        rows = frappe.get_all(
+            "LMS Enrollment",
+            filters={"member": ["in", active_members]},
+            fields=["progress"],
+        )
+        for r in rows:
+            if (r.progress or 0) >= 100:
+                completed_enrollments += 1
+            else:
+                active_enrollments += 1
+
     return {
         "company_name": company.company_name,
-        "member_count": len(company.members),
+        "member_count": len(active_members),
         "admin_count": len(company.admins),
+        "active_enrollments": active_enrollments,
+        "completed_enrollments": completed_enrollments,
         "membership": membership_data,
     }
 
