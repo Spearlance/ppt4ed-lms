@@ -682,6 +682,90 @@ def send_starting_soon_mail(event, student):
 	)
 
 
+# T-15 reminder window. The `all` scheduler fires every ~4 minutes, so a
+# window narrower than 4 minutes could miss an event entirely. [11, 19]
+# guarantees at least one firing per event-day while keeping the reminder
+# within ~15 min of start.
+FIFTEEN_MIN_REMINDER_MIN_OFFSET = 11
+FIFTEEN_MIN_REMINDER_MAX_OFFSET = 19
+
+
+def send_event_15_minute_reminder():
+	"""Runs on the `all` scheduler (~4 min). Email enrolled members ~15
+	minutes before their event starts. Uses LMS Event Day rows so multi-day
+	events trigger per day. Cache-based dedup keyed on (event, member, day)
+	prevents repeat sends within the look-ahead window."""
+	now = now_datetime()
+	today = getdate()
+	min_start = now + timedelta(minutes=FIFTEEN_MIN_REMINDER_MIN_OFFSET)
+	max_start = now + timedelta(minutes=FIFTEEN_MIN_REMINDER_MAX_OFFSET)
+
+	upcoming_days = frappe.get_all(
+		"LMS Event Day",
+		filters={"date": today, "parenttype": "LMS Event"},
+		fields=["parent", "date", "start_time"],
+	)
+
+	for day in upcoming_days:
+		try:
+			start_dt = get_datetime(f"{day.date} {day.start_time}")
+		except Exception:
+			continue
+		if not (min_start <= start_dt <= max_start):
+			continue
+
+		event = frappe.db.get_value(
+			"LMS Event",
+			day.parent,
+			["name", "title", "medium", "zoom_link", "published"],
+			as_dict=True,
+		)
+		if not event or not event.published or not event.zoom_link:
+			continue
+
+		event.start_date = day.date
+		event.start_time = day.start_time
+
+		students = frappe.get_all(
+			"LMS Event Registration",
+			{"event": event.name},
+			["member", "member_name"],
+		)
+		for student in students:
+			cache_key = f"event_15min_reminder:{event.name}:{student.member}:{day.date}"
+			if frappe.cache().get_value(cache_key):
+				continue
+			send_starting_in_15_minutes_mail(event, student)
+			frappe.cache().set_value(cache_key, 1, expires_in_sec=86400)
+
+
+def send_starting_in_15_minutes_mail(event, student):
+	from lms.lms.utils import lms_send_template_mail
+
+	subject = _("Your event {0} starts in 15 minutes").format(event.title)
+
+	args = {
+		"student_name": student.member_name,
+		"title": event.title,
+		"start_date": event.start_date,
+		"start_time": event.start_time,
+		"date": event.start_date,
+		"time": event.start_time,
+		"medium": event.medium,
+		"name": event.name,
+		"zoom_link": event.zoom_link,
+	}
+
+	lms_send_template_mail(
+		recipients=student.member,
+		default_subject=subject,
+		jinja_template="event_starting_in_15_minutes",
+		args=args,
+		template_name="Event Starting in 15 Minutes",
+		header=[_(f"Starting in 15 Minutes: {event.title}"), "blue"],
+	)
+
+
 def maybe_auto_mint_event_certificate(member, event):
 	"""Mint an event certificate for `member` if one doesn't already exist.
 
