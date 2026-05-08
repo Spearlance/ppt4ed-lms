@@ -81,7 +81,6 @@ declare module 'vue' {
     Notes: typeof import('./src/components/Notes/Notes.vue')['default']
     NotPermitted: typeof import('./src/components/NotPermitted.vue')['default']
     NumberChartGraph: typeof import('./src/components/NumberChartGraph.vue')['default']
-    PageModal: typeof import('./src/components/Modals/PageModal.vue')['default']
     PaymentGatewayDetails: typeof import('./src/components/Settings/PaymentGatewayDetails.vue')['default']
     PaymentGateways: typeof import('./src/components/Settings/PaymentGateways.vue')['default']
     Play: typeof import('./src/components/Icons/Play.vue')['default']

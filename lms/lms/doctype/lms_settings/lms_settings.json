@@ -49,7 +49,6 @@
   "statistics",
   "notifications",
   "section_break_qlss",
-  "sidebar_items",
   "mentor_request_section",
   "mentor_request_creation",
   "mentor_request_status_update",
@@ -306,12 +305,6 @@
   {
    "fieldname": "section_break_qlss",
    "fieldtype": "Section Break"
-  },
-  {
-   "fieldname": "sidebar_items",
-   "fieldtype": "Table",
-   "label": "Sidebar Items",
-   "options": "LMS Sidebar Item"
   },
   {
    "fieldname": "custom_signup_content",
