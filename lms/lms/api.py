@@ -1078,6 +1078,89 @@ def export_event_attendees_csv(event: str):
 	}
 
 
+@frappe.whitelist()
+def export_event_survey_responses_csv(event: str):
+	"""Build a CSV of an event's survey responses in wide format — one row per
+	submission, one column per question. Returned as JSON ({filename, csv}) so
+	the frontend can trigger a Blob download. Restricted to can_modify_event."""
+	if not can_modify_event(event):
+		frappe.throw(
+			_("You do not have permission to export survey responses for this event."),
+			frappe.PermissionError,
+		)
+
+	event_doc = frappe.db.get_value(
+		"LMS Event", event, ["title", "survey_quiz"], as_dict=True
+	)
+	if not event_doc or not event_doc.survey_quiz:
+		frappe.throw(_("This event has no survey configured."))
+
+	import csv as csv_module
+	import io
+
+	questions = frappe.get_all(
+		"LMS Quiz Question",
+		filters={"parent": event_doc.survey_quiz, "parenttype": "LMS Quiz"},
+		fields=["question", "question_detail", "idx"],
+		order_by="idx asc",
+	)
+
+	submissions = frappe.get_all(
+		"LMS Quiz Submission",
+		filters={"event_name": event, "quiz": event_doc.survey_quiz},
+		fields=["name", "member", "member_name", "creation"],
+		order_by="creation desc",
+	)
+
+	answers_by_submission = {}
+	if submissions:
+		result_rows = frappe.get_all(
+			"LMS Quiz Result",
+			filters={"parent": ["in", [s.name for s in submissions]]},
+			fields=["parent", "question_name", "answer"],
+		)
+		for r in result_rows:
+			answers_by_submission.setdefault(r.parent, {})[r.question_name] = r.answer
+
+	member_info = {}
+	if submissions:
+		users = frappe.get_all(
+			"User",
+			filters={"name": ["in", [s.member for s in submissions]]},
+			fields=["name", "first_name", "last_name", "email"],
+		)
+		member_info = {u.name: u for u in users}
+
+	buf = io.StringIO()
+	writer = csv_module.writer(buf)
+	header = ["First Name", "Last Name", "Email", "Submitted On"] + [
+		q.question_detail or q.question for q in questions
+	]
+	writer.writerow(header)
+
+	for s in submissions:
+		user = member_info.get(s.member, frappe._dict())
+		answers = answers_by_submission.get(s.name, {})
+		row = [
+			user.first_name or "",
+			user.last_name or "",
+			user.email or s.member or "",
+			frappe.utils.format_datetime(s.creation, "yyyy-MM-dd HH:mm"),
+		]
+		for q in questions:
+			row.append(answers.get(q.question, "") or "")
+		writer.writerow(row)
+
+	safe_title = re.sub(r"[^\w\-]+", "_", event_doc.title or event).strip("_") or "event"
+	filename = f"{safe_title}_survey_responses_{frappe.utils.today()}.csv"
+
+	return {
+		"filename": filename,
+		"csv": buf.getvalue(),
+		"count": len(submissions),
+	}
+
+
 def _fan_out_event_announcement(
 	event,
 	event_title,
