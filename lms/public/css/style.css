@@ -2499,6 +2499,22 @@ body[data-page="login"] .web-footer,
 	display: none;
 }
 
+/* PPT4ed admins have ZERO Desk access. Frappe's navbar JS un-hides the
+   "Switch To Desk" link for any user whose roles grant Desk — keep it
+   hidden globally so members never see a link they can't follow. */
+.web-footer .frappe-link,
+.dropdown-menu .switch-to-desk {
+	display: none !important;
+}
+
+/* GitHub icon in the public Jinja footer — keep it sized down so it sits
+   inline with the policy text links. */
+.footer-links .footer-link img[alt*="Source Code"] {
+	width: 18px;
+	height: 18px;
+	vertical-align: middle;
+}
+
 /* Remove duplicate logo — Frappe shows one in navbar + one in card */
 .login-content .page-card .page-card-head .navbar-brand,
 .login-content .page-card-head img[src*="ppt4ed-logo"]:first-of-type {
