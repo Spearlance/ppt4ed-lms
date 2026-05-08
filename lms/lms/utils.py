@@ -240,7 +240,7 @@ def get_instructors(doctype: str, docname: str):
 			frappe.db.get_value(
 				"User",
 				instructor,
-				["name", "username", "full_name", "user_image", "first_name"],
+				["name", "username", "full_name", "user_image", "first_name", "bio"],
 				as_dict=True,
 			)
 		)

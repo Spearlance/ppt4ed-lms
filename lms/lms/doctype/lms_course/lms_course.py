@@ -32,17 +32,19 @@ class LMSCourse(WebsiteGenerator):
 	)
 
 	def make_route(self):
-		# Public landing URL is /c/<slug>. WebsiteGenerator only invokes this
-		# when self.route is unset, so admins can override the path manually
-		# if they ever need to.
-		return f"c/{self.name}"
+		# Public landing URL is /c/<slug> for courses, /r/<slug> for resources.
+		# WebsiteGenerator only invokes this when self.route is unset, so
+		# admins can override the path manually if they ever need to.
+		prefix = "r" if self.course_type == "Resource" else "c"
+		return f"{prefix}/{self.name}"
 
 	def validate(self):
 		# WebsiteGenerator's auto-fill only runs when the doc is already
 		# website-published. Courses are usually drafted then published later,
-		# so force-fill on every save (mirrors community_event.py).
-		if not self.route:
-			self.route = self.make_route()
+		# so force-fill on every save (mirrors community_event.py). Also
+		# auto-correct the route when course_type flips (Course ↔ Resource)
+		# unless the admin set a fully custom path.
+		self._sync_route()
 		self.validate_published()
 		self.validate_instructors()
 		self.validate_video_link()
@@ -52,11 +54,32 @@ class LMSCourse(WebsiteGenerator):
 		self.validate_card_gradient()
 		ensure_instructors_have_moderator_role([row.instructor for row in self.instructors or []])
 
+	def _sync_route(self):
+		"""Force-fill the route, and flip the prefix when course_type changes
+		(e.g. Course → Resource) so the public landing URL stays consistent.
+		Leaves admin-customized routes alone — only routes still in the
+		auto-generated `c/<name>` or `r/<name>` shape get corrected."""
+		auto_course = f"c/{self.name}"
+		auto_resource = f"r/{self.name}"
+		if not self.route:
+			self.route = self.make_route()
+			return
+		if self.course_type == "Resource" and self.route == auto_course:
+			self.route = auto_resource
+		elif self.course_type != "Resource" and self.route == auto_resource:
+			self.route = auto_course
+
 	def validate_published(self):
 		if self.published and not self.published_on:
 			self.published_on = today()
 
 	def validate_instructors(self):
+		# Resources don't require an instructor — they're often standalone
+		# downloads or articles owned by PPT staff rather than a named author.
+		# Skip the owner-as-instructor auto-fill so a resource can save with
+		# an empty instructors table.
+		if self.course_type == "Resource":
+			return
 		if self.is_new() and not self.instructors:
 			frappe.get_doc(
 				{
@@ -140,26 +163,36 @@ class LMSCourse(WebsiteGenerator):
 	def get_context(self, context):
 		"""Populate the public landing page Jinja context.
 
-		Rendered for `/c/<slug>`. The page is reachable by guests, so only
-		expose conversion-shaped fields — never admin metadata.
+		Rendered for `/c/<slug>` (course) or `/r/<slug>` (resource). The page
+		is reachable by guests, so only expose conversion-shaped fields —
+		never admin metadata.
 		"""
 		if not self.published:
 			raise frappe.DoesNotExistError
 
+		is_resource = self.course_type == "Resource"
 		context.no_cache = 1
 		context.course = self
 		context.title = self.title
+		context.is_resource = is_resource
 		context.instructors = get_instructors("LMS Course", self.name)
-		context.lesson_count = get_lesson_count(self.name)
-		context.chapters = _get_public_chapters(self.name)
+		context.lesson_count = 0 if is_resource else get_lesson_count(self.name)
+		context.chapters = [] if is_resource else _get_public_chapters(self.name)
 		context.rating = flt(get_average_rating(self.name) or 0, 2)
-		context.enrollment_count = frappe.db.count(
-			"LMS Enrollment", {"course": self.name, "member_type": "Student"}
-		) or 0
+		context.enrollment_count = (
+			0
+			if is_resource
+			else frappe.db.count(
+				"LMS Enrollment", {"course": self.name, "member_type": "Student"}
+			)
+			or 0
+		)
 		# `register_url` is the deep-link the CTA falls through to once a
 		# visitor is logged in. The Jinja-side register modal short-circuits
 		# this for guests.
-		context.register_url = f"/lms/courses/{self.name}"
+		context.register_url = (
+			f"/lms/resources/{self.name}" if is_resource else f"/lms/courses/{self.name}"
+		)
 
 
 def _get_public_chapters(course: str) -> list:

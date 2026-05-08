@@ -2909,7 +2909,7 @@ def signup_and_enroll(
 	"""Public signup. Creates a free LMS Student, logs them in, then either
 	enrolls them in `target_slug` or returns a Stripe checkout URL.
 
-	`target_type`: 'course' | 'event' | None
+	`target_type`: 'course' | 'event' | 'resource' | None
 	`intent`: 'free' | 'paid' | f'membership:{plan_name}' | None
 
 	Mirrors the `login_as` pattern in `verify_resource_access` (no 2FA reprompt
@@ -2942,6 +2942,18 @@ def signup_and_enroll(
 			frappe.throw(_("Event not found."))
 		if not frappe.db.get_value("LMS Event", target_slug, "published"):
 			frappe.throw(_("Event is not available."))
+	elif target_type == "resource":
+		# Resources share the LMS Course doctype; reject if it isn't the
+		# Resource flavor so a stray slug can't masquerade as one.
+		resource_meta = frappe.db.get_value(
+			"LMS Course", target_slug, ["published", "course_type"], as_dict=True
+		) if target_slug else None
+		if not resource_meta:
+			frappe.throw(_("Resource not found."))
+		if resource_meta.course_type != "Resource":
+			frappe.throw(_("Resource not found."))
+		if not resource_meta.published:
+			frappe.throw(_("Resource is not available."))
 	elif target_type is not None:
 		frappe.throw(_("Invalid target type."))
 
@@ -3015,5 +3027,16 @@ def signup_and_enroll(
 				"member_name": full_name,
 			}).insert(ignore_permissions=True)
 		return {"status": "logged_in", "redirect_to": f"/lms/events/{target_slug}"}
+
+	if target_type == "resource":
+		# Resources auto-enroll on access (mirrors `verify_resource_access`)
+		# so the visitor lands on /lms/resources/<slug> already enrolled.
+		if not frappe.db.exists("LMS Enrollment", {"course": target_slug, "member": email}):
+			frappe.get_doc({
+				"doctype": "LMS Enrollment",
+				"course": target_slug,
+				"member": email,
+			}).insert(ignore_permissions=True)
+		return {"status": "logged_in", "redirect_to": f"/lms/resources/{target_slug}"}
 
 	return {"status": "logged_in", "redirect_to": "/lms"}
