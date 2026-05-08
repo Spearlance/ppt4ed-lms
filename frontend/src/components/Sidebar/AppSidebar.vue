@@ -27,7 +27,7 @@
 				</div>
 			</div>
 			<div
-				v-if="sidebarSettings.data?.web_pages?.length || isModerator"
+				v-if="sidebarSettings.data?.custom_links?.length"
 				class="mt-4"
 			>
 				<div
@@ -46,34 +46,22 @@
 							/>
 						</span>
 						<span class="ml-2">
-							{{ __('More') }}
+							{{ __('Connect') }}
 						</span>
 					</div>
-					<Button
-						v-if="isModerator && !readOnlyMode"
-						variant="ghost"
-						@click="openPageModal()"
-					>
-						<template #icon>
-							<Plus class="h-4 w-4 text-ink-gray-7 stroke-1.5" />
-						</template>
-					</Button>
 				</div>
 				<div
-					v-if="sidebarSettings.data?.web_pages?.length"
 					class="flex flex-col transition-all duration-300 ease-in-out"
 					:class="!sidebarStore.isWebpagesCollapsed ? 'block' : 'hidden'"
 				>
 					<div
-						v-for="link in sidebarSettings.data.web_pages"
+						v-for="link in sidebarSettings.data.custom_links"
+						:key="link.name"
 						class="mx-2 my-0.5"
 					>
 						<SidebarLink
-							:link="link"
+							:link="{ label: link.label, icon: link.icon, to: link.url }"
 							:isCollapsed="sidebarStore.isSidebarCollapsed"
-							:showControls="isModerator ? true : false"
-							@openModal="openPageModal"
-							@deletePage="deletePage"
 						/>
 					</div>
 				</div>
@@ -243,11 +231,6 @@
 		/>
 	</div>
 	<CommandPalette v-model="settingsStore.isCommandPaletteOpen" />
-	<PageModal
-		v-model="showPageModal"
-		v-model:reloadSidebar="sidebarSettings"
-		:page="pageToEdit"
-	/>
 </template>
 
 <script setup>
@@ -257,7 +240,6 @@ import { sessionStore } from '@/stores/session'
 import { useSidebar } from '@/stores/sidebar'
 import { useSettings } from '@/stores/settings'
 import { Button, call, createResource, Tooltip, toast } from 'frappe-ui'
-import PageModal from '@/components/Modals/PageModal.vue'
 import LMSLogo from '@/components/Icons/LMSLogo.vue'
 import { useRouter } from 'vue-router'
 import {
@@ -280,7 +262,6 @@ import {
 	FolderTree,
 	FileText,
 	Phone,
-	Plus,
 	User,
 	UserPlus,
 	Users,
@@ -310,9 +291,7 @@ const socket = inject('$socket')
 const unreadCount = ref(0)
 const sidebarLinks = ref(null)
 const { capture } = useTelemetry()
-const showPageModal = ref(false)
 const isModerator = ref(false)
-const pageToEdit = ref(null)
 const { sidebarSettings, activeTab, isSettingsOpen, programs } = useSettings()
 const settingsStore = useSettings()
 const showOnboarding = ref(false)
@@ -401,21 +380,6 @@ const updateUnreadCount = () => {
 				item.count = unreadCount.value || 0
 			}
 		})
-	})
-}
-
-const openPageModal = (link) => {
-	showPageModal.value = true
-	pageToEdit.value = link
-}
-
-const deletePage = (link) => {
-	call('lms.lms.api.delete_documents', {
-		doctype: 'LMS Sidebar Item',
-		documents: [link.name],
-	}).then(() => {
-		sidebarSettings.reload()
-		toast.success(__('Page deleted successfully'))
 	})
 }
 

@@ -69,6 +69,7 @@ import SidebarLink from '@/components/Sidebar/SidebarLink.vue'
 import Members from '@/components/Settings/Members.vue'
 import Categories from '@/components/Settings/Categories.vue'
 import EmailTemplates from '@/components/Settings/EmailTemplates.vue'
+import SidebarLinksSettings from '@/components/Settings/SidebarLinksSettings.vue'
 import BrandSettings from '@/components/Settings/BrandSettings.vue'
 import Coupons from '@/components/Settings/Coupons/Coupons.vue'
 import Transactions from '@/components/Settings/Transactions/Transactions.vue'
@@ -262,6 +263,13 @@ const tabsStructure = computed(() => {
 					description: 'Manage the email templates for your learning system',
 					icon: 'MailPlus',
 					template: markRaw(EmailTemplates),
+				},
+				{
+					label: 'Sidebar Links',
+					description:
+						'External links shown to all users in the sidebar (Instagram, Facebook, podcasts, etc.)',
+					icon: 'Link2',
+					template: markRaw(SidebarLinksSettings),
 				},
 			],
 		},
