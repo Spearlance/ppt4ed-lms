@@ -197,12 +197,14 @@ def _create_resource(title: str, thumbnail_url: str, pdf_url: str, category: str
 	course.notification_sent = 1
 	course.insert(ignore_permissions=True)
 
-	# Download + attach assets.
+	# Download + attach assets. Each File.insert() with attached_to_name=course.name
+	# bumps the course's `modified` timestamp via Frappe's File hooks, which would
+	# break a subsequent course.save() with TimestampMismatchError. So write the
+	# image field with set_value (no optimistic-locking check) and reload the doc
+	# before any later .save() call.
 	image_url = _download_to_file(thumbnail_url, "LMS Course", course.name)
 	pdf_file_url = _download_to_file(pdf_url, "LMS Course", course.name)
-
-	course.image = image_url
-	course.save(ignore_permissions=True)
+	frappe.db.set_value("LMS Course", course.name, "image", image_url)
 
 	# Single chapter + single lesson — single-lesson resources render the lesson
 	# body inline on the resource page, so the PDF link is the entire content.
@@ -221,6 +223,7 @@ def _create_resource(title: str, thumbnail_url: str, pdf_url: str, category: str
 	chapter.append("lessons", {"lesson": lesson.name})
 	chapter.save(ignore_permissions=True)
 
+	course.reload()
 	course.append("chapters", {"chapter": chapter.name})
 	course.save(ignore_permissions=True)
 
