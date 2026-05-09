@@ -2930,8 +2930,14 @@ def delete_membership_plan(plan_name):
 
 
 @frappe.whitelist()
-def auto_enroll_resource(resource_name: str):
-	"""Silently enroll the current user in a free resource. Idempotent."""
+def claim_resource(resource_name: str):
+	"""Explicitly enroll the current user in a free resource. Idempotent.
+
+	Each call records a deliberate claim — surfaced as engagement signal in
+	resource analytics. New signups arriving via `signup_and_enroll` are
+	already auto-claimed during signup, so the in-app `Claim` button is the
+	primary call site for already-logged-in visitors.
+	"""
 	course_type = frappe.db.get_value("LMS Course", resource_name, "course_type")
 	if course_type != "Resource":
 		frappe.throw(_("This is not a resource."))
@@ -2952,111 +2958,6 @@ def auto_enroll_resource(resource_name: str):
 	return {"enrollment": enrollment.name, "already_enrolled": False}
 
 
-@frappe.whitelist(allow_guest=True)
-def request_resource_access(email: str, resource_name: str):
-	"""Send a magic link email for free resource access. Creates user if needed."""
-	from frappe.utils import validate_email_address, random_string, escape_html
-
-	if not validate_email_address(email):
-		frappe.throw(_("Please enter a valid email address."))
-
-	resource = frappe.db.get_value(
-		"LMS Course", resource_name,
-		["name", "course_type", "published", "title"],
-		as_dict=True,
-	)
-	if not resource or resource.course_type != "Resource" or not resource.published:
-		frappe.throw(_("Resource not found."))
-
-	# Expire existing pending tokens for this email + resource
-	for old in frappe.get_all(
-		"Resource Access Token",
-		filters={"email": email, "resource": resource_name, "status": "Pending"},
-		pluck="name",
-	):
-		frappe.db.set_value("Resource Access Token", old, "status", "Expired")
-
-	# Create user if doesn't exist
-	if not frappe.db.exists("User", email):
-		user = frappe.get_doc({
-			"doctype": "User",
-			"email": email,
-			"first_name": email.split("@")[0],
-			"enabled": 1,
-			"new_password": random_string(10),
-			"user_type": "Website User",
-		})
-		user.flags.ignore_permissions = True
-		user.flags.ignore_password_policy = True
-		user.insert()
-		user.add_roles("LMS Student")
-
-	# Create token
-	token_doc = frappe.get_doc({
-		"doctype": "Resource Access Token",
-		"email": email,
-		"resource": resource_name,
-		"status": "Pending",
-	}).insert(ignore_permissions=True)
-
-	verify_url = frappe.utils.get_url(
-		f"/api/method/lms.lms.api.verify_resource_access?token={token_doc.token}"
-	)
-
-	frappe.sendmail(
-		recipients=[email],
-		subject=f"Access: {resource.title}",
-		message=(
-			f"<p>Click the link below to access <strong>{escape_html(resource.title)}</strong>.</p>"
-			f'<p><a href="{verify_url}">Access Resource</a></p>'
-			f"<p>This link expires in 30 minutes.</p>"
-		),
-	)
-
-	frappe.db.commit()
-	return {"status": "sent"}
-
-
-@frappe.whitelist(allow_guest=True)
-def verify_resource_access(token: str):
-	"""Verify a resource access token, log user in, enroll, and redirect."""
-	from frappe.utils import now_datetime
-
-	verification = frappe.db.get_value(
-		"Resource Access Token",
-		{"token": token},
-		["name", "email", "resource", "status", "expires_on"],
-		as_dict=True,
-	)
-
-	if not verification:
-		frappe.throw(_("Invalid access link."))
-
-	if verification.status != "Pending":
-		frappe.throw(_("This access link has already been used."))
-
-	if now_datetime() > verification.expires_on:
-		frappe.db.set_value("Resource Access Token", verification.name, "status", "Expired")
-		frappe.throw(_("This access link has expired. Please request a new one."))
-
-	# Log the user in
-	frappe.local.login_manager.login_as(verification.email)
-
-	# Auto-enroll if not already enrolled
-	if not frappe.db.exists("LMS Enrollment", {"course": verification.resource, "member": verification.email}):
-		frappe.get_doc({
-			"doctype": "LMS Enrollment",
-			"course": verification.resource,
-			"member": verification.email,
-		}).insert(ignore_permissions=True)
-
-	frappe.db.set_value("Resource Access Token", verification.name, "status", "Verified")
-	frappe.db.commit()
-
-	frappe.local.response["type"] = "redirect"
-	frappe.local.response["location"] = f"/lms/resources/{verification.resource}"
-
-
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 def signup_and_enroll(
 	email: str,
@@ -3072,8 +2973,7 @@ def signup_and_enroll(
 	`target_type`: 'course' | 'event' | 'resource' | None
 	`intent`: 'free' | 'paid' | f'membership:{plan_name}' | None
 
-	Mirrors the `login_as` pattern in `verify_resource_access` (no 2FA reprompt
-	on the freshly-created session).
+	Uses `login_as` so the freshly-created session skips a 2FA reprompt.
 	"""
 	from frappe.utils import validate_email_address
 
@@ -3150,6 +3050,23 @@ def signup_and_enroll(
 	user.flags.ignore_permissions = True
 	user.insert()
 	user.add_roles("LMS Student")
+
+	# Persist signup attribution so reports can answer "which entry point
+	# drove this signup?". `target_slug` is the doc name (resource/course/event
+	# slug); `signup_source_type` is the doctype label. Direct signups (no
+	# target) keep the User default of 'Direct'.
+	attribution_type = {"course": "Course", "event": "Event", "resource": "Resource"}.get(target_type or "")
+	if attribution_type and target_slug:
+		frappe.db.set_value(
+			"User",
+			email,
+			{
+				"signup_source": target_slug,
+				"signup_source_type": attribution_type,
+			},
+			update_modified=False,
+		)
+
 	frappe.db.commit()
 
 	frappe.local.login_manager.login_as(email)
@@ -3189,8 +3106,10 @@ def signup_and_enroll(
 		return {"status": "logged_in", "redirect_to": f"/lms/events/{target_slug}"}
 
 	if target_type == "resource":
-		# Resources auto-enroll on access (mirrors `verify_resource_access`)
-		# so the visitor lands on /lms/resources/<slug> already enrolled.
+		# Auto-claim during signup so the visitor lands on the resource page
+		# already enrolled — no extra click after signup, but the in-app
+		# "Claim this Resource" button still exists for users who arrive
+		# already-logged-in via a different entry point.
 		if not frappe.db.exists("LMS Enrollment", {"course": target_slug, "member": email}):
 			frappe.get_doc({
 				"doctype": "LMS Enrollment",

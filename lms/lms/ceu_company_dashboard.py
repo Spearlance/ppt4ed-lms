@@ -269,8 +269,7 @@ def accept_company_invite(
     creating a brand-new User if the invitee doesn't already have an account,
     grants Company Admin role for admin invites, then logs the user in.
 
-    Mirrors the `login_as` pattern in `verify_resource_access` so the freshly
-    accepted session skips a 2FA reprompt.
+    Uses `login_as` so the freshly accepted session skips a 2FA reprompt.
     """
     invite = _load_invite_for_token(token)
 

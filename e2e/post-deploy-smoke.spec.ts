@@ -199,3 +199,74 @@ test.describe('Post-deploy smoke (PR #68)', () => {
 		await expect(page.locator('#register-modal-login input[name="usr"]')).toHaveValue('pro@test.com')
 	})
 })
+
+test.describe('Free Resources claim flow', () => {
+	// A single-lesson Video resource whose lesson body is an EditorJS blob
+	// containing a YouTube embed — the canonical case that broke before
+	// `enablePlyr()` was wired into ResourceOverview. Replace if the slug
+	// is ever deleted; any single-lesson video Resource with EditorJS
+	// content works.
+	const RESOURCE_SLUG = 'supporting-families-through-the-referral-process'
+
+	test('public /r/<slug>: hero renders + "Get this resource" modal trigger is present', async ({ page }) => {
+		await page.goto(`/r/${RESOURCE_SLUG}`)
+
+		await expect(page.locator('h1').first()).toContainText(/Supporting Families/i)
+		await expect(page.getByRole('button', { name: /Get this resource/i })).toBeVisible()
+
+		// Modal isn't open until the trigger fires; once it does we should see
+		// the standard signup pane.
+		await page.getByRole('button', { name: /Get this resource/i }).click()
+		await expect(page.getByRole('heading', { name: 'Create your account' })).toBeVisible()
+	})
+
+	test('modal signup happy-path: fresh user lands on /lms/resources/<slug> already claimed', async ({ page }) => {
+		// Unique email per run so the signup actually creates a user. These
+		// linger in the DB; they're easy to spot (suffix `@e2e.invalid`).
+		const email = `claim-smoke-${Date.now()}@e2e.invalid`
+		const password = 'ClaimSmoke@2026!'
+
+		await page.goto(`/r/${RESOURCE_SLUG}`)
+		await page.getByRole('button', { name: /Get this resource/i }).click()
+
+		await page.locator('#register-modal-signup input[name="full_name"]').fill('Claim Smoke')
+		await page.locator('#register-modal-signup input[name="email"]').fill(email)
+		await page.locator('#register-modal-signup input[name="password"]').fill(password)
+		await page.locator('#register-modal-signup button[type="submit"]').click()
+
+		// signup_and_enroll auto-claims the resource and redirects into the
+		// in-app view. The Vue page should then render the lesson content
+		// without the "Claim this Resource" button (already claimed).
+		await page.waitForURL(`**/lms/resources/${RESOURCE_SLUG}`, { timeout: 20000 })
+		await expect(page.locator('h1').first()).toContainText(/Supporting Families/i)
+		await expect(page.getByRole('button', { name: 'Claim this Resource' })).toHaveCount(0)
+
+		// The whole reason this PR exists: the YouTube embed must actually
+		// render. Plyr swaps the placeholder div for an iframe.
+		await expect(page.locator('iframe[src*="youtube"]').first()).toBeVisible({ timeout: 15000 })
+
+		// Logout so subsequent tests start clean
+		await page.goto('/api/method/logout')
+		await page.waitForLoadState('networkidle')
+	})
+
+	test('logged-in user on a claimed resource sees content + Plyr-hydrated YouTube iframe', async ({ page }) => {
+		// Regression for the original blank-video bug — pro@test.com has
+		// been claimed against this resource since the populate script ran,
+		// so this just exercises the claimed render path.
+		await page.goto('/login')
+		await page.fill('#login_email', 'pro@test.com')
+		await page.fill('#login_password', 'TestUser@2026!')
+		await page.click('.btn-login')
+		await page.waitForURL('**/lms/**', { timeout: 15000 })
+
+		await page.goto(`/lms/resources/${RESOURCE_SLUG}`)
+
+		await expect(page.locator('h1').first()).toContainText(/Supporting Families/i)
+		await expect(page.locator('iframe[src*="youtube"]').first()).toBeVisible({ timeout: 15000 })
+
+		// Logout
+		await page.goto('/api/method/logout')
+		await page.waitForLoadState('networkidle')
+	})
+})

@@ -2,33 +2,8 @@
 	<!-- Single-lesson resource — show content directly -->
 	<div
 		v-if="resource.data?.is_single_lesson && resource.data?.single_lesson"
-		class="max-w-4xl mx-auto p-5 pt-10"
+		class="max-w-4xl mx-auto"
 	>
-		<div
-			v-if="resource.data.resource_type"
-			class="inline-block text-xs font-semibold bg-surface-gray-2 px-2 py-0.5 rounded-md mb-3"
-		>
-			{{ resource.data.resource_type }}
-		</div>
-		<h1 class="text-3xl font-semibold text-ink-gray-9 mb-2">
-			{{ resource.data.title }}
-		</h1>
-		<div class="flex items-center mb-6">
-			<span
-				class="h-6 mr-1"
-				:class="{ 'avatar-group overlap': resource.data.instructors?.length > 1 }"
-			>
-				<UserAvatar
-					v-for="instructor in resource.data.instructors"
-					:user="instructor"
-				/>
-			</span>
-			<CourseInstructors
-				v-if="resource.data.instructors"
-				:instructors="resource.data.instructors"
-			/>
-		</div>
-
 		<div
 			class="ProseMirror prose prose-table:table-fixed prose-td:p-2 prose-th:p-2 prose-td:border prose-th:border prose-td:border-outline-gray-2 prose-th:border-outline-gray-2 prose-td:relative prose-th:relative prose-th:bg-surface-gray-2 prose-sm max-w-none !whitespace-normal"
 		>
@@ -43,35 +18,7 @@
 	</div>
 
 	<!-- Multi-lesson resource — show course outline -->
-	<div v-else class="max-w-4xl mx-auto p-5 pt-10">
-		<div
-			v-if="resource.data?.resource_type"
-			class="inline-block text-xs font-semibold bg-surface-gray-2 px-2 py-0.5 rounded-md mb-3"
-		>
-			{{ resource.data.resource_type }}
-		</div>
-		<h1 class="text-3xl font-semibold text-ink-gray-9 mb-2">
-			{{ resource.data?.title }}
-		</h1>
-		<div class="flex items-center mb-4">
-			<span
-				class="h-6 mr-1"
-				:class="{ 'avatar-group overlap': resource.data?.instructors?.length > 1 }"
-			>
-				<UserAvatar
-					v-for="instructor in resource.data?.instructors"
-					:user="instructor"
-				/>
-			</span>
-			<CourseInstructors
-				v-if="resource.data?.instructors"
-				:instructors="resource.data.instructors"
-			/>
-		</div>
-		<p v-if="resource.data?.short_introduction" class="text-ink-gray-7 mb-6">
-			{{ resource.data.short_introduction }}
-		</p>
-
+	<div v-else class="max-w-4xl mx-auto">
 		<div v-if="resource.data?.membership" class="mb-6">
 			<router-link
 				v-if="resource.data.membership.current_lesson || resource.data.current_lesson"
@@ -99,10 +46,9 @@
 <script setup>
 import { Button } from 'frappe-ui'
 import { nextTick, watch } from 'vue'
-import UserAvatar from '@/components/UserAvatar.vue'
-import CourseInstructors from '@/components/CourseInstructors.vue'
 import CourseOutline from '@/components/CourseOutline.vue'
 import LessonContent from '@/components/LessonContent.vue'
+import { enablePlyr } from '@/utils'
 
 const props = defineProps({
 	resource: {
@@ -132,6 +78,12 @@ const renderEditor = async (content) => {
 		readOnly: true,
 		defaultBlock: 'embed',
 	})
+	// EditorJS's `embed` block writes a `<div class="video-player">`
+	// placeholder; Plyr hydrates those into the actual YouTube/Vimeo iframe.
+	// Without this call the video area renders blank — same fix Lesson.vue
+	// has been carrying since day one.
+	await editorInstance.isReady
+	await enablePlyr()
 }
 
 watch(
@@ -146,17 +98,3 @@ watch(
 	{ immediate: true }
 )
 </script>
-<style>
-.avatar-group {
-	display: inline-flex;
-	align-items: center;
-}
-
-.avatar-group .avatar {
-	transition: margin 0.1s ease-in-out;
-}
-
-.avatar-group.overlap .avatar + .avatar {
-	margin-left: calc(-8px);
-}
-</style>

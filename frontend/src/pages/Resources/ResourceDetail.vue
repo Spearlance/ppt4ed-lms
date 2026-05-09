@@ -10,7 +10,7 @@
 					:href="publicUrl"
 					target="_blank"
 					rel="noopener"
-					class="hidden sm:inline-flex items-center gap-1.5 text-xs font-medium text-ink-gray-7 hover:text-ink-gray-9 border border-outline-gray-2 hover:border-outline-gray-3 rounded-md px-2 py-1 max-w-xs truncate"
+					class="hidden sm:inline-flex items-center gap-1.5 text-xs font-medium text-ink-gray-7 hover:text-ink-gray-8 border border-outline-gray-2 hover:border-outline-gray-3 rounded-md px-2 py-1 max-w-xs truncate"
 					:title="publicUrl"
 					@click.prevent="copyPublicUrl"
 				>
@@ -33,65 +33,8 @@
 			</div>
 		</header>
 
-		<!-- Guest: Teaser + Email Gate -->
-		<div v-if="!user.data" class="max-w-3xl mx-auto p-5 pt-10">
-			<div
-				v-if="resource.data.image"
-				class="w-full h-64 bg-cover bg-center bg-no-repeat rounded-lg mb-6"
-				:style="{ backgroundImage: `url('${encodeURI(resource.data.image)}')` }"
-			></div>
-			<div
-				v-if="resource.data.resource_type"
-				class="inline-block text-xs font-semibold bg-surface-gray-2 px-2 py-0.5 rounded-md mb-3"
-			>
-				{{ resource.data.resource_type }}
-			</div>
-			<h1 class="text-3xl font-semibold text-ink-gray-9 mb-3">
-				{{ resource.data.title }}
-			</h1>
-			<p class="text-ink-gray-7 mb-8 leading-relaxed">
-				{{ resource.data.short_introduction }}
-			</p>
-
-			<div class="bg-surface-gray-2 rounded-lg p-6">
-				<div v-if="!emailSent" class="space-y-4">
-					<div class="text-lg font-semibold text-ink-gray-9">
-						{{ __('Get free access to this resource') }}
-					</div>
-					<p class="text-sm text-ink-gray-7">
-						{{ __('Enter your email and we\'ll send you a link to access this resource.') }}
-					</p>
-					<div class="flex flex-col sm:flex-row gap-3">
-						<FormControl
-							v-model="email"
-							type="email"
-							:placeholder="__('Your email address')"
-							class="flex-1"
-							@keyup.enter="requestAccess()"
-						/>
-						<Button
-							variant="solid"
-							:loading="accessRequest.loading"
-							@click="requestAccess()"
-						>
-							{{ __('Get Free Access') }}
-						</Button>
-					</div>
-					<ErrorMessage :message="accessRequest.error" />
-				</div>
-				<div v-else class="text-center py-4">
-					<div class="text-lg font-semibold text-ink-gray-9 mb-2">
-						{{ __('Check your email!') }}
-					</div>
-					<p class="text-sm text-ink-gray-7">
-						{{ __('We\'ve sent a link to {0}. Click it to access this resource.').replace('{0}', email) }}
-					</p>
-				</div>
-			</div>
-		</div>
-
-		<!-- Admin: tabbed Overview + Content editor -->
-		<div v-else-if="isAdmin">
+		<!-- Admin: tabbed Overview + Content editor (admin owns its own layout) -->
+		<div v-if="isAdmin">
 			<Tabs :tabs="tabs" v-model="tabIndex">
 				<template #tab-panel="{ tab }">
 					<component
@@ -105,37 +48,96 @@
 			</Tabs>
 		</div>
 
-		<!-- Non-admin logged-in: overview only -->
-		<ResourceOverview
-			v-else
-			:resource="resource"
-			:resourceName="resourceName"
-		/>
+		<!-- Non-admin: shared hero + (claim CTA | content) -->
+		<div v-else class="max-w-4xl mx-auto p-5 pt-10">
+			<div
+				v-if="resource.data.image"
+				class="w-full h-64 bg-cover bg-center bg-no-repeat rounded-lg mb-6"
+				:style="{ backgroundImage: `url('${encodeURI(resource.data.image)}')` }"
+			></div>
+			<div
+				v-if="resource.data.resource_type"
+				class="inline-block text-xs font-semibold bg-surface-gray-2 px-2 py-0.5 rounded-md mb-3"
+			>
+				{{ resource.data.resource_type }}
+			</div>
+			<h1 class="text-3xl font-semibold text-ink-gray-9 mb-2">
+				{{ resource.data.title }}
+			</h1>
+			<div
+				v-if="resource.data.instructors?.length"
+				class="flex items-center mb-4"
+			>
+				<span
+					class="h-6 mr-1"
+					:class="{ 'avatar-group overlap': resource.data.instructors.length > 1 }"
+				>
+					<UserAvatar
+						v-for="instructor in resource.data.instructors"
+						:key="instructor.name"
+						:user="instructor"
+					/>
+				</span>
+				<CourseInstructors :instructors="resource.data.instructors" />
+			</div>
+			<p
+				v-if="resource.data.short_introduction"
+				class="text-ink-gray-7 mb-6 leading-relaxed"
+			>
+				{{ resource.data.short_introduction }}
+			</p>
+
+			<!-- Unclaimed: explicit Claim CTA -->
+			<div v-if="!resource.data.membership" class="mb-8">
+				<Button
+					variant="solid"
+					size="lg"
+					:loading="claim.loading"
+					@click="claimResource()"
+				>
+					{{ __('Claim this Resource') }}
+				</Button>
+				<ErrorMessage class="mt-2" :message="claim.error" />
+			</div>
+
+			<!-- Claimed: content -->
+			<ResourceOverview
+				v-else
+				:resource="resource"
+				:resourceName="resourceName"
+			/>
+
+			<!-- Long-form description below the content / claim CTA. Rich HTML
+				 from the LMS Course `description` field. -->
+			<div
+				v-if="resource.data.description"
+				class="ProseMirror prose prose-sm max-w-none mt-10 pt-8 border-t border-outline-gray-2"
+				v-html="resource.data.description"
+			></div>
+		</div>
 	</div>
 </template>
 <script setup>
 import {
 	Badge,
 	Button,
-	call,
 	createResource,
 	ErrorMessage,
-	FormControl,
 	Tabs,
 	toast,
 	usePageMeta,
 } from 'frappe-ui'
 import Breadcrumbs from '@/components/PageBreadcrumbs.vue'
-import { computed, inject, markRaw, ref, watch } from 'vue'
+import { computed, inject, markRaw, ref } from 'vue'
 import { Link2, List, Settings2, Trash2 } from 'lucide-vue-next'
 import { sessionStore } from '@/stores/session'
+import UserAvatar from '@/components/UserAvatar.vue'
+import CourseInstructors from '@/components/CourseInstructors.vue'
 import ResourceOverview from '@/pages/Resources/ResourceOverview.vue'
 import CourseForm from '@/pages/Courses/CourseForm.vue'
 
 const user = inject('$user')
 const { brand } = sessionStore()
-const email = ref('')
-const emailSent = ref(false)
 const tabIndex = ref(0)
 const childRef = ref(null)
 
@@ -153,6 +155,20 @@ const resource = createResource({
 	},
 	auto: true,
 })
+
+const claim = createResource({
+	url: 'lms.lms.api.claim_resource',
+	makeParams() {
+		return { resource_name: props.resourceName }
+	},
+	onSuccess() {
+		resource.reload()
+	},
+})
+
+const claimResource = () => {
+	claim.submit()
+}
 
 const publicUrl = computed(() => {
 	const r = resource.data?.route
@@ -172,25 +188,6 @@ async function copyPublicUrl() {
 	} catch (e) {
 		window.open(publicUrl.value, '_blank', 'noopener')
 	}
-}
-
-const accessRequest = createResource({
-	url: 'lms.lms.api.request_resource_access',
-	makeParams() {
-		return {
-			email: email.value,
-			resource_name: props.resourceName,
-		}
-	},
-})
-
-const requestAccess = () => {
-	if (!email.value) return
-	accessRequest.submit({}, {
-		onSuccess() {
-			emailSent.value = true
-		},
-	})
 }
 
 const isInstructor = () => {
@@ -215,20 +212,6 @@ const tabs = ref([
 	},
 ])
 
-// Auto-enroll logged-in non-admin users so they can access the content.
-watch(
-	() => resource.data,
-	(data) => {
-		if (data && user.data && !data.membership && !isAdmin.value) {
-			call('lms.lms.api.auto_enroll_resource', {
-				resource_name: props.resourceName,
-			}).then(() => {
-				resource.reload()
-			})
-		}
-	}
-)
-
 const breadcrumbs = computed(() => [
 	{
 		label: __('Resources'),
@@ -247,3 +230,17 @@ usePageMeta(() => {
 	}
 })
 </script>
+<style scoped>
+.avatar-group {
+	display: inline-flex;
+	align-items: center;
+}
+
+.avatar-group .avatar {
+	transition: margin 0.1s ease-in-out;
+}
+
+.avatar-group.overlap .avatar + .avatar {
+	margin-left: calc(-8px);
+}
+</style>

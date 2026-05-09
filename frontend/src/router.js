@@ -288,10 +288,19 @@ router.beforeEach(async (to, from, next) => {
 	if (!isLoggedIn) {
 		if (to.name == 'Home') router.push({ name: 'Courses' })
 
+		// Guests on a Resource detail page get the public Jinja landing at
+		// /r/<slug>, which carries the same hero + the standard register
+		// modal flow (target_type='resource' → signup_and_enroll auto-claims
+		// the resource on success). The in-app /lms/resources/<slug> view is
+		// authenticated-only.
+		if (to.name === 'ResourceDetail' && to.params.resourceName) {
+			window.location.href = `/r/${to.params.resourceName}`
+			return
+		}
+
 		await settings.promise
 		const guestAllowedRoutes = [
 			'Resources',
-			'ResourceDetail',
 			'PrivacyPolicy',
 			'TermsOfService',
 			'CookiePolicy',
