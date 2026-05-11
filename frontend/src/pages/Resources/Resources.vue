@@ -11,49 +11,6 @@
 		</Button>
 	</header>
 	<div class="p-5 pb-10">
-		<div v-if="user.data" class="flex mb-4">
-			<div
-				class="inline-flex rounded-md border border-outline-gray-2 p-0.5 bg-surface-gray-1"
-			>
-				<button
-					class="px-4 py-1.5 text-sm rounded transition-colors"
-					:class="
-						!onlyClaimed
-							? 'bg-surface-white shadow-sm font-medium text-ink-gray-9'
-							: 'text-ink-gray-6 hover:text-ink-gray-8'
-					"
-					@click="setOnlyClaimed(false)"
-				>
-					{{ __('All Resources') }}
-				</button>
-				<button
-					class="px-4 py-1.5 text-sm rounded transition-colors"
-					:class="
-						onlyClaimed
-							? 'bg-surface-white shadow-sm font-medium text-ink-gray-9'
-							: 'text-ink-gray-6 hover:text-ink-gray-8'
-					"
-					@click="setOnlyClaimed(true)"
-				>
-					{{ __('My Resources') }}
-				</button>
-			</div>
-		</div>
-		<div class="flex gap-1 border-b border-outline-gray-2 mb-5 overflow-x-auto">
-			<button
-				v-for="audience in audiences"
-				:key="audience.value ?? 'all'"
-				class="px-4 py-2 text-sm whitespace-nowrap transition-colors border-b-2 -mb-px"
-				:class="
-					currentAudience === audience.value
-						? 'border-ink-gray-9 text-ink-gray-9 font-medium'
-						: 'border-transparent text-ink-gray-6 hover:text-ink-gray-8'
-				"
-				@click="setAudience(audience.value)"
-			>
-				{{ audience.label }}
-			</button>
-		</div>
 		<div
 			class="flex flex-col lg:flex-row space-y-4 lg:space-y-0 lg:items-center justify-between mb-5"
 		>
@@ -63,21 +20,11 @@
 			<div
 				class="flex flex-col space-y-3 lg:space-y-0 lg:flex-row lg:items-center lg:space-x-4"
 			>
-				<div class="flex flex-wrap gap-2">
-					<button
-						v-for="type in resourceTypes"
-						:key="type.value"
-						class="px-3 py-1 text-sm rounded-full border transition-colors"
-						:class="
-							currentType === type.value
-								? 'bg-ink-gray-9 text-white border-ink-gray-9'
-								: 'bg-surface-white text-ink-gray-7 border-outline-gray-2 hover:border-outline-gray-3'
-						"
-						@click="setType(type.value)"
-					>
-						{{ type.label }}
-					</button>
-				</div>
+				<TabButtons
+					:buttons="audienceTabs"
+					v-model="currentAudience"
+					class="w-fit"
+				/>
 
 				<div class="grid grid-cols-2 gap-2">
 					<FormControl
@@ -89,14 +36,25 @@
 					/>
 					<div class="w-full lg:min-w-0 lg:w-32 xl:w-40">
 						<Select
-							v-if="categories.length > 1"
-							v-model="currentCategory"
-							:options="categories"
-							:placeholder="__('Category')"
+							v-model="currentType"
+							:options="typeOptions"
+							:placeholder="__('Type')"
 							@update:modelValue="updateResources()"
 						/>
 					</div>
 				</div>
+
+				<Tooltip
+					v-if="user.data"
+					:text="__('Only show resources you have claimed')"
+				>
+					<FormControl
+						type="checkbox"
+						v-model="onlyClaimed"
+						:label="__('My Resources')"
+						@change="updateResources()"
+					/>
+				</Tooltip>
 			</div>
 		</div>
 		<div
@@ -105,19 +63,16 @@
 		>
 			<router-link
 				v-for="resource in resources.data"
-				:to="{ name: 'ResourceDetail', params: { resourceName: resource.name } }"
+				:key="resource.name"
+				:to="{
+					name: 'ResourceDetail',
+					params: { resourceName: resource.name },
+				}"
 			>
 				<CourseCard :course="resource" />
 			</router-link>
 		</div>
-		<div v-else-if="!resources.list.loading" class="text-center py-20">
-			<div class="text-ink-gray-5 text-lg">
-				{{ onlyClaimed
-					? __("You haven't claimed any resources yet")
-					: __('No resources found')
-				}}
-			</div>
-		</div>
+		<EmptyState v-else-if="!resources.list.loading" type="Resources" />
 		<div
 			v-if="!resources.list.loading && resources.hasNextPage"
 			class="flex justify-center mt-5"
@@ -140,14 +95,17 @@ import {
 	createListResource,
 	FormControl,
 	Select,
+	TabButtons,
+	Tooltip,
 	usePageMeta,
 } from 'frappe-ui'
-import { computed, inject, onMounted, ref } from 'vue'
+import { computed, inject, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Plus } from 'lucide-vue-next'
 import { sessionStore } from '@/stores/session'
 import { canCreateCourse } from '@/utils'
 import CourseCard from '@/components/CourseCard.vue'
+import EmptyState from '@/components/EmptyState.vue'
 import NewResourceModal from '@/pages/Resources/NewResourceModal.vue'
 
 const user = inject('$user')
@@ -157,14 +115,12 @@ const router = useRouter()
 const showResourceModal = ref(false)
 const canCreate = computed(() => canCreateCourse())
 const title = ref('')
-const currentCategory = ref(null)
 const currentType = ref(null)
 const currentAudience = ref(route.query.audience || null)
 const onlyClaimed = ref(route.query.claimed === '1')
-const categories = ref([{ label: '', value: null }])
 
-const resourceTypes = [
-	{ label: __('All'), value: null },
+const typeOptions = [
+	{ label: __('All Types'), value: null },
 	{ label: __('Video'), value: 'Video' },
 	{ label: __('Download'), value: 'Download' },
 	{ label: __('Article'), value: 'Article' },
@@ -172,24 +128,12 @@ const resourceTypes = [
 	{ label: __('Template'), value: 'Template' },
 ]
 
-const audiences = [
+const audienceTabs = [
 	{ label: __('All'), value: null },
-	{ label: __('Healthcare Professionals'), value: 'Healthcare Professionals' },
+	{ label: __('Healthcare'), value: 'Healthcare Professionals' },
 	{ label: __('Educators'), value: 'Educators' },
-	{ label: __('Parents / Caregivers'), value: 'Parents / Caregivers' },
+	{ label: __('Caregivers'), value: 'Parents / Caregivers' },
 ]
-
-const setAudience = (value) => {
-	currentAudience.value = value
-	router.replace({ query: { ...route.query, audience: value || undefined } })
-	updateResources()
-}
-
-const setOnlyClaimed = (value) => {
-	onlyClaimed.value = value
-	router.replace({ query: { ...route.query, claimed: value ? '1' : undefined } })
-	updateResources()
-}
 
 onMounted(() => {
 	updateResources()
@@ -202,19 +146,11 @@ const resources = createListResource({
 	pageLength: 30,
 })
 
-const setType = (type) => {
-	currentType.value = type
-	updateResources()
-}
-
 const updateResources = () => {
 	let filters = {}
 
 	if (currentType.value) {
 		filters.resource_type = currentType.value
-	}
-	if (currentCategory.value) {
-		filters.category = currentCategory.value
 	}
 	if (currentAudience.value) {
 		filters.audience = currentAudience.value
@@ -227,26 +163,29 @@ const updateResources = () => {
 	}
 
 	resources.update({ filters })
-	resources.reload().then((data) => {
-		if (data) {
-			setCategories(data)
-		}
-	})
+	resources.reload()
+	setQueryParams()
 }
 
-const setCategories = (data) => {
-	data.forEach((resource) => {
-		if (
-			resource.category &&
-			!categories.value.find((c) => c.value === resource.category)
-		) {
-			categories.value.push({
-				label: resource.category,
-				value: resource.category,
-			})
-		}
-	})
+const setQueryParams = () => {
+	const queries = new URLSearchParams(location.search)
+	if (currentAudience.value) {
+		queries.set('audience', currentAudience.value)
+	} else {
+		queries.delete('audience')
+	}
+	if (onlyClaimed.value) {
+		queries.set('claimed', '1')
+	} else {
+		queries.delete('claimed')
+	}
+	const queryString = queries.toString() ? `?${queries.toString()}` : ''
+	history.replaceState({}, '', `${location.pathname}${queryString}`)
 }
+
+watch(currentAudience, () => {
+	updateResources()
+})
 
 const breadcrumbs = computed(() => [
 	{
