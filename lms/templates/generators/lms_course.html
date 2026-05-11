@@ -33,6 +33,18 @@
 	margin: 0 0 0.5rem;
 	line-height: 1.2;
 }
+.lms-landing__type-chip {
+	display: inline-block;
+	font-size: 0.7rem;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: #486581;
+	background: #e4e9f0;
+	padding: 0.25rem 0.6rem;
+	border-radius: 6px;
+	margin-bottom: 0.85rem;
+}
 .lms-landing__lede {
 	font-size: 1.1rem;
 	color: #486581;
@@ -247,6 +259,9 @@ img.lms-landing__instructor-avatar { object-fit: cover; }
 			{% if course.image %}
 			<img src="{{ course.image }}" alt="{{ course.title }}" class="lms-landing__hero-img">
 			{% endif %}
+			{% if is_resource and course.resource_type %}
+			<span class="lms-landing__type-chip">{{ course.resource_type }}</span>
+			{% endif %}
 			<h1>{{ course.title }}</h1>
 			{% if course.short_introduction %}
 			<p class="lms-landing__lede">{{ course.short_introduction }}</p>
@@ -260,7 +275,6 @@ img.lms-landing__instructor-avatar { object-fit: cover; }
 				</div>
 				{% endif %}
 				<div class="lms-landing__stats">
-					{% if is_resource and course.resource_type %}<span>{{ course.resource_type }}</span>{% endif %}
 					{% if rating %}<span>★ {{ "%.1f"|format(rating) }}</span>{% endif %}
 					{% if enrollment_count %}<span>{{ enrollment_count }} {{ _("enrolled") }}</span>{% endif %}
 					{% if lesson_count %}<span>{{ lesson_count }} {{ _("lesson") if lesson_count == 1 else _("lessons") }}</span>{% endif %}
@@ -326,7 +340,9 @@ img.lms-landing__instructor-avatar { object-fit: cover; }
 			<ul class="lms-landing__includes">
 				{% if is_resource %}
 					{% if course.resource_type %}<li>{{ course.resource_type }}</li>{% endif %}
-					<li>{{ _("Free access") }}</li>
+					<li>{{ _("Instant access") }}</li>
+					<li>{{ _("No credit card required") }}</li>
+					<li>{{ _("Yours to keep") }}</li>
 				{% else %}
 					{% if lesson_count %}<li>{{ lesson_count }} {{ _("lesson") if lesson_count == 1 else _("lessons") }}</li>{% endif %}
 					{% if course.enable_certification %}<li>{{ _("Certificate of completion") }}</li>{% endif %}
