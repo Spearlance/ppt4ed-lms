@@ -160,7 +160,7 @@ const isInstructor = computed(() => {
 })
 
 const isAdmin = computed(() => {
-	return user.data?.is_moderator || isInstructor.value
+	return isInstructor.value
 })
 
 const currentLessonParts = computed(() => {

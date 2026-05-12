@@ -119,7 +119,7 @@
 				</span>
 			</div>
 
-			<div v-if="!readOnlyMode && !canAccessEvent">
+			<div v-if="!readOnlyMode && !isStudent && !isInstructorOfThisEvent">
 				<Button
 					v-if="
 						batch.data.paid_event &&
@@ -306,6 +306,11 @@ const isModerator = computed(() => {
 
 const isAdmin = computed(() => {
 	return user.data?.is_moderator
+})
+
+const isInstructorOfThisEvent = computed(() => {
+	const instructors = props.batch?.data?.instructors || []
+	return instructors.some((i) => i.name === user.data?.name)
 })
 
 const canAccessEvent = computed(() => {
