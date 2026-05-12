@@ -227,6 +227,7 @@ def send_notification_for_published_courses():
 		{
 			"published_on": today(),
 			"notification_sent": 0,
+			"course_type": ["!=", "Resource"],
 		},
 		["name", "title", "short_introduction", "audience"],
 	)
