@@ -34,7 +34,7 @@ TEMPLATES = {
 <p><b>Time:</b> {{ frappe.utils.format_time(time, "hh:mm a") }}</p>
 {% if zoom_link %}
 <p>
-  <a href="{{ zoom_link }}" style="display:inline-block;padding:10px 20px;background:#2563eb;color:#fff;text-decoration:none;border-radius:6px;font-weight:600;">Join Webinar</a>
+  <a href="{{ zoom_link }}" style="display:inline-block;padding:10px 20px;background:#0b6685;color:#fff;text-decoration:none;border-radius:6px;font-weight:600;">Join Webinar</a>
 </p>
 <p style="font-size:12px;color:#6b7280;">Or copy this link: <a href="{{ zoom_link }}">{{ zoom_link }}</a></p>
 {% endif %}
@@ -52,7 +52,7 @@ TEMPLATES = {
 <p><b>Time:</b> {{ frappe.utils.format_time(time, "hh:mm a") }}</p>
 {% if zoom_link %}
 <p>
-  <a href="{{ zoom_link }}" style="display:inline-block;padding:12px 24px;background:#2563eb;color:#fff;text-decoration:none;border-radius:6px;font-weight:600;">Join Webinar</a>
+  <a href="{{ zoom_link }}" style="display:inline-block;padding:12px 24px;background:#0b6685;color:#fff;text-decoration:none;border-radius:6px;font-weight:600;">Join Webinar</a>
 </p>
 <p style="font-size:12px;color:#6b7280;">Or copy this link: <a href="{{ zoom_link }}">{{ zoom_link }}</a></p>
 {% endif %}
@@ -78,7 +78,7 @@ TEMPLATES = {
 <p>A new event has been published on {{ brand_name }} that might interest you.</p>
 <p><b>{{ title }}</b></p>
 <p>{{ short_introduction }}</p>
-<p><a href="{{ batch_url }}" style="display:inline-block;padding:8px 16px;background:#171717;color:#fff;text-decoration:none;border-radius:6px;">View event</a></p>"""
+<p><a href="{{ batch_url }}" style="display:inline-block;padding:8px 16px;background:#0b6685;color:#fff;text-decoration:none;border-radius:6px;">View event</a></p>"""
 		),
 	},
 	"New Course Published": {
@@ -88,7 +88,7 @@ TEMPLATES = {
 <p>A new course has been published on {{ brand_name }} that might interest you.</p>
 <p><b>{{ title }}</b></p>
 <p>{{ short_introduction }}</p>
-<p><a href="{{ course_url }}" style="display:inline-block;padding:8px 16px;background:#171717;color:#fff;text-decoration:none;border-radius:6px;">View course</a></p>"""
+<p><a href="{{ course_url }}" style="display:inline-block;padding:8px 16px;background:#0b6685;color:#fff;text-decoration:none;border-radius:6px;">View course</a></p>"""
 		),
 	},
 	"Course Now Available": {
@@ -96,7 +96,7 @@ TEMPLATES = {
 		"response_html": (
 			"""<p>Hi {{ first_name }},</p>
 <p>The course <b>{{ title }}</b> is now available on {{ app_name }}.</p>
-<p><a href="{{ course_link }}" style="display:inline-block;padding:8px 16px;background:#171717;color:#fff;text-decoration:none;border-radius:6px;">Start Learning</a></p>
+<p><a href="{{ course_link }}" style="display:inline-block;padding:8px 16px;background:#0b6685;color:#fff;text-decoration:none;border-radius:6px;">Start Learning</a></p>
 <p>Or copy this link in your browser: <a href="{{ course_link }}">{{ site_url }}{{ course_link }}</a></p>
 <p>Thanks,<br>{{ app_name }}</p>"""
 		),

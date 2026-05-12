@@ -1,38 +1,31 @@
-<div style="width: 70%; margin: 0 auto;">
-    <img src="{{ brand_logo }}" style="width: 30px; height: 30px;" />
-    <p style="font-size: 16px; font-weight: 600;">
-        {{ _("Hello Learner") }},
-    </p>
-    <p>
-        {{ _("A new course has been published on ")}} {{ brand_name }} {{ _("that might interest you!") }} {{ _("Here are the details:") }}
-    </p>
-    <div style="background-color: #F8F8F8; border-radius: 12px; padding: 12px; margin-bottom: 6px;">
-        <div style="font-weight: 600; margin-bottom: 6px;">
-            {{ title }}
-        </div>
-        <div>
-            {{ short_introduction }}
-        </div>
-        <div style="margin-top: 20px;">
-            {% for instructor in instructors %}
-                <div style="display: flex; align-items: center; margin-bottom: 5px;">
-                    {% if instructor.user_image %}
-                    <img src="{{ instructor.user_image }}" style="width: 20px; height: 20px; border-radius: 50%; margin-right: 5px;" />
-                    {% else %}
-                    <div style="width: 20px; height: 20px; border-radius: 50%; background-color: #ccc; display: flex; align-items: center; justify-content: center; margin-right: 5px;">
-                        <span style="font-size: 12px; color: #fff;">
-                            {{ instructor.full_name.split("")[0] | upper }}
-                        </span>
-                    </div>
-                    {% endif %}
-                    <div>
-                        {{ instructor.full_name }}
-                    </div>
-                </div>
-            {% endfor %}
-        </div>
+<p style="font-size: 16px; font-weight: 600; margin: 0 0 8px;">
+    {{ _("Hello Learner") }},
+</p>
+<p style="margin: 0 0 16px;">
+    {{ _("A new course has been published on ")}} {{ brand_name }} {{ _("that might interest you!") }} {{ _("Here are the details:") }}
+</p>
+<div style="background-color: #F8F8F8; border-radius: 12px; padding: 16px; margin-bottom: 20px;">
+    <div style="font-weight: 600; margin-bottom: 6px;">
+        {{ title }}
     </div>
-    <a href="{{ course_url }}" style="display: inline-block; padding: 4px 8px; background-color: #171717; color: #fff; text-decoration: none; cursor: pointer; border-radius: 8px; margin-top: 10px;">
-        {{ _("Checkout the course") }}
-    </a>
+    <div>
+        {{ short_introduction }}
+    </div>
+    <div style="margin-top: 16px;">
+        {% for instructor in instructors %}
+            <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin-bottom: 6px;"><tr>
+                {% if instructor.user_image %}
+                <td valign="middle" style="padding-right: 8px;">
+                    <img src="{{ instructor.user_image }}" width="24" height="24" style="border-radius: 50%; display: block;" />
+                </td>
+                {% endif %}
+                <td valign="middle" style="font-size: 14px; color: #545454;">
+                    {{ instructor.full_name }}
+                </td>
+            </tr></table>
+        {% endfor %}
+    </div>
 </div>
+<a href="{{ course_url }}" style="display: inline-block; padding: 10px 20px; background-color: #0b6685; color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600;">
+    {{ _("Checkout the course") }}
+</a>

@@ -526,6 +526,27 @@ def notify_mentions_on_portal(doc: Document, topic: dict):
 		make_notification_logs(notification, user)
 
 
+def _render_brand_email(inner_html):
+	"""Wrap pre-rendered inner HTML in the shared PPT4Ed brand shell.
+
+	The wrapper supplies the logo header, brand-color accent band, and footer
+	(contact + policy links + copyright) so individual Email Template / Jinja
+	bodies stay focused on copy. Brand context is resolved here so callsites
+	don't need to know about it.
+	"""
+	from frappe.utils import get_url
+
+	wrapper_args = {
+		"inner_html": inner_html,
+		"brand_logo_url": get_url("/assets/lms/images/ppt4ed-logo.png"),
+		"brand_name": frappe.db.get_single_value("Website Settings", "app_name") or "PPT4ed",
+		"site_url": get_url(),
+		"support_email": "support@ppt4ed.org",
+		"current_year": now_datetime().year,
+	}
+	return frappe.render_template("templates/emails/_brand_wrapper.html", wrapper_args)
+
+
 def lms_send_template_mail(
 	*,
 	recipients,
@@ -540,28 +561,28 @@ def lms_send_template_mail(
 	When an Email Template named `template_name` exists, render its subject and
 	body through it so admins can edit copy via /lms Settings → Email Templates
 	without a deploy. Otherwise fall back to the Jinja file `jinja_template`.
-	All other frappe.sendmail kwargs (header, retry, bcc, cc, attachments...)
-	pass through unchanged.
+	Either way the rendered body is wrapped in the shared PPT4Ed brand shell
+	so chrome lives in one place. All other frappe.sendmail kwargs (header,
+	retry, bcc, cc, attachments...) pass through unchanged.
 	"""
 	from frappe.email.doctype.email_template.email_template import get_email_template
+	from frappe.utils.jinja import get_email_from_template
 
 	if template_name and frappe.db.exists("Email Template", template_name):
 		rendered = get_email_template(template_name, args)
-		frappe.sendmail(
-			recipients=recipients,
-			subject=rendered.get("subject") or default_subject,
-			content=rendered.get("message"),
-			args=args,
-			**sendmail_kwargs,
-		)
+		subject = rendered.get("subject") or default_subject
+		inner_html = rendered.get("message") or ""
 	else:
-		frappe.sendmail(
-			recipients=recipients,
-			subject=default_subject,
-			template=jinja_template,
-			args=args,
-			**sendmail_kwargs,
-		)
+		inner_html, _text = get_email_from_template(jinja_template, args)
+		subject = default_subject
+
+	frappe.sendmail(
+		recipients=recipients,
+		subject=subject,
+		content=_render_brand_email(inner_html),
+		args=args,
+		**sendmail_kwargs,
+	)
 
 
 def notify_mentions_via_email(doc: Document, topic: dict):

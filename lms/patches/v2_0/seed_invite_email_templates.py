@@ -19,7 +19,7 @@ TEMPLATES = {
 <p>Your company plan covers continuing-education courses, live events, and resources.
 Click below to accept the invitation and either sign in or create your free account.</p>
 <p>
-  <a href="{{ accept_url }}" style="display:inline-block;padding:12px 24px;background:#171717;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">Accept invitation</a>
+  <a href="{{ accept_url }}" style="display:inline-block;padding:12px 24px;background:#0b6685;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">Accept invitation</a>
 </p>
 <p style="font-size:12px;color:#6b7280;">Or copy this link into your browser: <a href="{{ accept_url }}">{{ accept_url }}</a></p>
 {% if expires_on %}
@@ -37,7 +37,7 @@ Click below to accept the invitation and either sign in or create your free acco
 review enrollment requests, and oversee billing for your team.</p>
 <p>Click below to accept the invitation and either sign in or create your account.</p>
 <p>
-  <a href="{{ accept_url }}" style="display:inline-block;padding:12px 24px;background:#171717;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">Accept and set up your account</a>
+  <a href="{{ accept_url }}" style="display:inline-block;padding:12px 24px;background:#0b6685;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">Accept and set up your account</a>
 </p>
 <p style="font-size:12px;color:#6b7280;">Or copy this link into your browser: <a href="{{ accept_url }}">{{ accept_url }}</a></p>
 {% if expires_on %}
@@ -54,7 +54,7 @@ review enrollment requests, and oversee billing for your team.</p>
 as a{% if role_label == "Instructor" %}n{% endif %} {{ role_label.lower() }}.</p>
 <p>To get started, set your password and sign in:</p>
 <p>
-  <a href="{{ setup_url }}" style="display:inline-block;padding:12px 24px;background:#171717;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">Set password and sign in</a>
+  <a href="{{ setup_url }}" style="display:inline-block;padding:12px 24px;background:#0b6685;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">Set password and sign in</a>
 </p>
 <p style="font-size:12px;color:#6b7280;">Or copy this link into your browser: <a href="{{ setup_url }}">{{ setup_url }}</a></p>
 <p>Once signed in, your dashboard at PPT4ed will show your enrolled courses, upcoming events,

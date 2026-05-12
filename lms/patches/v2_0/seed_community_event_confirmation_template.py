@@ -29,7 +29,7 @@ RESPONSE_HTML = """<p>Hi {{ guardian_name }},</p>
 <p>Thank you for your ${{ "%.2f"|format(donation_total|float) }} donation to PPT4ed!</p>
 {% endif %}
 <p>
-  <a href="{{ event_url }}" style="display:inline-block;padding:8px 16px;background:#171717;color:#fff;text-decoration:none;border-radius:8px;">View event details</a>
+  <a href="{{ event_url }}" style="display:inline-block;padding:8px 16px;background:#0b6685;color:#fff;text-decoration:none;border-radius:8px;">View event details</a>
 </p>
 <p style="color:#6b7280;font-size:12px;margin-top:24px;">If you need to make a change, just reply to this email.</p>
 """
