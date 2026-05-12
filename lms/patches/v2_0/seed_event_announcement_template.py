@@ -19,7 +19,7 @@ RESPONSE_HTML = """<p style="font-size: 16px; font-weight: 600; margin-bottom: 4
   <div style="line-height: 1.5;">{{ announcement_body }}</div>
 </div>
 <p>
-  <a href="{{ event_url }}" style="display:inline-block;padding:8px 16px;background:#171717;color:#fff;text-decoration:none;border-radius:8px;">Open event</a>
+  <a href="{{ event_url }}" style="display:inline-block;padding:8px 16px;background:#0b6685;color:#fff;text-decoration:none;border-radius:8px;">Open event</a>
 </p>
 <p style="color:#6b7280;font-size:12px;margin-top:24px;">You're receiving this because you're enrolled in {{ event_title }} on {{ brand_name }}.</p>
 """

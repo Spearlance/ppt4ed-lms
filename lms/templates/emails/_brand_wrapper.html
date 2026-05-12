@@ -1,0 +1,63 @@
+{#-
+  Shared branded email shell.
+
+  Renders a PPT4Ed-styled header/footer around `inner_html` so admins can edit
+  the Email Template body in /lms Settings without re-doing the chrome. Applied
+  by `lms_send_template_mail` in lms/lms/utils.py.
+
+  Required context:
+    inner_html       — pre-rendered HTML for the content slot
+    brand_logo_url   — absolute URL to /assets/lms/images/ppt4ed-logo.png
+    brand_name       — "PPT4ed" (from Website Settings.app_name)
+    site_url         — absolute site URL (frappe.utils.get_url())
+    support_email    — "support@ppt4ed.org"
+    current_year     — e.g. 2026
+-#}
+<table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#f9fafb;margin:0;padding:0;">
+  <tr>
+    <td align="center" style="padding:24px 12px;">
+      <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="600" style="max-width:600px;width:100%;background-color:#ffffff;border-radius:12px;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#222222;">
+
+        {# Header — logo + brand-color accent band #}
+        <tr>
+          <td style="padding:24px 32px 16px 32px;background-color:#ffffff;">
+            <a href="{{ site_url }}" style="text-decoration:none;color:inherit;">
+              <img src="{{ brand_logo_url }}" alt="{{ brand_name }}" height="36" style="display:block;border:0;outline:none;height:36px;width:auto;">
+            </a>
+          </td>
+        </tr>
+        <tr>
+          <td style="background-color:#0b6685;line-height:4px;font-size:0;">&nbsp;</td>
+        </tr>
+
+        {# Content slot — admin-edited template body #}
+        <tr>
+          <td style="padding:28px 32px 28px 32px;background-color:#ffffff;font-size:15px;line-height:1.55;color:#222222;">
+            {{ inner_html | safe }}
+          </td>
+        </tr>
+
+        {# Footer #}
+        <tr>
+          <td style="background-color:#f3f4f6;padding:20px 32px;font-size:12px;line-height:1.6;color:#6b7280;">
+            <div style="margin-bottom:6px;">
+              Questions? Reply to this email or write to
+              <a href="mailto:{{ support_email }}" style="color:#0b6685;text-decoration:none;">{{ support_email }}</a>.
+            </div>
+            <div style="margin-bottom:6px;">
+              <a href="{{ site_url }}/lms/privacy" style="color:#6b7280;text-decoration:underline;">Privacy</a>
+              &nbsp;·&nbsp;
+              <a href="{{ site_url }}/lms/terms" style="color:#6b7280;text-decoration:underline;">Terms</a>
+              &nbsp;·&nbsp;
+              <a href="{{ site_url }}/lms/cookies" style="color:#6b7280;text-decoration:underline;">Cookies</a>
+            </div>
+            <div style="color:#9ca3af;">
+              &copy; {{ current_year }} {{ brand_name }} Educational Group
+            </div>
+          </td>
+        </tr>
+
+      </table>
+    </td>
+  </tr>
+</table>

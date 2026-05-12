@@ -19,7 +19,7 @@ RESPONSE_HTML = """<p>Hi {{ student_name }},</p>
 <p><b>Time:</b> {{ frappe.utils.format_time(time, "hh:mm a") }}</p>
 {% if zoom_link %}
 <p>
-  <a href="{{ zoom_link }}" style="display:inline-block;padding:12px 24px;background:#2563eb;color:#fff;text-decoration:none;border-radius:6px;font-weight:600;">Join Webinar</a>
+  <a href="{{ zoom_link }}" style="display:inline-block;padding:12px 24px;background:#0b6685;color:#fff;text-decoration:none;border-radius:6px;font-weight:600;">Join Webinar</a>
 </p>
 <p style="font-size:12px;color:#6b7280;">Or copy this link: <a href="{{ zoom_link }}">{{ zoom_link }}</a></p>
 {% endif %}

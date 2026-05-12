@@ -1,25 +1,20 @@
-<div style="width: 70%; margin: 0 auto;">
-    {% if brand_logo %}
-    <img src="{{ brand_logo }}" style="width: 30px; height: 30px;" />
-    {% endif %}
-    <p style="font-size: 16px; font-weight: 600; margin-bottom: 4px;">
-        {{ _("Announcement from") }} {{ instructor_name }}
-    </p>
-    <p style="color: #6b7280; margin-top: 0;">
-        {{ event_title }}
-    </p>
-    <div style="background-color: #F8F8F8; border-radius: 12px; padding: 16px; margin: 16px 0;">
-        <div style="font-weight: 600; margin-bottom: 8px;">
-            {{ announcement_subject }}
-        </div>
-        <div style="line-height: 1.5;">
-            {{ announcement_body }}
-        </div>
+<p style="font-size: 16px; font-weight: 600; margin: 0 0 4px;">
+    {{ _("Announcement from") }} {{ instructor_name }}
+</p>
+<p style="color: #6b7280; margin: 0 0 16px;">
+    {{ event_title }}
+</p>
+<div style="background-color: #F8F8F8; border-radius: 12px; padding: 16px; margin: 16px 0;">
+    <div style="font-weight: 600; margin-bottom: 8px;">
+        {{ announcement_subject }}
     </div>
-    <a href="{{ event_url }}" style="display: inline-block; padding: 8px 16px; background-color: #171717; color: #fff; text-decoration: none; border-radius: 8px;">
-        {{ _("Open event") }}
-    </a>
-    <p style="color: #6b7280; font-size: 12px; margin-top: 24px;">
-        {{ _("You're receiving this because you're enrolled in") }} {{ event_title }} {{ _("on") }} {{ brand_name }}.
-    </p>
+    <div style="line-height: 1.5;">
+        {{ announcement_body }}
+    </div>
 </div>
+<a href="{{ event_url }}" style="display: inline-block; padding: 10px 20px; background-color: #0b6685; color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600;">
+    {{ _("Open event") }}
+</a>
+<p style="color: #6b7280; font-size: 12px; margin: 24px 0 0;">
+    {{ _("You're receiving this because you're enrolled in") }} {{ event_title }} {{ _("on") }} {{ brand_name }}.
+</p>

@@ -28,7 +28,7 @@ quiz history, and personal enrollments stay with you.</p>
 </ul>
 
 <p>
-  <a href="{{ login_url }}" style="display:inline-block;padding:10px 20px;background:#171717;color:#fff;text-decoration:none;border-radius:6px;font-weight:600;">Sign in to PPT4ed</a>
+  <a href="{{ login_url }}" style="display:inline-block;padding:10px 20px;background:#0b6685;color:#fff;text-decoration:none;border-radius:6px;font-weight:600;">Sign in to PPT4ed</a>
 </p>
 
 <p style="font-size:12px;color:#6b7280;">Or copy this link: <a href="{{ login_url }}">{{ login_url }}</a></p>
