@@ -122,6 +122,35 @@
 			</div>
 		</div>
 
+		<div v-if="myResources.data?.length" class="mt-10">
+			<div class="flex items-center justify-between mb-3">
+				<span class="font-semibold text-lg text-ink-gray-9">
+					{{ __('My Resources') }}
+				</span>
+				<router-link
+					:to="{
+						name: 'Resources',
+						query: { claimed: '1' },
+					}"
+				>
+					<span class="flex items-center space-x-1 text-ink-gray-5 text-xs">
+						<span>
+							{{ __('See all') }}
+						</span>
+						<MoveRight class="size-3 stroke-1.5" />
+					</span>
+				</router-link>
+			</div>
+			<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+				<router-link
+					v-for="resource in myResources.data"
+					:to="{ name: 'ResourceDetail', params: { resourceName: resource.name } }"
+				>
+					<CourseCard :course="resource" />
+				</router-link>
+			</div>
+		</div>
+
 		<div v-if="myBatches.data?.length" class="mt-10">
 			<div class="flex items-center justify-between mb-3">
 				<span class="font-semibold text-lg text-ink-gray-9">
@@ -180,6 +209,11 @@ const props = defineProps<{
 
 const myCourses = createResource({
 	url: 'lms.lms.api.get_my_courses',
+	auto: true,
+})
+
+const myResources = createResource({
+	url: 'lms.lms.api.get_my_resources',
 	auto: true,
 })
 

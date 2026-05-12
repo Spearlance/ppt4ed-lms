@@ -2435,21 +2435,31 @@ def get_my_courses():
 
 
 def get_my_latest_courses():
-	return frappe.get_all(
+	enrolled = frappe.get_all(
 		"LMS Enrollment",
-		{
-			"member": frappe.session.user,
-		},
+		{"member": frappe.session.user},
 		order_by="modified desc",
-		limit=3,
 		pluck="course",
 	)
+	if not enrolled:
+		return []
+	non_resource = set(
+		frappe.get_all(
+			"LMS Course",
+			filters={
+				"name": ["in", enrolled],
+				"course_type": ["!=", "Resource"],
+			},
+			pluck="name",
+		)
+	)
+	return [c for c in enrolled if c in non_resource][:3]
 
 
 def get_featured_home_courses():
 	return frappe.get_all(
 		"LMS Course",
-		{"published": 1, "featured": 1},
+		{"published": 1, "featured": 1, "course_type": ["!=", "Resource"]},
 		order_by="published_on desc",
 		limit=3,
 		pluck="name",
@@ -2461,11 +2471,44 @@ def get_popular_courses():
 		"LMS Course",
 		{
 			"published": 1,
+			"course_type": ["!=", "Resource"],
 		},
 		order_by="enrollments desc",
 		limit=3,
 		pluck="name",
 	)
+
+
+@frappe.whitelist()
+def get_my_resources():
+	if frappe.session.user == "Guest":
+		return []
+
+	enrolled = frappe.get_all(
+		"LMS Enrollment",
+		{"member": frappe.session.user},
+		order_by="modified desc",
+		pluck="course",
+	)
+	if not enrolled:
+		return []
+
+	resource_set = set(
+		frappe.get_all(
+			"LMS Course",
+			filters={
+				"name": ["in", enrolled],
+				"course_type": "Resource",
+				"published": 1,
+			},
+			pluck="name",
+		)
+	)
+	if not resource_set:
+		return []
+
+	ordered = [c for c in enrolled if c in resource_set][:3]
+	return [get_course_details(name) for name in ordered]
 
 
 @frappe.whitelist()
