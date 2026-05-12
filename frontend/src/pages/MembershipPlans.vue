@@ -110,7 +110,7 @@
                                 <span class="text-sm text-ink-gray-5">/year</span>
                             </div>
                             <div class="text-sm text-ink-gray-5 mt-2 mb-6">
-                                {{ __('Free courses, no commitment') }}
+                                {{ __('Free resources. Pay-as-you-go for CEU courses.') }}
                             </div>
                             <Button
                                 class="mt-auto w-full"

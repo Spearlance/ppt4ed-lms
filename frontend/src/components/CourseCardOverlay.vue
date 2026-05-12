@@ -356,7 +356,7 @@ const fetchCertificate = () => {
 }
 
 const isAdmin = computed(() => {
-	return user.data?.is_moderator || is_instructor()
+	return is_instructor()
 })
 
 const isCompanyMember = computed(() => user.data?.is_company_member)
