@@ -3,6 +3,17 @@
 	// Only run on the login page
 	if (window.location.pathname !== '/login') return;
 
+	// Production safety: allowlist of dev hostnames only. Defaults to "hide"
+	// for any unrecognized hostname — better to lose the dev affordance than
+	// leak test credentials onto a prod login page.
+	//
+	// NOTE: frappe.boot.developer_mode looks tempting here but is NOT
+	// populated in Frappe's web boot (only desk boot), so it reads as
+	// undefined on /login and would hide the card on dev too. See
+	// memory/feedback_desk_vs_web_boot.md.
+	var DEV_HOSTNAMES = ['devlms.ppt4ed.org', 'localhost', '127.0.0.1'];
+	if (DEV_HOSTNAMES.indexOf(window.location.hostname) === -1) return;
+
 	var PERSONAS = [
 		{ email: 'pro@test.com', password: 'TestUser@2026!', name: 'Sarah Professional', tag: 'Professional — 20 CEU credits' },
 		{ email: 'company-admin@test.com', password: 'TestUser@2026!', name: 'Mike Manager', tag: 'Company Admin — 80 pool credits' },
