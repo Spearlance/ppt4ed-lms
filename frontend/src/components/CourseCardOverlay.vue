@@ -69,32 +69,22 @@
 					v-else-if="isPptEmployee && !isAdmin"
 					class="space-y-2 mb-8"
 				>
-					<div v-if="pptVerificationSent" class="text-center p-4 bg-blue-50 rounded-md">
-						<div class="font-medium text-ink-gray-9 mb-1">
-							{{ __('Check your inbox') }}
-						</div>
-						<div class="text-sm text-ink-gray-7">
-							{{ __('We sent a confirmation link to your email. Click it to start the course.') }}
-						</div>
+					<Button
+						@click="enrollPptEmployee()"
+						variant="solid"
+						size="md"
+						class="w-full"
+					>
+						<template #prefix>
+							<BookText class="size-4 stroke-1.5" />
+						</template>
+						<span>
+							{{ __('Start Learning') }}
+						</span>
+					</Button>
+					<div class="text-xs text-ink-gray-5 text-center">
+						{{ __('Included with your PPT employee account') }}
 					</div>
-					<template v-else>
-						<Button
-							@click="enrollPptEmployee()"
-							variant="solid"
-							size="md"
-							class="w-full"
-						>
-							<template #prefix>
-								<BookText class="size-4 stroke-1.5" />
-							</template>
-							<span>
-								{{ __('Start Learning') }}
-							</span>
-						</Button>
-						<div class="text-xs text-ink-gray-5 text-center">
-							{{ __('Included with your PPT employee account') }}
-						</div>
-					</template>
 				</div>
 				<Button
 					v-else-if="course.data.paid_course && !isAdmin"
@@ -413,7 +403,6 @@ async function enrollViaCompany() {
 	}
 }
 
-const pptVerificationSent = ref(false)
 const showConfirmDialog = ref(false)
 const purchasing = ref(false)
 const showRegister = ref(false)
@@ -453,16 +442,22 @@ async function enrollPptEmployee() {
 		return
 	}
 	try {
-		const result = await call(
-			'lms.lms.ceu_enrollment.enroll_ppt_employee',
-			{
-				course_name: props.course.data.name,
-				membership_name: user.data.membership_name,
-			}
-		)
-		if (result.status === 'verification_sent') {
-			pptVerificationSent.value = true
-		}
+		await call('lms.lms.ceu_enrollment.enroll_ppt_employee', {
+			course_name: props.course.data.name,
+			membership_name: user.data.membership_name,
+		})
+		capture('enrolled_in_course', { course: props.course.data.name })
+		toast.success(__('You have been enrolled in this course'))
+		setTimeout(() => {
+			router.push({
+				name: 'Lesson',
+				params: {
+					courseName: props.course.data.name,
+					chapterNumber: 1,
+					lessonNumber: 1,
+				},
+			})
+		}, 1000)
 	} catch (err) {
 		toast.warning(__(err.messages?.[0] || err))
 		console.error(err)

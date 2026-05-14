@@ -48,8 +48,9 @@ class TestPPTEmployee(UnitTestCase):
         membership = self._create_membership()
         self.assertEqual(membership.membership_type, "PPT Employee")
 
-    def test_enroll_ppt_employee_sends_verification(self):
-        """Enrolling a PPT employee should send a verification email, not enroll directly."""
+    def test_enroll_ppt_employee_enrolls_directly(self):
+        """PPT employees enroll instantly — no verification email, immediate
+        LMS Enrollment + zero-hour ledger entry."""
         from lms.lms.ceu_enrollment import enroll_ppt_employee
 
         membership = self._create_membership()
@@ -65,54 +66,13 @@ class TestPPTEmployee(UnitTestCase):
 
         result = enroll_ppt_employee(course_name, membership.name)
 
-        self.assertEqual(result["status"], "verification_sent")
-
-        # Should NOT be enrolled yet
-        self.assertFalse(frappe.db.exists("LMS Enrollment", {
-            "member": "Administrator",
-            "course": course_name,
-        }))
-
-        # Should have a pending verification
-        self.assertTrue(frappe.db.exists("PPT Enrollment Verification", {
-            "user": "Administrator",
-            "course": course_name,
-            "status": "Pending",
-        }))
-
-    def test_verify_ppt_enrollment_completes_enrollment(self):
-        """Clicking the verification link should create the enrollment and ledger entry."""
-        from lms.lms.ceu_enrollment import enroll_ppt_employee, verify_ppt_enrollment
-
-        membership = self._create_membership()
-
-        courses = frappe.db.get_all("LMS Course", limit=1)
-        if not courses:
-            self.skipTest("No LMS Course exists for testing")
-
-        course_name = courses[0].name
-
-        for e in frappe.db.get_all("LMS Enrollment", {"course": course_name, "member": "Administrator"}):
-            frappe.delete_doc("LMS Enrollment", e.name, force=True, ignore_permissions=True)
-
-        enroll_ppt_employee(course_name, membership.name)
-
-        verification = frappe.get_last_doc("PPT Enrollment Verification", filters={
-            "user": "Administrator",
-            "course": course_name,
-            "status": "Pending",
-        })
-
-        verify_ppt_enrollment(verification.token)
-
-        # Should be enrolled now
+        self.assertEqual(result["status"], "enrolled")
         self.assertTrue(frappe.db.exists("LMS Enrollment", {
             "member": "Administrator",
             "course": course_name,
             "credit_source": "PPT Employee",
         }))
 
-        # Should have a ledger entry with hours=0
         ledger = frappe.get_last_doc("CEU Credit Ledger", filters={
             "membership": membership.name,
             "transaction_type": "Enrollment",
@@ -120,10 +80,6 @@ class TestPPTEmployee(UnitTestCase):
         })
         self.assertEqual(ledger.hours, 0)
         self.assertIn("PPT Employee", ledger.notes or "")
-
-        # Verification should be marked as Verified
-        verification.reload()
-        self.assertEqual(verification.status, "Verified")
 
     def test_invite_ppt_domain_auto_mints_membership(self):
         """Inviting a @ppt4kids.com email auto-mints a PPT Employee membership
@@ -200,35 +156,3 @@ class TestPPTEmployee(UnitTestCase):
         with self.assertRaises(frappe.exceptions.ValidationError):
             enroll_ppt_employee(courses[0].name, membership.name)
 
-    def test_expired_token_blocks_enrollment(self):
-        """An expired verification token should not complete enrollment."""
-        from lms.lms.ceu_enrollment import enroll_ppt_employee, verify_ppt_enrollment
-        from frappe.utils import add_to_date, now_datetime
-
-        membership = self._create_membership()
-
-        courses = frappe.db.get_all("LMS Course", limit=1)
-        if not courses:
-            self.skipTest("No LMS Course exists for testing")
-
-        course_name = courses[0].name
-
-        for e in frappe.db.get_all("LMS Enrollment", {"course": course_name, "member": "Administrator"}):
-            frappe.delete_doc("LMS Enrollment", e.name, force=True, ignore_permissions=True)
-
-        enroll_ppt_employee(course_name, membership.name)
-
-        verification = frappe.get_last_doc("PPT Enrollment Verification", filters={
-            "user": "Administrator",
-            "course": course_name,
-            "status": "Pending",
-        })
-
-        # Force-expire the token
-        frappe.db.set_value(
-            "PPT Enrollment Verification", verification.name,
-            "expires_on", add_to_date(now_datetime(), minutes=-1),
-        )
-
-        with self.assertRaises(frappe.exceptions.ValidationError):
-            verify_ppt_enrollment(verification.token)
