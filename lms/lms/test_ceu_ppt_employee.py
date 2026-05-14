@@ -125,6 +125,66 @@ class TestPPTEmployee(UnitTestCase):
         verification.reload()
         self.assertEqual(verification.status, "Verified")
 
+    def test_invite_ppt_domain_auto_mints_membership(self):
+        """Inviting a @ppt4kids.com email auto-mints a PPT Employee membership
+        and ignores any company arg passed alongside."""
+        from unittest.mock import patch
+        from lms.lms.api import invite_lms_member
+
+        email = "test-ppt-invite@ppt4kids.com"
+        for m in frappe.get_all("CEU Membership", filters={"member": email}):
+            frappe.delete_doc("CEU Membership", m.name, force=True, ignore_permissions=True)
+        if frappe.db.exists("User", email):
+            frappe.delete_doc("User", email, force=True, ignore_permissions=True)
+
+        with patch("lms.lms.api.lms_send_template_mail"):
+            result = invite_lms_member(
+                email=email,
+                first_name="Test",
+                last_name="PPT",
+                roles=["LMS Student"],
+                company="Some Fake Company",
+            )
+
+        self.assertEqual(result["user"], email)
+
+        membership = frappe.db.get_value(
+            "CEU Membership",
+            {"member": email, "membership_type": "PPT Employee", "status": "Active"},
+            ["name", "credit_balance"],
+            as_dict=True,
+        )
+        self.assertIsNotNone(membership, "Expected PPT Employee membership to be auto-minted")
+        self.assertEqual(membership.credit_balance, 0)
+
+        company_member = frappe.db.exists(
+            "Company Member",
+            {"user": email, "parent": "Some Fake Company"},
+        )
+        self.assertFalse(company_member, "PPT employee should not be added to any company")
+
+    def test_invite_non_ppt_domain_skips_membership_mint(self):
+        """Non-PPT emails should NOT get an auto-minted PPT Employee membership."""
+        from unittest.mock import patch
+        from lms.lms.api import invite_lms_member
+
+        email = "test-civilian-invite@example.com"
+        if frappe.db.exists("User", email):
+            frappe.delete_doc("User", email, force=True, ignore_permissions=True)
+
+        with patch("lms.lms.api.lms_send_template_mail"):
+            invite_lms_member(
+                email=email,
+                first_name="Test",
+                last_name="Civilian",
+                roles=["LMS Student"],
+            )
+
+        self.assertFalse(frappe.db.exists(
+            "CEU Membership",
+            {"member": email, "membership_type": "PPT Employee"},
+        ), "Non-PPT email should not get a PPT Employee membership")
+
     def test_inactive_membership_blocks_enrollment(self):
         """PPT employee with inactive membership cannot enroll."""
         from lms.lms.ceu_enrollment import enroll_ppt_employee

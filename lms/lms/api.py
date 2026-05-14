@@ -18,6 +18,7 @@ from frappe.integrations.frappe_providers.frappecloud_billing import (
 from frappe.translate import get_all_translations
 from frappe.utils import (
 	add_days,
+	add_years,
 	cint,
 	date_diff,
 	flt,
@@ -25,6 +26,7 @@ from frappe.utils import (
 	get_datetime,
 	getdate,
 	now,
+	today,
 )
 from frappe.utils.response import Response
 from pypika import functions as fn
@@ -528,6 +530,67 @@ def update_chapter_index(chapter: str, course: str, idx: int):
 		frappe.db.set_value("Chapter Reference", {"chapter": chapter_name, "parent": course}, "idx", i + 1)
 
 
+PPT_EMPLOYEE_DOMAINS = {"ppt4ed.com", "ppt4kids.com"}
+
+
+def _is_ppt_employee_email(email: str) -> bool:
+	if not email:
+		return False
+	_, _, domain = email.partition("@")
+	return domain.lower() in PPT_EMPLOYEE_DOMAINS
+
+
+def _ensure_ppt_employee_plan() -> str:
+	"""Return name of an active CEU Membership Plan with plan_type=PPT Employee,
+	creating a default one if none exists. Idempotent."""
+	existing = frappe.db.get_value(
+		"CEU Membership Plan",
+		{"plan_type": "PPT Employee", "active": 1},
+		"name",
+	)
+	if existing:
+		return existing
+
+	plan = frappe.get_doc({
+		"doctype": "CEU Membership Plan",
+		"title": "PPT Employee Plan",
+		"plan_type": "PPT Employee",
+		"ceu_hours": 0,
+		"price": 0.0,
+		"stripe_price_id": "",
+		"active": 1,
+		"display_order": 99,
+		"is_recommended": 0,
+	})
+	plan.insert(ignore_permissions=True)
+	return plan.name
+
+
+def _mint_ppt_employee_membership(user_email: str) -> str:
+	"""Idempotently grant the user an Active PPT Employee CEU Membership."""
+	existing = frappe.db.get_value(
+		"CEU Membership",
+		{"member": user_email, "membership_type": "PPT Employee", "status": "Active"},
+		"name",
+	)
+	if existing:
+		return existing
+
+	start = today()
+	membership = frappe.get_doc({
+		"doctype": "CEU Membership",
+		"member": user_email,
+		"plan": _ensure_ppt_employee_plan(),
+		"membership_type": "PPT Employee",
+		"status": "Active",
+		"start_date": start,
+		"end_date": add_years(start, 50),
+		"credit_balance": 0.0,
+	})
+	membership.insert(ignore_permissions=True)
+	return membership.name
+
+
 @frappe.whitelist()
 def invite_lms_member(
 	email: str,
@@ -589,7 +652,12 @@ def invite_lms_member(
 		update_modified=False,
 	)
 
-	if company:
+	if _is_ppt_employee_email(email):
+		# PPT staff don't get a company assignment — they get a PPT Employee
+		# membership that grants free enrollment via the existing credit system.
+		company = None
+		_mint_ppt_employee_membership(email)
+	elif company:
 		add_member_to_company(user_email=email, company_name=company)
 
 	full_name = " ".join(filter(None, [first_name, last_name])).strip() or email
