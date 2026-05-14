@@ -3,13 +3,6 @@
 	// Only run on the login page
 	if (window.location.pathname !== '/login') return;
 
-	// Production safety: only render when the site is in developer mode.
-	// frappe.boot.developer_mode mirrors `frappe.conf.developer_mode`, which
-	// is 1 on dev sites and 0 on prod. The optional chaining defaults to
-	// "hide" if boot isn't present for any reason — safer to lose the dev
-	// affordance than to leak test credentials onto a prod login page.
-	if (!(window.frappe && window.frappe.boot && window.frappe.boot.developer_mode)) return;
-
 	var PERSONAS = [
 		{ email: 'pro@test.com', password: 'TestUser@2026!', name: 'Sarah Professional', tag: 'Professional — 20 CEU credits' },
 		{ email: 'company-admin@test.com', password: 'TestUser@2026!', name: 'Mike Manager', tag: 'Company Admin — 80 pool credits' },
