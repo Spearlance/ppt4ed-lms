@@ -40,7 +40,15 @@
 						class="w-full"
 					/>
 				</div>
-				<div>
+				<div v-if="isPPTEmployeeEmail" class="rounded-md border border-outline-gray-2 bg-surface-gray-1 px-3 py-2">
+					<div class="text-sm font-medium text-ink-gray-9">
+						{{ __('PPT Internal Employee') }}
+					</div>
+					<p class="mt-1 text-xs text-ink-gray-6">
+						{{ __('Detected from email domain. They’ll get free course access via a PPT Employee membership — no company needed.') }}
+					</p>
+				</div>
+				<div v-else>
 					<Link
 						doctype="Company Account"
 						:value="member.company"
@@ -75,9 +83,11 @@
 
 <script setup lang="ts">
 import { call, Dialog, FormControl, toast, Switch } from 'frappe-ui'
-import { reactive, ref, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { cleanError } from '@/utils'
 import Link from '@/components/Controls/Link.vue'
+
+const PPT_EMPLOYEE_DOMAINS = ['ppt4ed.com', 'ppt4kids.com']
 
 const show = defineModel<boolean>({ default: false })
 const submitting = ref(false)
@@ -105,6 +115,15 @@ const member = reactive({
 const roles = reactive({
 	moderator: false,
 	lms_student: false,
+})
+
+const isPPTEmployeeEmail = computed(() => {
+	const domain = member.email.trim().toLowerCase().split('@')[1] ?? ''
+	return PPT_EMPLOYEE_DOMAINS.includes(domain)
+})
+
+watch(isPPTEmployeeEmail, (isPPT) => {
+	if (isPPT) member.company = ''
 })
 
 const resetForm = () => {
