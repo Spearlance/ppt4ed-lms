@@ -641,17 +641,6 @@ def invite_lms_member(
 	user.flags.ignore_permissions = True
 	user.insert()
 
-	# Generate the password-reset key Frappe normally embeds in its welcome
-	# email. We use the same `/update-password` endpoint downstream — only
-	# the wrapper email changes.
-	reset_key = frappe.generate_hash(length=64)
-	user.db_set("reset_password_key", reset_key, update_modified=False)
-	user.db_set(
-		"last_reset_password_key_generated_on",
-		frappe.utils.now_datetime(),
-		update_modified=False,
-	)
-
 	if _is_ppt_employee_email(email):
 		# PPT staff don't get a company assignment — they get a PPT Employee
 		# membership that grants free enrollment via the existing credit system.
@@ -660,13 +649,19 @@ def invite_lms_member(
 	elif company:
 		add_member_to_company(user_email=email, company_name=company)
 
+	# Use Frappe's canonical reset_password() helper. It generates the key,
+	# stores sha256_hash(key) in `reset_password_key` (the form
+	# frappe.www.update_password expects for verification), sets the
+	# `last_reset_password_key_generated_on` timestamp, and returns the full
+	# absolute URL — including `&password_expired=true`. We tack on
+	# `redirect_to=/lms` so successful password-set drops the user into the
+	# Vue app instead of /app.
+	setup_url = user.reset_password(send_email=False, password_expired=True) + "&redirect_to=/lms"
+
 	full_name = " ".join(filter(None, [first_name, last_name])).strip() or email
 	inviter_name = (
 		frappe.db.get_value("User", frappe.session.user, "full_name")
 		or frappe.session.user
-	)
-	setup_url = frappe.utils.get_url(
-		f"/update-password?key={reset_key}&password_expired=true&redirect_to=/lms"
 	)
 	role_label = "Instructor" if "Moderator" in roles else "Student"
 
