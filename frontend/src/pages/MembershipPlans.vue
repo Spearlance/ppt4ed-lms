@@ -65,8 +65,11 @@
                                 </span>
                                 <span class="text-sm text-ink-gray-5">/year</span>
                             </div>
-                            <div class="text-sm text-ink-gray-5 mt-2 mb-6">
+                            <div v-if="plan.ceu_hours > 0" class="text-sm text-ink-gray-5 mt-2 mb-6">
                                 {{ plan.ceu_hours }} CEU hours included
+                            </div>
+                            <div v-else class="text-sm text-ink-gray-5 mt-2 mb-6">
+                                {{ __('Pay-as-you-go for CEU courses') }}
                             </div>
                             <div class="mt-auto space-y-3">
                                 <FormControl
@@ -142,8 +145,11 @@
                                 </span>
                                 <span class="text-sm text-ink-gray-5">/year</span>
                             </div>
-                            <div class="text-sm text-ink-gray-5 mt-2 mb-6">
+                            <div v-if="plan.ceu_hours > 0" class="text-sm text-ink-gray-5 mt-2 mb-6">
                                 {{ plan.ceu_hours }} CEU hours included
+                            </div>
+                            <div v-else class="text-sm text-ink-gray-5 mt-2 mb-6">
+                                {{ __('Pay-as-you-go for CEU courses') }}
                             </div>
                             <Button
                                 class="mt-auto w-full"
