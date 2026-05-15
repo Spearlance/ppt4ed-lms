@@ -69,14 +69,15 @@
 					v-else-if="showDetails(log)"
 					class="flex flex-col sm:flex-row sm:items-stretch border border-outline-gray-2 sm:space-x-2 rounded-md"
 				>
-					<iframe
+					<div
 						v-if="
 							log.document_type == 'LMS Course' &&
 							log.document_details.video_link
 						"
-						:src="`https://www.youtube.com/embed/${log.document_details.video_link}?rel=0&modestbranding=1&controls=1&showinfo=0&iv_load_policy=3`"
-						class="sm:rounded-l-md rounded-t-md w-full sm:w-72"
-					/>
+						class="video-player sm:rounded-l-md rounded-t-md w-full sm:w-72"
+						data-plyr-provider="youtube"
+						:src="`https://www.youtube.com/embed/${log.document_details.video_link}`"
+					></div>
 					<video
 						v-else-if="
 							log.document_type == 'LMS Batch' &&
@@ -175,10 +176,10 @@ import {
 	usePageMeta,
 } from 'frappe-ui'
 import { sessionStore } from '../stores/session'
-import { computed, inject, ref, onMounted, onUnmounted } from 'vue'
+import { computed, inject, ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { Bell, Calendar, Clock, X } from 'lucide-vue-next'
-import { formatTime } from '@/utils/'
+import { enablePlyr, formatTime } from '@/utils/'
 
 const { brand } = sessionStore()
 const user = inject('$user')
@@ -198,6 +199,11 @@ const notifications = computed(() => {
 	return activeTab.value === 'Unread'
 		? unReadNotifications.data
 		: readNotifications.data
+})
+
+watch(notifications, async () => {
+	await nextTick()
+	enablePlyr()
 })
 
 const unReadNotifications = createListResource({

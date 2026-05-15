@@ -1,10 +1,11 @@
 <template>
 	<div class="border-2 rounded-md min-w-80 max-w-sm">
-		<iframe
+		<div
 			v-if="course.data.video_link"
+			class="video-player rounded-t-md min-h-56 w-full"
+			data-plyr-provider="youtube"
 			:src="video_link"
-			class="rounded-t-md min-h-56 w-full"
-		/>
+		></div>
 		<div class="p-5">
 			<div v-if="course.data.paid_course" class="text-2xl font-semibold mb-3">
 				{{ course.data.price }}
@@ -240,9 +241,9 @@ import {
 	TrendingUp,
 	Users,
 } from 'lucide-vue-next'
-import { computed, inject, ref } from 'vue'
+import { computed, inject, onMounted, ref, watch } from 'vue'
 import { Badge, Button, call, createResource, Dialog, toast } from 'frappe-ui'
-import { formatAmount } from '@/utils/'
+import { enablePlyr, formatAmount } from '@/utils/'
 import { useRouter } from 'vue-router'
 import CertificationLinks from '@/components/CertificationLinks.vue'
 import RegisterModal from '@/components/Modals/RegisterModal.vue'
@@ -262,10 +263,21 @@ const props = defineProps({
 
 const video_link = computed(() => {
 	if (props.course.data.video_link) {
-		return `https://www.youtube.com/embed/${props.course.data.video_link}?rel=0&modestbranding=1&controls=1&showinfo=0&iv_load_policy=3`
+		return `https://www.youtube.com/embed/${props.course.data.video_link}`
 	}
 	return null
 })
+
+onMounted(() => {
+	if (props.course.data?.video_link) enablePlyr()
+})
+
+watch(
+	() => props.course.data?.video_link,
+	(newVal) => {
+		if (newVal) enablePlyr()
+	}
+)
 
 function enrollStudent() {
 	if (!user.data) {
