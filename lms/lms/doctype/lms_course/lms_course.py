@@ -257,7 +257,8 @@ def send_email_notification_for_published_courses(courses):
 			"title": course.title,
 			"short_introduction": course.short_introduction,
 			"instructors": instructors,
-			"course_url": frappe.utils.get_url(get_lms_route(f"courses/{course.name}")),
+			"item_label": _("course"),
+			"cta_url": frappe.utils.get_url(get_lms_route(f"courses/{course.name}")),
 		}
 
 		from lms.lms.utils import lms_send_template_mail
