@@ -262,7 +262,7 @@ const props = defineProps({
 
 const video_link = computed(() => {
 	if (props.course.data.video_link) {
-		return 'https://www.youtube.com/embed/' + props.course.data.video_link
+		return `https://www.youtube.com/embed/${props.course.data.video_link}?rel=0&modestbranding=1&controls=1&showinfo=0&iv_load_policy=3`
 	}
 	return null
 })
