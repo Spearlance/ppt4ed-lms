@@ -251,7 +251,7 @@
 					</div>
 					<div class="flex items-center justify-between mt-8">
 						<Checkbox
-							:label="__('Mark for review')"
+							:label="__('Bookmark for later')"
 							:model-value="reviewQuestions.includes(activeQuestion) ? 1 : 0"
 							@change="markForReview($event, activeQuestion)"
 						/>
@@ -331,7 +331,7 @@
 			</div>
 			<div v-if="reviewQuestions.length" class="border rounded-lg p-4 mt-4">
 				<div class="font-semibold">
-					{{ __('Questions marked for review') }}
+					{{ __('Bookmarked questions') }}
 				</div>
 				<div class="flex items-center space-x-2 mt-2">
 					<div
@@ -558,7 +558,7 @@ const handlePageHide = () => {
 	if (activeQuestion.value > 0 && !quizSubmission.data) {
 		const params = new URLSearchParams({
 			quiz: quiz.data.name,
-			results: localStorage.getItem(quiz.data.title),
+			results: localStorage.getItem(props.quizName),
 		})
 
 		navigator.sendBeacon(
@@ -695,7 +695,7 @@ const quizSubmission = createResource({
 		return {
 			...props.submitExtraParams,
 			quiz: quiz.data.name,
-			results: localStorage.getItem(quiz.data.title),
+			results: localStorage.getItem(props.quizName),
 		}
 	},
 })
@@ -726,11 +726,13 @@ watch(activeQuestion, (value) => {
 })
 
 const switchQuestion = (questionNumber) => {
-	let answers = getAnswers()
-	if (answers.length) {
-		if (!attemptedQuestions.value.includes(activeQuestion.value)) {
-			attemptedQuestions.value.push(activeQuestion.value)
-		}
+	if (
+		activeQuestion.value > 0 &&
+		!attemptedQuestions.value.includes(activeQuestion.value)
+	) {
+		attemptedQuestions.value.push(activeQuestion.value)
+	}
+	if (getAnswers().length) {
 		addToLocalStorage()
 		resetQuestion()
 	}
@@ -740,7 +742,7 @@ const switchQuestion = (questionNumber) => {
 }
 
 const loadSavedAnswers = () => {
-	let quizData = JSON.parse(localStorage.getItem(quiz.data.title))
+	let quizData = JSON.parse(localStorage.getItem(props.quizName))
 	if (quizData) {
 		let localQuestion = quizData.find(
 			(q) => q.question_name == currentQuestion.value
@@ -775,7 +777,7 @@ watch(
 
 const startQuiz = () => {
 	activeQuestion.value = 1
-	localStorage.removeItem(quiz.data.title)
+	localStorage.removeItem(props.quizName)
 	if (quiz.data.duration) startTimer()
 }
 
@@ -843,7 +845,7 @@ const checkAnswer = () => {
 }
 
 const addToLocalStorage = () => {
-	let quizData = JSON.parse(localStorage.getItem(quiz.data.title))
+	let quizData = JSON.parse(localStorage.getItem(props.quizName))
 	let questionData = {
 		question_name: currentQuestion.value,
 		answer: getAnswers(),
@@ -860,7 +862,7 @@ const addToLocalStorage = () => {
 	} else {
 		quizData = [questionData]
 	}
-	localStorage.setItem(quiz.data.title, JSON.stringify(quizData))
+	localStorage.setItem(props.quizName, JSON.stringify(quizData))
 }
 
 const nextQuestion = () => {
