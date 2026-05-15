@@ -156,7 +156,10 @@ def send_mail(doc):
 	)
 
 	subject = _("Enrollment Confirmation for {0}").format(batch.title)
-	template = "live_class_reminder"
+	# event_enrollment_confirmation = on-enrollment "you're confirmed" copy.
+	# live_class_reminder still exists and is used by the daily reminder cron
+	# (lms_live_class.send_live_class_reminder) where "tomorrow" is correct.
+	template = "event_enrollment_confirmation"
 	custom_template = batch.confirmation_email_template or frappe.db.get_single_value(
 		"LMS Settings", "batch_confirmation_template"
 	)
