@@ -126,9 +126,6 @@ doc_events = {
 		"validate": "lms.lms.user.validate_username_duplicates",
 		"after_insert": "lms.lms.user.after_insert",
 	},
-	"Email Queue": {
-		"before_insert": "lms.lms.email_gate.block_outbound_on_dev",
-	},
 }
 
 # Scheduled Tasks
