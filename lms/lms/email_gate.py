@@ -35,25 +35,43 @@ def block_outbound_on_dev(doc, method=None):
 	On dev sites, drop recipients outside the allowlist. If no recipients
 	remain, cancel the queue entry so the worker skips it. Always log
 	what was blocked to Error Log for audit.
+
+	Failsafe: any unexpected exception inside the gate is swallowed (and
+	logged) so a bug here can never break the email pipeline — and via the
+	pipeline, every after_insert that calls frappe.sendmail (e.g. the Stripe
+	webhook → LMS Event Registration → send_confirmation_email chain).
 	"""
-	if not _is_dev_site():
-		return
+	try:
+		if not _is_dev_site():
+			return
 
-	original = list(doc.recipients or [])
-	kept = [r for r in original if _is_allowed(r.recipient)]
-	blocked = [r.recipient for r in original if not _is_allowed(r.recipient)]
+		original = list(doc.recipients or [])
+		kept = [r for r in original if _is_allowed(r.recipient)]
+		blocked = [r.recipient for r in original if not _is_allowed(r.recipient)]
 
-	if not blocked:
-		return
+		if not blocked:
+			return
 
-	doc.recipients = kept
-	if not kept:
-		doc.status = "Cancelled"
+		doc.recipients = kept
+		if not kept:
+			doc.status = "Cancelled"
 
-	frappe.log_error(
-		message=(
-			f"site={frappe.local.site} subject={doc.subject!r} "
-			f"blocked={blocked} kept={[r.recipient for r in kept]}"
-		),
-		title="Dev Email Gate: blocked outbound recipients",
-	)
+		# Email Queue has no `subject` field — the subject lives in the MIME
+		# headers of `message`. Use reference_doctype/reference_name instead;
+		# they're proper top-level fields and more useful for tracing what
+		# triggered the send.
+		ref_doctype = getattr(doc, "reference_doctype", None)
+		ref_name = getattr(doc, "reference_name", None)
+		frappe.log_error(
+			message=(
+				f"site={frappe.local.site} "
+				f"reference={ref_doctype}/{ref_name} "
+				f"blocked={blocked} kept={[r.recipient for r in kept]}"
+			),
+			title="Dev Email Gate: blocked outbound recipients",
+		)
+	except Exception:
+		try:
+			frappe.log_error(title="Dev Email Gate: hook crashed (failed open)")
+		except Exception:
+			pass
