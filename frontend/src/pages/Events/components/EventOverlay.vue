@@ -123,6 +123,25 @@
 				<Button
 					v-if="
 						batch.data.paid_event &&
+						isPptEmployee &&
+						batch.data.seats_left > 0 &&
+						batch.data.accept_enrollments
+					"
+					class="w-full mt-4"
+					variant="solid"
+					:loading="registering"
+					@click="registerAsPptEmployee()"
+				>
+					<template #prefix>
+						<GraduationCap class="size-4 stroke-1.5" />
+					</template>
+					<span>
+						{{ __('Register Now') }}
+					</span>
+				</Button>
+				<Button
+					v-else-if="
+						batch.data.paid_event &&
 						batch.data.seats_left > 0 &&
 						batch.data.accept_enrollments
 					"
@@ -225,6 +244,7 @@ const user = inject('$user')
 const readOnlyMode = window.read_only_mode
 const { capture } = useTelemetry()
 const purchasing = ref(false)
+const registering = ref(false)
 const showRegister = ref(false)
 const registerIntent = ref('free')
 
@@ -269,6 +289,33 @@ async function purchaseEvent() {
 	}
 }
 
+async function registerAsPptEmployee() {
+	if (!user.data) {
+		openRegisterFor('free')
+		return
+	}
+	registering.value = true
+	try {
+		await call('lms.lms.ceu_enrollment.register_ppt_employee_for_event', {
+			event_name: props.batch.data.name,
+			membership_name: user.data.membership_name,
+		})
+		capture('registered_for_event', {
+			event: props.batch.data.name,
+			source: 'ppt_employee',
+		})
+		toast.success(__('You have been registered for this event'))
+		router.push({
+			name: 'Event',
+			params: { eventName: props.batch.data.name },
+		})
+	} catch (err) {
+		registering.value = false
+		toast.warning(__(err.messages?.[0] || err.message || err))
+		console.error(err)
+	}
+}
+
 const enrollInBatch = () => {
 	if (!user.data) {
 		openRegisterFor('free')
@@ -303,6 +350,10 @@ const isStudent = computed(() => {
 const isModerator = computed(() => {
 	return user.data?.is_moderator
 })
+
+const isPptEmployee = computed(
+	() => user.data?.membership_type === 'ppt_employee'
+)
 
 const isAdmin = computed(() => {
 	return user.data?.is_moderator
