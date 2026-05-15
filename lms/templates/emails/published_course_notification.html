@@ -2,7 +2,7 @@
     {{ _("Hello Learner") }},
 </p>
 <p style="margin: 0 0 16px;">
-    {{ _("A new course has been published on ")}} {{ brand_name }} {{ _("that might interest you!") }} {{ _("Here are the details:") }}
+    {{ _("A new {0} has been published on {1} that might interest you. Here are the details:").format(item_label, brand_name) }}
 </p>
 <div style="background-color: #F8F8F8; border-radius: 12px; padding: 16px; margin-bottom: 20px;">
     <div style="font-weight: 600; margin-bottom: 6px;">
@@ -26,6 +26,6 @@
         {% endfor %}
     </div>
 </div>
-<a href="{{ course_url }}" style="display: inline-block; padding: 10px 20px; background-color: #0b6685; color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600;">
-    {{ _("Checkout the course") }}
+<a href="{{ cta_url }}" style="display: inline-block; padding: 10px 20px; background-color: #0b6685; color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600;">
+    {{ _("View the {0}").format(item_label) }}
 </a>

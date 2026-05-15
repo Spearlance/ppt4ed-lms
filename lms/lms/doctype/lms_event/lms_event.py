@@ -292,7 +292,7 @@ def send_notification_for_published_event(batch):
 def send_email_notification_for_published_event(batch):
 	brand_name = frappe.db.get_single_value("Website Settings", "app_name")
 	brand_logo = frappe.db.get_single_value("Website Settings", "banner_image")
-	subject = _("A new course has been published on {0}").format(brand_name)
+	subject = _("A new event has been published on {0}").format(brand_name)
 	template = "published_course_notification"
 	instructors = get_instructors("LMS Event", batch.name)
 	students = get_audience_recipients(batch.get("audience"), extra_users=instructors)
@@ -308,7 +308,8 @@ def send_email_notification_for_published_event(batch):
 		"medium": batch.medium,
 		"timezone": batch.timezone,
 		"instructors": instructors,
-		"batch_url": frappe.utils.get_url(get_lms_route(f"events/{batch.name}")),
+		"item_label": _("event"),
+		"cta_url": frappe.utils.get_url(get_lms_route(f"events/{batch.name}")),
 	}
 
 	from lms.lms.utils import lms_send_template_mail
