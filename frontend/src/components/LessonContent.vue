@@ -1,24 +1,18 @@
 <template>
 	<div v-if="youtube">
-		<iframe
-			class="youtube-video"
+		<div
+			class="video-player youtube-video"
+			data-plyr-provider="youtube"
 			:src="getYouTubeVideoSource(youtube.split('/').pop())"
-			width="100%"
-			:height="screenSize.width < 640 ? 200 : 400"
-			frameborder="0"
-			allowfullscreen
-		></iframe>
+		></div>
 	</div>
 	<div v-for="block in content?.split('\n\n')">
 		<div v-if="block.includes('{{ YouTubeVideo')">
-			<iframe
-				class="youtube-video"
+			<div
+				class="video-player youtube-video"
+				data-plyr-provider="youtube"
 				:src="getYouTubeVideoSource(block)"
-				width="100%"
-				:height="screenSize.width < 640 ? 200 : 400"
-				frameborder="0"
-				allowfullscreen
-			></iframe>
+			></div>
 		</div>
 		<div v-else-if="block.includes('{{ Quiz')">
 			<Quiz :quiz="getId(block)" />
