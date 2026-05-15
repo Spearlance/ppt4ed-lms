@@ -1,0 +1,44 @@
+<p>
+    {{ _("Dear") }} {{ student_name }},
+</p>
+<br>
+<p>
+    {{ _("You're confirmed for the live class below. We'll send a reminder closer to the date.") }}
+</p>
+<br>
+<p>
+    <b>{{ _("Class:") }}</b> {{ title }}
+</p>
+<p>
+    <b>{{ _("Date:") }}</b> {{ frappe.utils.format_date(date, "long") }}
+</p>
+<p>
+    <b>{{ _("Time:") }}</b> {{ frappe.utils.format_time(time, "hh:mm a") }}
+</p>
+{% if zoom_link %}
+<br>
+<p style="font-size: 14px; color: #374151;">
+    {{ _("Save this link for the day of the event:") }}
+</p>
+<p>
+    <a href="{{ zoom_link }}" style="display: inline-block; padding: 10px 20px; background-color: #2563eb; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600;">
+        🎥 {{ _("Webinar Link") }}
+    </a>
+</p>
+<p style="font-size: 12px; color: #6b7280;">
+    {{ _("Or copy this link:") }} <a href="{{ zoom_link }}">{{ zoom_link }}</a>
+</p>
+{% endif %}
+<br>
+<p>
+    <a href="{{ get_lms_route('events/' ~ name) }}">👉 {{ _("Visit your event page") }}</a>
+</p>
+<br>
+<p>
+    {{ _("If you have any questions, just reply to this email.") }}
+</p>
+<br>
+<p>
+    {{ _("Best regards,") }}<br>
+    {{ _("PPT4Ed") }}
+</p>
