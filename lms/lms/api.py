@@ -449,7 +449,7 @@ def _purge_lesson_links(lesson: str):
 	frappe.db.delete("LMS Lesson Note", {"lesson": lesson})
 	frappe.db.delete("Scheduled Flow", {"lesson": lesson})
 	frappe.db.set_value(
-		"LMS Enrollment", {"last_visited_lesson": lesson}, "last_visited_lesson", None
+		"LMS Enrollment", {"current_lesson": lesson}, "current_lesson", None
 	)
 
 	topics = frappe.get_all(
