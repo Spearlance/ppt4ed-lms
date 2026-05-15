@@ -175,3 +175,46 @@ def enroll_ppt_employee(course_name: str, membership_name: str):
     }).insert(ignore_permissions=True)
 
     return {"status": "enrolled", "enrollment": enrollment.name}
+
+
+@frappe.whitelist()
+def register_ppt_employee_for_event(event_name: str, membership_name: str):
+    """Register a PPT Employee for an event immediately, free of charge.
+
+    Mirrors enroll_ppt_employee for courses. PPT staff bypass the Stripe
+    paywall on paid events via the credit_source field on LMS Event
+    Registration — LMSEventRegistration.validate_payment short-circuits
+    when credit_source is set. Zero-hour ledger row is written for audit.
+    """
+    membership = frappe.get_doc("CEU Membership", membership_name)
+
+    if membership.membership_type != "PPT Employee":
+        frappe.throw(_("This function is only for PPT Employee memberships"))
+
+    if membership.status != "Active":
+        frappe.throw(_("Membership is not active"))
+
+    if frappe.db.exists("LMS Event Registration", {"event": event_name, "member": frappe.session.user}):
+        frappe.throw(_("Already registered for this event"))
+
+    frappe.get_doc({
+        "doctype": "CEU Credit Ledger",
+        "membership": membership_name,
+        "user": frappe.session.user,
+        "event": event_name,
+        "transaction_type": "Enrollment",
+        "hours": 0,
+        "balance_after": membership.credit_balance,
+        "timestamp": now_datetime(),
+        "notes": "PPT Employee — event no charge",
+    }).insert(ignore_permissions=True)
+
+    registration = frappe.get_doc({
+        "doctype": "LMS Event Registration",
+        "member": frappe.session.user,
+        "event": event_name,
+        "credit_source": "PPT Employee",
+        "membership": membership_name,
+    }).insert(ignore_permissions=True)
+
+    return {"status": "registered", "registration": registration.name}

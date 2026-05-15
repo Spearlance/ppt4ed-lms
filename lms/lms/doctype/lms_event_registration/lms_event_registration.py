@@ -42,20 +42,28 @@ class LMSEventRegistration(Document):
 
 	def validate_payment(self):
 		paid_event = frappe.db.get_value("LMS Event", self.event, "paid_event")
-		if paid_event:
-			payment = frappe.db.exists(
-				"LMS Payment",
-				{
-					"payment_for_document_type": "LMS Event",
-					"payment_for_document": self.event,
-					"member": self.member,
-					"payment_received": True,
-				},
-			)
-			if not payment:
-				frappe.throw(_("Payment is required to register for this event."))
-			else:
-				self.payment = payment
+		if not paid_event:
+			return
+
+		# Credit-based registrations (PPT Employee today; future Professional /
+		# Company memberships) are validated by their own whitelist functions
+		# before reaching here. Mirrors LMSEnrollment.validate_course_enrollment_eligibility.
+		if self.credit_source:
+			return
+
+		payment = frappe.db.exists(
+			"LMS Payment",
+			{
+				"payment_for_document_type": "LMS Event",
+				"payment_for_document": self.event,
+				"member": self.member,
+				"payment_received": True,
+			},
+		)
+		if not payment:
+			frappe.throw(_("Payment is required to register for this event."))
+		else:
+			self.payment = payment
 
 	def validate_self_enrollment(self):
 		event_details = frappe.db.get_value(
