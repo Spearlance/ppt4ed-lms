@@ -94,7 +94,7 @@ const getYouTubeVideoSource = (block) => {
 	if (block.includes('{{')) {
 		block = getId(block)
 	}
-	return `https://www.youtube.com/embed/${block}`
+	return `https://www.youtube.com/embed/${block}?rel=0&modestbranding=1&controls=1&showinfo=0&iv_load_policy=3`
 }
 
 const getPDFSource = (block) => {
