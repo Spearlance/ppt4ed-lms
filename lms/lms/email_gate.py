@@ -54,7 +54,11 @@ def block_outbound_on_dev(doc, method=None):
 
 		doc.recipients = kept
 		if not kept:
-			doc.status = "Cancelled"
+			# Email Queue's status Select doesn't allow "Cancelled" — valid
+			# values are Not Sent / Sending / Sent / Partially Sent / Error.
+			# "Sent" is the cleanest terminal state: the worker leaves it
+			# alone and it doesn't pollute the failed-emails admin view.
+			doc.status = "Sent"
 
 		# Email Queue has no `subject` field — the subject lives in the MIME
 		# headers of `message`. Use reference_doctype/reference_name instead;
