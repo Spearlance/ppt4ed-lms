@@ -425,6 +425,43 @@ def get_sidebar_settings():
 	return sidebar_items
 
 
+def _purge_lesson_links(lesson: str):
+	"""Clear every doctype that links to a Course Lesson so the lesson itself
+	can be deleted without tripping Frappe's link-integrity check.
+
+	Refuses if Assignment Submissions exist — those are real student work and
+	should be moved or removed deliberately, not as a side effect of a lesson
+	delete. Reusable docs (quizzes) are detached rather than deleted so the
+	admin can still find them under "unattached" filters.
+	"""
+	submission_count = frappe.db.count("LMS Assignment Submission", {"lesson": lesson})
+	if submission_count:
+		frappe.throw(
+			_(
+				"Cannot delete this lesson: {0} assignment submission(s) reference it. "
+				"Remove or reassign those submissions first."
+			).format(submission_count)
+		)
+
+	frappe.db.set_value("LMS Quiz", {"lesson": lesson}, "lesson", None)
+	frappe.db.delete("LMS Course Progress", {"lesson": lesson})
+	frappe.db.delete("LMS Video Watch Duration", {"lesson": lesson})
+	frappe.db.delete("LMS Lesson Note", {"lesson": lesson})
+	frappe.db.delete("Scheduled Flow", {"lesson": lesson})
+	frappe.db.set_value(
+		"LMS Enrollment", {"last_visited_lesson": lesson}, "last_visited_lesson", None
+	)
+
+	topics = frappe.get_all(
+		"Discussion Topic",
+		{"reference_doctype": "Course Lesson", "reference_docname": lesson},
+		pluck="name",
+	)
+	for topic in topics:
+		frappe.db.delete("Discussion Reply", {"topic": topic})
+		frappe.db.delete("Discussion Topic", topic)
+
+
 @frappe.whitelist()
 def delete_lesson(lesson: str, chapter: str):
 	course = frappe.db.get_value("Course Chapter", chapter, "course")
@@ -441,7 +478,7 @@ def delete_lesson(lesson: str, chapter: str):
 	frappe.db.delete("Lesson Reference", {"parent": chapter, "lesson": lesson})
 	update_index(lessons, chapter)
 
-	frappe.db.delete("LMS Course Progress", {"lesson": lesson})
+	_purge_lesson_links(lesson)
 	frappe.delete_doc("Course Lesson", lesson)
 
 
@@ -1579,9 +1616,17 @@ def delete_chapter(chapter: str):
 
 	course = frappe.db.get_value("Chapter Reference", {"chapter": chapter}, "parent")
 
+	# Cascade-delete each lesson in this chapter through the same purge path
+	# so we never orphan linked Quizzes / Notes / Watch Durations / Progress.
+	# Previously this used `frappe.db.delete("Course Lesson", {"chapter": chapter})`
+	# which bypasses Frappe's link check and left dangling references everywhere.
+	lessons = frappe.get_all("Course Lesson", {"chapter": chapter}, pluck="name")
+	for lesson in lessons:
+		_purge_lesson_links(lesson)
+		frappe.delete_doc("Course Lesson", lesson)
+
 	frappe.db.delete("Chapter Reference", {"chapter": chapter})
 	frappe.db.delete("Lesson Reference", {"parent": chapter})
-	frappe.db.delete("Course Lesson", {"chapter": chapter})
 	frappe.db.delete("Course Chapter", chapter)
 
 	# reset chapter reference index after deletion

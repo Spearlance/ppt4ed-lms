@@ -272,6 +272,9 @@ const deleteLesson = createResource({
 		outline.reload()
 		toast.success(__('Lesson deleted successfully'))
 	},
+	onError(err) {
+		toast.error(err.messages?.[0] || err.message || __('Failed to delete lesson'))
+	},
 })
 
 const updateLessonIndex = createResource({
@@ -366,6 +369,9 @@ const deleteChapter = createResource({
 	onSuccess() {
 		outline.reload()
 		toast.success(__('Chapter deleted successfully'))
+	},
+	onError(err) {
+		toast.error(err.messages?.[0] || err.message || __('Failed to delete chapter'))
 	},
 })
 
