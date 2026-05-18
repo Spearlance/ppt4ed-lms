@@ -88,6 +88,10 @@ const getYouTubeVideoSource = (block) => {
 	if (block.includes('{{')) {
 		block = getId(block)
 	}
+	// Strip any source-URL query params (e.g. ?t=60) so the embed src only
+	// carries our own params — otherwise YouTube re-seeks to the embedded
+	// timestamp every time the player reloads.
+	block = block.split('?')[0]
 	return `https://www.youtube.com/embed/${block}?rel=0&modestbranding=1&controls=1&showinfo=0&iv_load_policy=3`
 }
 

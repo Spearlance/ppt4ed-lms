@@ -3199,6 +3199,7 @@ def signup_and_enroll(
 		"new_password": password,
 	})
 	user.flags.ignore_permissions = True
+	user.flags.ignore_password_policy = True
 	user.insert()
 	user.add_roles("LMS Student")
 

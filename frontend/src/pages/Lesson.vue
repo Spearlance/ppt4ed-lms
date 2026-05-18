@@ -173,11 +173,6 @@
 								v-if="zenModeEnabled"
 								class="flex items-center space-x-2 mt-2 md:mt-0"
 							>
-								<Button @click="showDiscussionsInZenMode()">
-									<template #icon>
-										<MessageCircleQuestion class="w-4 h-4 stroke-1.5" />
-									</template>
-								</Button>
 								<Button v-if="lesson.data.prev" @click="switchLesson('prev')">
 									<template #prefix>
 										<ChevronLeft class="w-4 h-4 stroke-1" />
@@ -302,16 +297,6 @@
 							:lesson="lesson.data?.name"
 							v-model:notes="notes"
 							@updateNotes="updateNotes"
-						/>
-						<Discussions
-							v-else-if="allowDiscussions"
-							:title="'Questions'"
-							:doctype="'Course Lesson'"
-							:docname="lesson.data.name"
-							:key="lesson.data.name"
-							:emptyStateText="
-								__('Ask a question to get help from the community.')
-							"
 						/>
 					</div>
 				</div>
@@ -441,7 +426,6 @@ import {
 	LogIn,
 	Focus,
 	Info,
-	MessageCircleQuestion,
 	PartyPopper,
 	TrendingUp,
 } from 'lucide-vue-next'
@@ -452,7 +436,6 @@ import EditorJS from '@editorjs/editorjs'
 import LessonContent from '@/components/LessonContent.vue'
 import CourseInstructors from '@/components/CourseInstructors.vue'
 import ProgressBar from '@/components/ProgressBar.vue'
-import Discussions from '@/components/Discussions.vue'
 import CertificationLinks from '@/components/CertificationLinks.vue'
 import VideoStatistics from '@/components/Modals/VideoStatistics.vue'
 import CourseOutline from '@/components/CourseOutline.vue'
@@ -1027,15 +1010,7 @@ watch(allowDiscussions, () => {
 		}
 		currentTab.value = 'Notes'
 	} else {
-		currentTab.value = allowDiscussions.value ? 'Community' : null
-	}
-	if (allowDiscussions.value) {
-		if (!tabs.value.find((tab) => tab.value === 'Community')) {
-			tabs.value.push({
-				label: __('Community'),
-				value: 'Community',
-			})
-		}
+		currentTab.value = null
 	}
 })
 
