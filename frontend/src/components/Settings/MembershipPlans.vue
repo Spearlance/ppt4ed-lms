@@ -97,6 +97,13 @@
                                     type="text"
                                 />
                             </div>
+                            <FormControl
+                                v-model="editForm.description"
+                                :label="__('Description')"
+                                type="textarea"
+                                :rows="3"
+                                placeholder="Optional marketing copy shown under the CEU hours line on the pricing card"
+                            />
                             <div class="grid grid-cols-2 gap-4">
                                 <FormControl
                                     v-model="editForm.display_order"
@@ -199,6 +206,13 @@
                         />
                     </div>
                     <FormControl
+                        v-model="createForm.description"
+                        :label="__('Description')"
+                        type="textarea"
+                        :rows="3"
+                        placeholder="Optional marketing copy shown under the CEU hours line on the pricing card"
+                    />
+                    <FormControl
                         v-model="createForm.stripe_price_id"
                         :label="__('Stripe Price ID')"
                         type="text"
@@ -226,6 +240,7 @@ const editForm = reactive({
     plan_type: '',
     price: 0,
     ceu_hours: 0,
+    description: '',
     stripe_price_id: '',
     active: 1,
     display_order: 0,
@@ -237,6 +252,7 @@ const createForm = reactive({
     plan_type: 'Professional',
     price: 0,
     ceu_hours: 0,
+    description: '',
     stripe_price_id: '',
 })
 
@@ -271,6 +287,7 @@ const startEdit = (plan) => {
         plan_type: plan.plan_type,
         price: plan.price,
         ceu_hours: plan.ceu_hours,
+        description: plan.description || '',
         stripe_price_id: plan.stripe_price_id || '',
         active: plan.active,
         display_order: plan.display_order || 0,
@@ -291,6 +308,7 @@ const saveEdit = async () => {
             plan_type: editForm.plan_type,
             price: editForm.price,
             ceu_hours: editForm.ceu_hours,
+            description: editForm.description,
             stripe_price_id: editForm.stripe_price_id,
             active: editForm.active,
             display_order: editForm.display_order,
@@ -327,6 +345,7 @@ const startCreate = () => {
         plan_type: 'Professional',
         price: 0,
         ceu_hours: 0,
+        description: '',
         stripe_price_id: '',
     })
     showCreate.value = true
@@ -348,6 +367,7 @@ const doCreate = async (close) => {
             plan_type: createForm.plan_type,
             price: createForm.price,
             ceu_hours: createForm.ceu_hours,
+            description: createForm.description,
             stripe_price_id: createForm.stripe_price_id,
         })
         toast.success(__('Plan created'))

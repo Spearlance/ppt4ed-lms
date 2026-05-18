@@ -6,7 +6,7 @@
     "doctype": "DocType",
     "engine": "InnoDB",
     "field_order": [
-        "title", "plan_type", "ceu_hours", "price",
+        "title", "plan_type", "ceu_hours", "price", "description",
         "stripe_price_id", "active", "display_order", "is_recommended"
     ],
     "fields": [
@@ -40,6 +40,12 @@
             "in_list_view": 1,
             "label": "Price",
             "reqd": 1
+        },
+        {
+            "fieldname": "description",
+            "fieldtype": "Small Text",
+            "label": "Description",
+            "description": "Optional marketing copy shown on the pricing card under the CEU hours line"
         },
         {
             "fieldname": "stripe_price_id",
