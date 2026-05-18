@@ -18,6 +18,30 @@
 					</template>
 				</Button>
 				<CertificationLinks :courseName="courseName" />
+				<Button
+					v-if="lesson.data.membership && lesson.data.progress"
+					disabled
+				>
+					<template #prefix>
+						<CheckCircle2 class="w-4 h-4 stroke-2 text-ink-green-3" />
+					</template>
+					<span>
+						{{ __('Completed') }}
+					</span>
+				</Button>
+				<Button
+					v-else-if="lesson.data.membership"
+					variant="solid"
+					:loading="markCompleteLoading"
+					@click="markComplete()"
+				>
+					<template #prefix>
+						<CheckCircle2 class="w-4 h-4 stroke-2" />
+					</template>
+					<span>
+						{{ __('Mark as Complete') }}
+					</span>
+				</Button>
 				<Button v-if="lesson.data.prev" @click="switchLesson('prev')">
 					<template #prefix>
 						<ChevronLeft class="w-4 h-4 stroke-1" />
@@ -173,6 +197,32 @@
 								v-if="zenModeEnabled"
 								class="flex items-center space-x-2 mt-2 md:mt-0"
 							>
+								<Button
+									v-if="lesson.data.membership && lesson.data.progress"
+									disabled
+								>
+									<template #prefix>
+										<CheckCircle2
+											class="w-4 h-4 stroke-2 text-ink-green-3"
+										/>
+									</template>
+									<span>
+										{{ __('Completed') }}
+									</span>
+								</Button>
+								<Button
+									v-else-if="lesson.data.membership"
+									variant="solid"
+									:loading="markCompleteLoading"
+									@click="markComplete()"
+								>
+									<template #prefix>
+										<CheckCircle2 class="w-4 h-4 stroke-2" />
+									</template>
+									<span>
+										{{ __('Mark as Complete') }}
+									</span>
+								</Button>
 								<Button v-if="lesson.data.prev" @click="switchLesson('prev')">
 									<template #prefix>
 										<ChevronLeft class="w-4 h-4 stroke-1" />
@@ -419,6 +469,7 @@ import {
 } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import {
+	CheckCircle2,
 	ChevronLeft,
 	ChevronRight,
 	GraduationCap,
@@ -459,13 +510,12 @@ const zenModeEnabled = ref(false)
 const showStatsDialog = ref(false)
 const hasQuiz = ref(false)
 const discussionsContainer = ref(null)
-const timer = ref(0)
+const markCompleteLoading = ref(false)
 const { brand } = sessionStore()
 const sidebarStore = useSidebar()
 const plyrSources = ref([])
 const showInlineMenu = ref(false)
 const currentTab = ref(null)
-let timerInterval = null
 
 const tabs = ref([])
 
@@ -485,7 +535,6 @@ const props = defineProps({
 })
 
 onMounted(() => {
-	startTimer()
 	sidebarStore.isSidebarCollapsed = true
 	document.addEventListener('fullscreenchange', attachFullscreenEvent)
 	socket.on('update_lesson_progress', (data) => {
@@ -585,32 +634,6 @@ const renderEditor = (holder, content) => {
 	})
 }
 
-const markProgress = () => {
-	if (user.data && lesson.data && !lesson.data.progress) {
-		progress.submit(
-			{},
-			{
-				onError(err) {
-					console.error(err)
-				},
-			}
-		)
-	}
-}
-
-const progress = createResource({
-	url: 'lms.lms.doctype.course_lesson.course_lesson.save_progress',
-	makeParams() {
-		return {
-			lesson: lesson.data.name,
-			course: props.courseName,
-		}
-	},
-	onSuccess(data) {
-		lessonProgress.value = data
-	},
-})
-
 watch(lessonProgress, (newProgress) => {
 	if (newProgress >= 100 && (initialProgress.value ?? 0) < 100) {
 		showCompletionModal.value = true
@@ -681,8 +704,23 @@ const breadcrumbs = computed(() => {
 	return crumbs
 })
 
-const switchLesson = (direction) => {
+const switchLesson = async (direction) => {
 	trackVideoWatchDuration()
+	if (
+		direction === 'next' &&
+		lesson.data?.membership &&
+		!lesson.data.progress
+	) {
+		try {
+			const courseProgress = await call(
+				'lms.lms.doctype.course_lesson.course_lesson.save_progress',
+				{ lesson: lesson.data.name, course: props.courseName }
+			)
+			lessonProgress.value = courseProgress
+		} catch (err) {
+			console.error(err)
+		}
+	}
 	let lessonIndex =
 		direction === 'prev'
 			? lesson.data.prev.split('.')
@@ -696,6 +734,31 @@ const switchLesson = (direction) => {
 			lessonNumber: lessonIndex[1],
 		},
 	})
+}
+
+const markComplete = async ({ silent = false } = {}) => {
+	if (!lesson.data?.membership || lesson.data.progress) return
+	markCompleteLoading.value = true
+	try {
+		const courseProgress = await call(
+			'lms.lms.doctype.course_lesson.course_lesson.save_progress',
+			{ lesson: lesson.data.name, course: props.courseName }
+		)
+		lessonProgress.value = courseProgress
+		await lesson.reload()
+		if (!lesson.data.progress && !silent) {
+			toast.warning(
+				__(
+					'Complete the quiz or assignment in this lesson to mark it as complete.'
+				)
+			)
+		}
+	} catch (err) {
+		console.error(err)
+		if (!silent) toast.error(__('Could not mark lesson as complete.'))
+	} finally {
+		markCompleteLoading.value = false
+	}
 }
 
 watch(
@@ -723,8 +786,6 @@ const resetLessonState = (newChapterNumber, newLessonNumber) => {
 		chapter: newChapterNumber,
 		lesson: newLessonNumber,
 	})
-	clearInterval(timerInterval)
-	timer.value = 0
 }
 
 const trackVideoWatchDuration = () => {
@@ -742,7 +803,7 @@ const getVideoDetails = () => {
 	const videos = document.querySelectorAll('video')
 	if (videos.length > 0) {
 		videos.forEach((video) => {
-			if (video.currentTime == video.duration) markProgress()
+			if (video.currentTime == video.duration) markComplete({ silent: true })
 			details.push({
 				source: video.src,
 				watch_time: video.currentTime,
@@ -755,7 +816,7 @@ const getVideoDetails = () => {
 const getPlyrSourceDetails = () => {
 	let details = []
 	plyrSources.value.forEach((source) => {
-		if (source.currentTime == source.duration) markProgress()
+		if (source.currentTime == source.duration) markComplete({ silent: true })
 		let src = cleanYouTubeUrl(source.source)
 		details.push({
 			source: src,
@@ -776,10 +837,8 @@ watch(
 	() => lesson.data,
 	async (data) => {
 		setupLesson(data)
-		startTimer()
 		getPlyrSource()
 		updateNotes()
-		if (data.icon == 'icon-youtube') clearInterval(timerInterval)
 	}
 )
 
@@ -806,7 +865,7 @@ const updateVideoWatchDuration = () => {
 
 const attachVideoEndedListeners = () => {
 	const onVideoEnded = () => {
-		markProgress()
+		markComplete({ silent: true })
 		trackVideoWatchDuration()
 	}
 
@@ -860,21 +919,6 @@ const updateVideoTime = (video) => {
 		})
 	}
 }
-
-const startTimer = () => {
-	if (!lesson.data?.membership) return
-	timerInterval = setInterval(() => {
-		timer.value++
-		if (timer.value == 30) {
-			clearInterval(timerInterval)
-			markProgress()
-		}
-	}, 1000)
-}
-
-onBeforeUnmount(() => {
-	clearInterval(timerInterval)
-})
 
 const checkIfDiscussionsAllowed = () => {
 	hasQuiz.value = false
