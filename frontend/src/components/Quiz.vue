@@ -733,13 +733,17 @@ watch(activeQuestion, (value) => {
 	}
 })
 
-const switchQuestion = (questionNumber) => {
+const markCurrentAttempted = () => {
 	if (
 		activeQuestion.value > 0 &&
 		!attemptedQuestions.value.includes(activeQuestion.value)
 	) {
 		attemptedQuestions.value.push(activeQuestion.value)
 	}
+}
+
+const switchQuestion = (questionNumber) => {
+	markCurrentAttempted()
 	if (getAnswers().length) {
 		addToLocalStorage()
 		resetQuestion()
@@ -845,6 +849,7 @@ const checkAnswer = () => {
 				showAnswers.push(data)
 			}
 			addToLocalStorage()
+			markCurrentAttempted()
 			if (!quiz.data.show_answers) {
 				resetQuestion()
 			}
@@ -876,6 +881,7 @@ const addToLocalStorage = () => {
 const nextQuestion = () => {
 	if (!quiz.data.show_answers) return
 	if (questionDetails.data?.type == 'Open Ended') addToLocalStorage()
+	markCurrentAttempted()
 	resetQuestion()
 }
 
@@ -957,9 +963,8 @@ const markLessonProgress = () => {
 }
 
 const handleSubmitClick = () => {
-	if (attemptedQuestions.value.length) {
-		switchQuestion(activeQuestion.value)
-	}
+	if (getAnswers().length) addToLocalStorage()
+	markCurrentAttempted()
 	showSubmissionConfirmation.value = true
 }
 
