@@ -1,2 +1,9 @@
 @import 'frappe-ui/style.css';
 @import './styles/codemirror.css';
+
+/* Block clicks on the YouTube/Vimeo iframe so the provider's outbound title
+   link can't be used to leave the LMS. Plyr controls the player via JS API,
+   and clickToPlay still works because clicks pass through to the wrapper. */
+.plyr__video-embed iframe {
+	pointer-events: none;
+}
