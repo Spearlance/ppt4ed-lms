@@ -1177,7 +1177,7 @@ def get_lesson(course: str, chapter: int, lesson: int) -> dict:
 	course_info = frappe.db.get_value(
 		"LMS Course",
 		course,
-		["title", "disable_self_learning"],
+		["title", "disable_self_learning", "enable_certification"],
 		as_dict=1,
 	)
 
@@ -1225,6 +1225,7 @@ def get_lesson(course: str, chapter: int, lesson: int) -> dict:
 	lesson_details.instructors = get_instructors("LMS Course", course)
 	lesson_details.course_title = course_info.title
 	lesson_details.disable_self_learning = course_info.disable_self_learning
+	lesson_details.enable_certification = course_info.enable_certification
 	lesson_details.videos = get_video_details(lesson_name)
 	return lesson_details
 
