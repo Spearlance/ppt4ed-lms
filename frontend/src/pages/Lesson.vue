@@ -355,6 +355,59 @@
 		:lessonName="lesson.data?.name"
 		:lessonTitle="lesson.data?.title"
 	/>
+	<Dialog
+		v-model="showCompletionModal"
+		:options="{
+			title: __('Course complete!'),
+			size: 'md',
+		}"
+	>
+		<template #body-content>
+			<div class="text-center space-y-4 py-2">
+				<div class="flex items-center justify-center">
+					<div class="bg-surface-blue-2 rounded-full p-4">
+						<PartyPopper class="size-8 text-ink-blue-3" />
+					</div>
+				</div>
+				<div class="text-xl font-semibold text-ink-gray-9">
+					{{
+						__('Nice work — you finished {0}.').format(
+							lesson.data?.course_title
+						)
+					}}
+				</div>
+				<div
+					v-if="lesson.data?.enable_certification"
+					class="text-ink-gray-7 leading-5"
+				>
+					{{
+						__(
+							"Your certificate is ready. Download it now or grab it from your profile anytime."
+						)
+					}}
+				</div>
+				<div v-else class="text-ink-gray-7 leading-5">
+					{{ __('Thanks for completing this course.') }}
+				</div>
+				<div class="flex items-center justify-center gap-2 pt-2">
+					<Button @click="backToCourse">
+						{{ __('Back to Course') }}
+					</Button>
+					<Button
+						v-if="lesson.data?.enable_certification"
+						variant="solid"
+						@click="downloadCertificate"
+						:loading="certificate.loading"
+					>
+						<template #prefix>
+							<GraduationCap class="size-4 stroke-1.5" />
+						</template>
+						{{ __('Download Certificate') }}
+					</Button>
+				</div>
+			</div>
+		</template>
+	</Dialog>
 </template>
 <script setup>
 import {
@@ -364,6 +417,7 @@ import {
 	call,
 	createListResource,
 	createResource,
+	Dialog,
 	TabButtons,
 	Tooltip,
 	usePageMeta,
@@ -382,11 +436,13 @@ import { useRouter, useRoute } from 'vue-router'
 import {
 	ChevronLeft,
 	ChevronRight,
+	GraduationCap,
 	LockKeyholeIcon,
 	LogIn,
 	Focus,
 	Info,
 	MessageCircleQuestion,
+	PartyPopper,
 	TrendingUp,
 } from 'lucide-vue-next'
 import { getEditorTools, enablePlyr, highlightText } from '@/utils'
@@ -413,6 +469,8 @@ const allowDiscussions = ref(false)
 const editor = ref(null)
 const instructorEditor = ref(null)
 const lessonProgress = ref(0)
+const initialProgress = ref(null)
+const showCompletionModal = ref(false)
 const lessonContainer = ref(null)
 const zenModeEnabled = ref(false)
 const showStatsDialog = ref(false)
@@ -501,6 +559,9 @@ const setupLesson = (data) => {
 			},
 		})
 	}
+	if (initialProgress.value === null) {
+		initialProgress.value = data.membership?.progress || 0
+	}
 	lessonProgress.value = data.membership?.progress
 	if (data.content) editor.value = renderEditor('editor', data.content)
 	if (
@@ -566,6 +627,39 @@ const progress = createResource({
 		lessonProgress.value = data
 	},
 })
+
+watch(lessonProgress, (newProgress) => {
+	if (newProgress >= 100 && (initialProgress.value ?? 0) < 100) {
+		showCompletionModal.value = true
+	}
+})
+
+const certificate = createResource({
+	url: 'lms.lms.doctype.lms_certificate.lms_certificate.create_certificate',
+	makeParams() {
+		return { course: props.courseName }
+	},
+	onSuccess(data) {
+		window.open(
+			`/api/method/frappe.utils.print_format.download_pdf?doctype=LMS+Certificate&name=${
+				data.name
+			}&format=${encodeURIComponent(data.template)}`,
+			'_blank'
+		)
+	},
+	onError(err) {
+		toast.error(err.messages?.[0] || err.message || __('Could not generate certificate'))
+	},
+})
+
+const downloadCertificate = () => {
+	certificate.submit()
+}
+
+const backToCourse = () => {
+	showCompletionModal.value = false
+	router.push({ name: 'CourseDetail', params: { courseName: props.courseName } })
+}
 
 const notes = createListResource({
 	doctype: 'LMS Lesson Note',
