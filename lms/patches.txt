@@ -154,3 +154,4 @@ lms.patches.v2_0.drop_resource_access_token #08-05-2026
 lms.patches.v2_0.normalize_email_template_button_colors #12-05-2026
 lms.patches.v2_0.convert_license_question_to_short_text #18-05-2026
 lms.patches.v2_0.hide_professional_and_individual_business_plans #18-05-2026
+lms.patches.v2_0.convert_survey_identity_questions_to_short_text #18-05-2026
