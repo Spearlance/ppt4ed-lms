@@ -54,10 +54,14 @@
 									class="h-4 w-4 text-ink-gray-9 stroke-1"
 								/>
 								<div
-									class="text-base text-left text-ink-gray-9 font-medium leading-5 ml-2"
+									class="text-base text-left text-ink-gray-9 font-medium leading-5 ml-2 flex items-center"
 									@click="redirectToChapter(chapter)"
 								>
 									{{ chapter.title }}
+									<Lock
+										v-if="chapter.is_locked && !allowEdit"
+										class="h-3.5 w-3.5 stroke-1.5 text-ink-gray-5 ml-2"
+									/>
 								</div>
 								<div class="flex ml-auto space-x-4">
 									<Tooltip :text="__('Edit Chapter')" placement="bottom">
@@ -99,19 +103,33 @@
 												isActiveLesson(lesson.number) ? 'bg-surface-gray-3' : ''
 											"
 										>
-											<router-link
-												:to="{
-													name: allowEdit ? 'LessonForm' : 'Lesson',
-													params: {
-														courseName: courseName,
-														chapterNumber: lesson.number.split('-')[0],
-														lessonNumber: lesson.number.split('-')[1],
-													},
-												}"
+											<component
+												:is="lesson.is_locked && !allowEdit ? 'div' : 'router-link'"
+												:to="
+													lesson.is_locked && !allowEdit
+														? undefined
+														: {
+																name: allowEdit ? 'LessonForm' : 'Lesson',
+																params: {
+																	courseName: courseName,
+																	chapterNumber: lesson.number.split('-')[0],
+																	lessonNumber: lesson.number.split('-')[1],
+																},
+															}
+												"
+												:class="
+													lesson.is_locked && !allowEdit
+														? 'cursor-not-allowed text-ink-gray-5'
+														: ''
+												"
 											>
 												<div class="flex items-center text-sm leading-5 group">
+													<Lock
+														v-if="lesson.is_locked && !allowEdit"
+														class="h-4 w-4 stroke-1 mr-2"
+													/>
 													<MonitorPlay
-														v-if="lesson.icon === 'icon-youtube'"
+														v-else-if="lesson.icon === 'icon-youtube'"
 														class="h-4 w-4 stroke-1 mr-2"
 													/>
 													<HelpCircle
@@ -143,7 +161,7 @@
 														class="h-4 w-4 text-green-700 ml-2"
 													/>
 												</div>
-											</router-link>
+											</component>
 										</div>
 									</template>
 								</Draggable>
@@ -190,6 +208,7 @@ import {
 	FileText,
 	FilePenLine,
 	HelpCircle,
+	Lock,
 	MonitorPlay,
 	NotebookPen,
 	Plus,

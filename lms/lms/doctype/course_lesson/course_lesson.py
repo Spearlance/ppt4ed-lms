@@ -9,7 +9,12 @@ from frappe.model.document import Document
 from frappe.realtime import get_website_room
 from frappe.utils.telemetry import capture
 
-from lms.lms.utils import get_course_progress, is_demo_course, recalculate_course_progress
+from lms.lms.utils import (
+	get_chapter_lock_states,
+	get_course_progress,
+	is_demo_course,
+	recalculate_course_progress,
+)
 
 from ...md import find_macros
 
@@ -77,6 +82,15 @@ def save_progress(lesson: str, course: str, scorm_details: dict = None):
 	membership = frappe.db.exists("LMS Enrollment", {"course": course, "member": frappe.session.user})
 	if not membership:
 		return 0
+
+	# Defense-in-depth: refuse to record progress for a chapter-locked lesson.
+	lesson_chapter = frappe.db.get_value("Course Lesson", lesson, "chapter")
+	if lesson_chapter:
+		chapter_idx = frappe.db.get_value(
+			"Chapter Reference", {"parent": course, "chapter": lesson_chapter}, "idx"
+		)
+		if chapter_idx and get_chapter_lock_states(course).get(int(chapter_idx)):
+			return 0
 
 	frappe.db.set_value("LMS Enrollment", membership, "current_lesson", lesson, update_modified=False)
 	progress_already_exists = frappe.db.exists(

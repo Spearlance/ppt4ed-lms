@@ -1125,6 +1125,7 @@ def get_course_outline(course: str, progress: bool = False) -> list:
 	if not guest_access_allowed():
 		return []
 
+	locks = get_chapter_lock_states(course)
 	outline = []
 	chapters = frappe.get_all("Chapter Reference", {"parent": course}, ["chapter", "idx"], order_by="idx")
 	for chapter in chapters:
@@ -1135,7 +1136,10 @@ def get_course_outline(course: str, progress: bool = False) -> list:
 			as_dict=True,
 		)
 		chapter_details["idx"] = chapter.idx
+		chapter_details.is_locked = 1 if locks.get(chapter.idx) else 0
 		chapter_details.lessons = get_lessons(course, chapter_details, progress=progress)
+		for lesson_row in chapter_details.lessons:
+			lesson_row["is_locked"] = chapter_details.is_locked
 
 		if chapter_details.is_scorm_package:
 			chapter_details.scorm_package = frappe.db.get_value(
@@ -1147,6 +1151,43 @@ def get_course_outline(course: str, progress: bool = False) -> list:
 
 		outline.append(chapter_details)
 	return outline
+
+
+def get_chapter_lock_states(course: str, member: str = None) -> dict:
+	"""Return {chapter_idx: True} for each chapter the member cannot yet enter.
+
+	Chapter-level gating: chapter N is unlocked iff chapter N-1 is fully complete
+	(all linked lessons have an `LMS Course Progress` row with status='Complete').
+	Empty chapters do not gate. Admins and instructors of this course bypass.
+	"""
+	if not member:
+		member = frappe.session.user
+	if member == "Guest" or can_modify_course(course):
+		return {}
+
+	chapters = frappe.get_all(
+		"Chapter Reference", {"parent": course}, ["chapter", "idx"], order_by="idx"
+	)
+	locked = {}
+	prev_complete = True
+	for ch in chapters:
+		if not prev_complete:
+			locked[ch.idx] = True
+		lesson_names = frappe.get_all("Lesson Reference", {"parent": ch.chapter}, pluck="lesson")
+		if not lesson_names:
+			# Empty chapter — pass-through to the next gate check.
+			continue
+		completed = frappe.db.count(
+			"LMS Course Progress",
+			{
+				"course": course,
+				"member": member,
+				"lesson": ["in", lesson_names],
+				"status": "Complete",
+			},
+		)
+		prev_complete = completed >= len(lesson_names)
+	return locked
 
 
 @frappe.whitelist(allow_guest=True)
@@ -1187,6 +1228,13 @@ def get_lesson(course: str, chapter: int, lesson: int) -> dict:
 			"title": lesson_details.title,
 			"course_title": course_info.title,
 			"disable_self_learning": course_info.disable_self_learning,
+		}
+
+	if membership and get_chapter_lock_states(course).get(int(chapter)):
+		return {
+			"is_chapter_locked": 1,
+			"title": lesson_details.title,
+			"course_title": course_info.title,
 		}
 
 	lesson_details = frappe.db.get_value(
