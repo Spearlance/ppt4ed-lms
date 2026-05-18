@@ -47,8 +47,17 @@ const message = ref('')
 const settingsStore = useSettings()
 
 const sendMail = (close: Function) => {
+	const recipient = settingsStore.settings?.data?.contact_us_email
+	if (!recipient) {
+		toast.error(__('Contact Us email is not configured. Please contact an administrator.'))
+		return
+	}
+	if (!subject.value.trim() || !message.value.trim()) {
+		toast.error(__('Subject and message are required.'))
+		return
+	}
 	call('frappe.core.doctype.communication.email.make', {
-		recipients: settingsStore.settings?.data?.contact_us_email,
+		recipients: recipient,
 		subject: subject.value,
 		content: message.value,
 		send_email: true,
@@ -59,8 +68,9 @@ const sendMail = (close: Function) => {
 			subject.value = ''
 			message.value = ''
 		})
-		.catch(() => {
-			toast.error(__('Failed to send email'))
+		.catch((err) => {
+			const detail = err?.messages?.[0] || err?.message || ''
+			toast.error(detail ? `${__('Failed to send email')}: ${detail}` : __('Failed to send email'))
 			close()
 		})
 }

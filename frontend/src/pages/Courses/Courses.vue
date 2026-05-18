@@ -153,7 +153,6 @@ import MembershipUpsell from '@/components/MembershipUpsell.vue'
 import LowCreditAlert from '@/components/LowCreditAlert.vue'
 
 const user = inject('$user')
-const dayjs = inject('$dayjs')
 const start = ref(0)
 const pageLength = ref(30)
 const categories = ref([
@@ -289,7 +288,6 @@ const updateCertificationFilter = () => {
 const updateTabFilter = () => {
 	delete filters.value['live']
 	delete filters.value['created']
-	delete filters.value['published_on']
 	delete filters.value['upcoming']
 
 	if (currentTab.value == 'enrolled' && user.data?.is_student) {
@@ -303,14 +301,6 @@ const updateTabFilter = () => {
 			filters.value['published'] = 1
 			filters.value['upcoming'] = 0
 			filters.value['live'] = 1
-		} else if (currentTab.value == 'upcoming') {
-			filters.value['upcoming'] = 1
-		} else if (currentTab.value == 'new') {
-			filters.value['published'] = 1
-			filters.value['published_on'] = [
-				'>=',
-				dayjs().add(-3, 'month').format('YYYY-MM-DD'),
-			]
 		} else if (currentTab.value == 'created') {
 			filters.value['created'] = 1
 		} else if (currentTab.value == 'unpublished') {
@@ -369,20 +359,12 @@ watch(currentTab, () => {
 const courseTabs = computed(() => {
 	let tabs = [
 		{
-			label: __('On Demand'),
-			value: 'live',
-		},
-		{
-			label: __('New'),
-			value: 'new',
-		},
-		{
-			label: __('Upcoming'),
-			value: 'upcoming',
-		},
-		{
-			label: __('CEU Events'),
+			label: __('Live'),
 			value: 'ceu_events',
+		},
+		{
+			label: __('On-demand'),
+			value: 'live',
 		},
 	]
 	if (

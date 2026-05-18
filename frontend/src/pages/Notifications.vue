@@ -76,7 +76,7 @@
 						"
 						class="video-player sm:rounded-l-md rounded-t-md w-full sm:w-72"
 						data-plyr-provider="youtube"
-						:src="`https://www.youtube.com/embed/${log.document_details.video_link}`"
+						:src="`https://www.youtube.com/embed/${log.document_details.video_link.split('?')[0]}`"
 					></div>
 					<video
 						v-else-if="
