@@ -52,7 +52,7 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Type",
-   "options": "Choices\nUser Input\nOpen Ended",
+   "options": "Choices\nUser Input\nOpen Ended\nShort Text",
    "read_only": 1
   }
  ],
