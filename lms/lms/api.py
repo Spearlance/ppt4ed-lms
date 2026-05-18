@@ -3009,7 +3009,7 @@ def get_membership_plans():
 	plans = frappe.get_all(
 		"CEU Membership Plan",
 		filters={"active": 1, "plan_type": ["!=", "PPT Employee"]},
-		fields=["name", "title", "plan_type", "ceu_hours", "price", "stripe_price_id", "display_order", "is_recommended"],
+		fields=["name", "title", "plan_type", "ceu_hours", "price", "description", "stripe_price_id", "display_order", "is_recommended"],
 		order_by="display_order asc, price asc"
 	)
 	return plans
@@ -3022,13 +3022,13 @@ def get_all_membership_plans():
 
 	return frappe.get_all(
 		"CEU Membership Plan",
-		fields=["name", "title", "plan_type", "ceu_hours", "price", "stripe_price_id", "active", "display_order", "is_recommended"],
+		fields=["name", "title", "plan_type", "ceu_hours", "price", "description", "stripe_price_id", "active", "display_order", "is_recommended"],
 		order_by="display_order asc, price asc"
 	)
 
 
 @frappe.whitelist()
-def create_membership_plan(title, plan_type, price, ceu_hours=0, stripe_price_id=None, display_order=0, is_recommended=0):
+def create_membership_plan(title, plan_type, price, ceu_hours=0, description=None, stripe_price_id=None, display_order=0, is_recommended=0):
 	"""Create a new membership plan."""
 	frappe.only_for(["System Manager"])
 
@@ -3038,6 +3038,7 @@ def create_membership_plan(title, plan_type, price, ceu_hours=0, stripe_price_id
 		"plan_type": plan_type,
 		"price": float(price),
 		"ceu_hours": float(ceu_hours) if ceu_hours else 0,
+		"description": description or "",
 		"stripe_price_id": stripe_price_id or "",
 				"active": 1,
 		"display_order": int(display_order) if display_order else 0,
@@ -3052,7 +3053,7 @@ def update_membership_plan(plan_name, **kwargs):
 	"""Update an existing membership plan."""
 	frappe.only_for(["System Manager"])
 
-	allowed_fields = {"title", "plan_type", "price", "ceu_hours", "stripe_price_id", "active", "display_order", "is_recommended"}
+	allowed_fields = {"title", "plan_type", "price", "ceu_hours", "description", "stripe_price_id", "active", "display_order", "is_recommended"}
 	doc = frappe.get_doc("CEU Membership Plan", plan_name)
 
 	for field, value in kwargs.items():

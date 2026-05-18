@@ -65,12 +65,19 @@
                                 </span>
                                 <span class="text-sm text-ink-gray-5">/year</span>
                             </div>
-                            <div v-if="plan.ceu_hours > 0" class="text-sm text-ink-gray-5 mt-2 mb-6">
+                            <div v-if="plan.ceu_hours > 0" class="text-sm text-ink-gray-5 mt-2">
                                 {{ plan.ceu_hours }} CEU hours included
                             </div>
-                            <div v-else class="text-sm text-ink-gray-5 mt-2 mb-6">
+                            <div v-else class="text-sm text-ink-gray-5 mt-2">
                                 {{ __('Pay-as-you-go for CEU courses') }}
                             </div>
+                            <div
+                                v-if="plan.description"
+                                class="text-sm text-ink-gray-6 mt-2 whitespace-pre-line"
+                            >
+                                {{ plan.description }}
+                            </div>
+                            <div class="mb-6"></div>
                             <div class="mt-auto space-y-3">
                                 <FormControl
                                     v-model="companyNames[plan.name]"
@@ -145,12 +152,19 @@
                                 </span>
                                 <span class="text-sm text-ink-gray-5">/year</span>
                             </div>
-                            <div v-if="plan.ceu_hours > 0" class="text-sm text-ink-gray-5 mt-2 mb-6">
+                            <div v-if="plan.ceu_hours > 0" class="text-sm text-ink-gray-5 mt-2">
                                 {{ plan.ceu_hours }} CEU hours included
                             </div>
-                            <div v-else class="text-sm text-ink-gray-5 mt-2 mb-6">
+                            <div v-else class="text-sm text-ink-gray-5 mt-2">
                                 {{ __('Pay-as-you-go for CEU courses') }}
                             </div>
+                            <div
+                                v-if="plan.description"
+                                class="text-sm text-ink-gray-6 mt-2 whitespace-pre-line"
+                            >
+                                {{ plan.description }}
+                            </div>
+                            <div class="mb-6"></div>
                             <Button
                                 class="mt-auto w-full"
                                 variant="solid"
