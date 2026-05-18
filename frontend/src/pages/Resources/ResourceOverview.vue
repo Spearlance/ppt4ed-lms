@@ -8,9 +8,9 @@
 				>
 					{{ resource.data.resource_type }}
 				</div>
-				<div class="text-3xl font-semibold text-ink-gray-9">
+				<h1 class="text-3xl font-semibold text-ink-gray-9">
 					{{ resource.data.title }}
-				</div>
+				</h1>
 				<div
 					v-if="resource.data.short_introduction"
 					class="my-3 leading-6 text-ink-gray-7"

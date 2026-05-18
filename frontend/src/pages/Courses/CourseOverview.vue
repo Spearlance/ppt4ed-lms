@@ -3,9 +3,9 @@
 		<LowCreditAlert class="mb-4" />
 		<div class="flex justify-between w-full space-x-5">
 			<div class="md:w-2/3">
-				<div class="text-3xl font-semibold text-ink-gray-9">
+				<h1 class="text-3xl font-semibold text-ink-gray-9">
 					{{ course.data.title }}
-				</div>
+				</h1>
 				<div class="my-3 leading-6 text-ink-gray-7">
 					{{ course.data.short_introduction }}
 				</div>
