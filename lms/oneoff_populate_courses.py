@@ -70,6 +70,10 @@ def open_ended(text):
     return {"question": text, "type": "Open Ended", "options": None}
 
 
+def short_text(text):
+    return {"question": text, "type": "Short Text", "options": None}
+
+
 # ------------------------------------------------------------------
 # Course data
 # ------------------------------------------------------------------
@@ -567,7 +571,7 @@ def create_survey_quiz():
                 ["PT/PTA", "OT/OTA", "SLP/SLPA", "Other"],
                 correct_idx=0,  # ungraded in survey mode; value is ignored
             ),
-            open_ended("State, Discipline and professional license or certification number (e.g., FL PT 00000)"),
+            short_text("State, Discipline and professional license or certification number (e.g., FL PT 00000)"),
             open_ended("What did you like most about the course?"),
             open_ended("Was the information conveyed effectively and in a way you understood? If not, how can we improve?"),
             open_ended("Did the course meet your expectations? If not, how can we improve?"),

@@ -165,6 +165,13 @@ def process_results(results: list, quiz_details: dict):
 		result["question"] = question_details.question_detail
 		result["marks_out_of"] = question_details.marks
 
+		if question_details.type == "Short Text":
+			# Plain-text capture (e.g. license number); ungraded regardless of survey mode.
+			result["answer"] = result["answer"][0] if result["answer"] else ""
+			result["marks"] = 0
+			result["is_correct"] = 0
+			continue
+
 		if question_details.type != "Open Ended":
 			# Survey mode: record the answer without grading; no score impact, no correct/incorrect flag.
 			if is_survey:

@@ -239,6 +239,13 @@
 							</Badge>
 						</div>
 					</div>
+					<div v-else-if="questionDetails.data.type == 'Short Text'">
+						<FormControl
+							v-model="possibleAnswer"
+							type="text"
+							class="my-2"
+						/>
+					</div>
 					<div v-else>
 						<TextEditor
 							class="mt-4"
@@ -303,7 +310,8 @@
 							v-if="
 								quiz.data.show_answers &&
 								!showAnswers.length &&
-								questionDetails.data.type != 'Open Ended'
+								questionDetails.data.type != 'Open Ended' &&
+								questionDetails.data.type != 'Short Text'
 							"
 							@click="checkAnswer()"
 						>
