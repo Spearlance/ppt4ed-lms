@@ -2,9 +2,9 @@
 	<div class="m-5 pb-10">
 		<div class="flex justify-between w-full">
 			<div class="md:w-2/3">
-				<div class="text-3xl font-semibold text-ink-gray-9">
+				<h1 class="text-3xl font-semibold text-ink-gray-9">
 					{{ batch.data.title }}
-				</div>
+				</h1>
 				<div class="my-3 leading-6 text-ink-gray-7">
 					{{ batch.data.description }}
 				</div>
