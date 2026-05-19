@@ -209,6 +209,11 @@ const routes = [
 		component: () => import('@/pages/AdminReports.vue'),
 	},
 	{
+		path: '/admin-categories',
+		name: 'AdminCategories',
+		component: () => import('@/pages/AdminCategories.vue'),
+	},
+	{
 		path: '/data-import',
 		name: 'DataImportList',
 		component: () => import('@/pages/DataImport.vue'),
@@ -270,7 +275,7 @@ let router = createRouter({
 })
 
 const lmsAdminOnlyRoutes = ['Statistics', 'AdminReports']
-const moderatorOnlyRoutes = ['CommunityEvents', 'CommunityEventForm']
+const moderatorOnlyRoutes = ['CommunityEvents', 'CommunityEventForm', 'AdminCategories']
 
 router.beforeEach(async (to, from, next) => {
 	const { userResource } = usersStore()
