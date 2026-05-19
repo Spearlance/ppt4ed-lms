@@ -550,15 +550,6 @@ const getSidebarItems = () => {
 					},
 				},
 				{
-					label: 'Categories',
-					icon: 'FolderTree',
-					to: 'AdminCategories',
-					activeFor: ['AdminCategories'],
-					condition: () => {
-						return userResource?.data?.is_moderator
-					},
-				},
-				{
 					label: 'Contact Us',
 					icon: settings.data?.contact_us_url ? 'Headset' : 'Mail',
 					to: settings.data?.contact_us_url
