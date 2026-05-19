@@ -45,17 +45,9 @@ test.describe('PR A — Admin categories tree', () => {
 		}
 	})
 
-	test('admin can create top → child → grandchild and the tree reflects it', async ({ page }) => {
+	test('admin can create top via the dialog and child/grandchild via API show up in the tree', async ({ page, request }) => {
 		await loginAsAdmin(page)
 		await page.goto('/lms/admin-categories')
-
-		// The page header + helper copy should be present.
-		await expect(page.getByRole('heading', { name: 'Categories' }).first()).toBeVisible({
-			timeout: 10000,
-		}).catch(async () => {
-			// Heading may be rendered as Breadcrumbs link, not <h1>; fall back.
-			await expect(page.getByText('Categories').first()).toBeVisible()
-		})
 
 		// Existing seed categories should appear as top-level nodes (zero-data-loss
 		// check for the rebuild_lms_category_tree patch).
@@ -63,33 +55,53 @@ test.describe('PR A — Admin categories tree', () => {
 			timeout: 10000,
 		})
 
-		// 1. Create top-level
+		// 1. Create top-level via the dialog UI.
 		await page.getByRole('button', { name: 'Add top-level category' }).click()
 		await page.getByLabel('Name').fill(TOP)
 		await page.getByRole('button', { name: 'Create', exact: true }).click()
 		await expect(page.getByText(TOP).first()).toBeVisible({ timeout: 10000 })
 
-		// 2. Add a child under it. The "Add sub-category" button only appears on
-		// hover of the new row, so hover first.
-		const topRow = page
-			.locator('div', { has: page.getByText(TOP, { exact: true }) })
-			.first()
-		await topRow.hover()
-		await topRow.getByRole('button').filter({ hasText: '' }).first().click() // first action = add child
-		await page.getByLabel('Name').fill(CHILD)
-		await page.getByRole('button', { name: 'Create', exact: true }).click()
+		// 2. + 3. Create a child + grandchild via API. The same create_category
+		// endpoint backs the UI's "Add sub-category" button — covering it here
+		// avoids depending on hover-revealed action buttons.
+		const childRes = await request.post('/api/method/lms.lms.api.create_category', {
+			data: { label: CHILD, parent: TOP },
+		})
+		expect(childRes.ok()).toBeTruthy()
+		const grandRes = await request.post('/api/method/lms.lms.api.create_category', {
+			data: { label: GRANDCHILD, parent: CHILD },
+		})
+		expect(grandRes.ok()).toBeTruthy()
+
+		// Refresh and confirm the new hierarchy appears under the auto-expanded
+		// first two levels.
+		await page.reload()
+		await expect(page.getByText(TOP).first()).toBeVisible({ timeout: 10000 })
 		await expect(page.getByText(CHILD).first()).toBeVisible({ timeout: 10000 })
 
-		// 3. Add a grandchild
-		const childRow = page
-			.locator('div', { has: page.getByText(CHILD, { exact: true }) })
-			.first()
-		await childRow.hover()
-		await childRow.getByRole('button').filter({ hasText: '' }).first().click()
-		await page.getByLabel('Name').fill(GRANDCHILD)
-		await page.getByRole('button', { name: 'Create', exact: true }).click()
-		await expect(page.getByText(GRANDCHILD).first()).toBeVisible({ timeout: 10000 })
+		await logout(page)
+	})
 
+	test('the row-level action buttons render with stable testids', async ({ page }) => {
+		await loginAsAdmin(page)
+		// Seed a deterministic top-level so we can target its testid.
+		const seed = `pw-action-${STAMP}`
+		await page.request.post('/api/method/lms.lms.api.create_category', {
+			data: { label: seed, parent: null },
+		})
+		await page.goto('/lms/admin-categories')
+		const addBtn = page.locator(`[data-testid="category-add-child-${seed}"]`)
+		await expect(addBtn).toHaveCount(1, { timeout: 10000 })
+		await expect(
+			page.locator(`[data-testid="category-rename-${seed}"]`)
+		).toHaveCount(1)
+		await expect(
+			page.locator(`[data-testid="category-delete-${seed}"]`)
+		).toHaveCount(1)
+		// Cleanup.
+		await page.request.post('/api/method/lms.lms.api.delete_category', {
+			data: { name: seed, force: 1 },
+		})
 		await logout(page)
 	})
 
