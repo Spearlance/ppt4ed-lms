@@ -59,7 +59,7 @@
 			v-model="createDialog.show"
 			:options="{
 				title: createDialog.parent
-					? __('Add sub-category under {0}').replace('{0}', createDialog.parentLabel)
+					? __('Add sub-category under') + ' ' + createDialog.parentLabel
 					: __('Add top-level category'),
 			}"
 		>
@@ -114,7 +114,7 @@
 		<Dialog
 			v-model="moveDialog.show"
 			:options="{
-				title: __('Move {0}').replace('{0}', moveDialog.label),
+				title: __('Move') + ' ' + moveDialog.label,
 			}"
 		>
 			<template #body-content>
@@ -149,18 +149,22 @@
 		<Dialog
 			v-model="deleteDialog.show"
 			:options="{
-				title: __('Delete {0}?').replace('{0}', deleteDialog.label),
+				title: __('Delete') + ' ' + deleteDialog.label + '?',
 			}"
 		>
 			<template #body-content>
 				<div v-if="deleteDialog.confirm" class="space-y-2 text-sm">
 					<p class="text-ink-red-3">
 						{{
-							__(
-								'This category contains {0} sub-categories and {1} resources.'
-							)
-								.replace('{0}', deleteDialog.confirm.child_count)
-								.replace('{1}', deleteDialog.confirm.resource_count)
+							__('This category contains') +
+							' ' +
+							deleteDialog.confirm.child_count +
+							' ' +
+							__('sub-categories and') +
+							' ' +
+							deleteDialog.confirm.resource_count +
+							' ' +
+							__('resources.')
 						}}
 					</p>
 					<p class="text-ink-gray-7">
