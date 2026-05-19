@@ -1009,6 +1009,28 @@ def get_resources(filters: dict = None, start: int = 0) -> list:
 	else:
 		filters.pop("resource_type", None)
 
+	# Category subtree expansion: if a `category` filter is set, broaden it to
+	# the category PLUS every descendant in the LMS Category tree so the
+	# folder-browse UI shows everything under a parent folder. Uses the lft/rgt
+	# nested-set range from PR A's tree migration.
+	category_filter = filters.pop("category", None)
+	if category_filter:
+		# Already a list/tuple ("in" clause) from createListResource? Leave alone.
+		if isinstance(category_filter, (list, tuple)) and len(category_filter) == 2 and category_filter[0] == "in":
+			filters["category"] = category_filter
+		else:
+			root_name = category_filter[1] if isinstance(category_filter, (list, tuple)) else category_filter
+			node = frappe.db.get_value("LMS Category", root_name, ["lft", "rgt"], as_dict=True)
+			if node:
+				descendant_names = frappe.get_all(
+					"LMS Category",
+					filters={"lft": [">=", node.lft], "rgt": ["<=", node.rgt]},
+					pluck="name",
+				)
+				filters["category"] = ["in", descendant_names or [root_name]]
+			else:
+				filters["category"] = root_name
+
 	# Restrict to resources the current user has claimed/enrolled in.
 	only_enrolled = filters.pop("only_enrolled", None)
 	if only_enrolled:
