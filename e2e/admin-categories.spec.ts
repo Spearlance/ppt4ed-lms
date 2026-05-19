@@ -36,19 +36,8 @@ async function logout(page: Page) {
 }
 
 test.describe('PR A — Admin categories tree', () => {
-	test.afterAll(async ({ request }) => {
-		// Best-effort cleanup so repeated runs don't pollute the seed list.
-		// Need to log in first — the request fixture doesn't share cookies with
-		// any per-test page context, and create/delete_category require auth.
-		await request.post('/api/method/login', {
-			form: { usr: ADMIN_EMAIL, pwd: ADMIN_PASSWORD },
-		}).catch(() => {})
-		for (const name of [GRANDCHILD, CHILD, TOP]) {
-			await request.post('/api/method/lms.lms.api.delete_category', {
-				data: { name, force: 1 },
-			}).catch(() => {})
-		}
-	})
+	// Cleanup is inline at the end of each test, since the CSRF token needed
+	// for delete_category lives on the in-test page (window.csrf_token).
 
 	test('admin can create top via the dialog and child/grandchild via API show up in the tree', async ({ page }) => {
 		await loginAsAdmin(page)
@@ -68,25 +57,39 @@ test.describe('PR A — Admin categories tree', () => {
 
 		// 2. + 3. Create a child + grandchild via API. The same create_category
 		// endpoint backs the UI's "Add sub-category" button — covering it here
-		// avoids depending on hover-revealed action buttons. page.request shares
-		// the session cookie set by loginAsAdmin; a bare `request` fixture would
-		// not, and the call would be rejected as Guest.
+		// avoids depending on hover-revealed action buttons.
+		//
+		// Frappe requires both the session cookie AND the X-Frappe-CSRF-Token
+		// header for write methods. page.request shares cookies with the page,
+		// but we have to copy window.csrf_token (set in the page HTML by Frappe
+		// boot) onto the header ourselves — frappe-ui does this automatically
+		// from inside the browser, raw Playwright requests don't.
+		const csrf = await page.evaluate(() => (window as any).csrf_token as string)
+		const headers = { 'X-Frappe-CSRF-Token': csrf }
 		const childRes = await page.request.post(
 			'/api/method/lms.lms.api.create_category',
-			{ data: { label: CHILD, parent: TOP } }
+			{ headers, data: { label: CHILD, parent: TOP } }
 		)
-		expect(childRes.ok()).toBeTruthy()
+		expect(childRes.ok(), await childRes.text()).toBeTruthy()
 		const grandRes = await page.request.post(
 			'/api/method/lms.lms.api.create_category',
-			{ data: { label: GRANDCHILD, parent: CHILD } }
+			{ headers, data: { label: GRANDCHILD, parent: CHILD } }
 		)
-		expect(grandRes.ok()).toBeTruthy()
+		expect(grandRes.ok(), await grandRes.text()).toBeTruthy()
 
 		// Refresh and confirm the new hierarchy appears under the auto-expanded
 		// first two levels.
 		await page.reload()
 		await expect(page.getByText(TOP).first()).toBeVisible({ timeout: 10000 })
 		await expect(page.getByText(CHILD).first()).toBeVisible({ timeout: 10000 })
+
+		// Cleanup deepest-first so each delete's empty-child guard passes.
+		for (const name of [GRANDCHILD, CHILD, TOP]) {
+			await page.request.post('/api/method/lms.lms.api.delete_category', {
+				headers,
+				data: { name, force: 1 },
+			}).catch(() => {})
+		}
 
 		await logout(page)
 	})
