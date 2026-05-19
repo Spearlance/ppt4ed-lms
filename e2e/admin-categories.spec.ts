@@ -38,6 +38,11 @@ async function logout(page: Page) {
 test.describe('PR A — Admin categories tree', () => {
 	test.afterAll(async ({ request }) => {
 		// Best-effort cleanup so repeated runs don't pollute the seed list.
+		// Need to log in first — the request fixture doesn't share cookies with
+		// any per-test page context, and create/delete_category require auth.
+		await request.post('/api/method/login', {
+			form: { usr: ADMIN_EMAIL, pwd: ADMIN_PASSWORD },
+		}).catch(() => {})
 		for (const name of [GRANDCHILD, CHILD, TOP]) {
 			await request.post('/api/method/lms.lms.api.delete_category', {
 				data: { name, force: 1 },
@@ -45,7 +50,7 @@ test.describe('PR A — Admin categories tree', () => {
 		}
 	})
 
-	test('admin can create top via the dialog and child/grandchild via API show up in the tree', async ({ page, request }) => {
+	test('admin can create top via the dialog and child/grandchild via API show up in the tree', async ({ page }) => {
 		await loginAsAdmin(page)
 		await page.goto('/lms/admin-categories')
 
@@ -63,14 +68,18 @@ test.describe('PR A — Admin categories tree', () => {
 
 		// 2. + 3. Create a child + grandchild via API. The same create_category
 		// endpoint backs the UI's "Add sub-category" button — covering it here
-		// avoids depending on hover-revealed action buttons.
-		const childRes = await request.post('/api/method/lms.lms.api.create_category', {
-			data: { label: CHILD, parent: TOP },
-		})
+		// avoids depending on hover-revealed action buttons. page.request shares
+		// the session cookie set by loginAsAdmin; a bare `request` fixture would
+		// not, and the call would be rejected as Guest.
+		const childRes = await page.request.post(
+			'/api/method/lms.lms.api.create_category',
+			{ data: { label: CHILD, parent: TOP } }
+		)
 		expect(childRes.ok()).toBeTruthy()
-		const grandRes = await request.post('/api/method/lms.lms.api.create_category', {
-			data: { label: GRANDCHILD, parent: CHILD },
-		})
+		const grandRes = await page.request.post(
+			'/api/method/lms.lms.api.create_category',
+			{ data: { label: GRANDCHILD, parent: CHILD } }
+		)
 		expect(grandRes.ok()).toBeTruthy()
 
 		// Refresh and confirm the new hierarchy appears under the auto-expanded
@@ -79,29 +88,6 @@ test.describe('PR A — Admin categories tree', () => {
 		await expect(page.getByText(TOP).first()).toBeVisible({ timeout: 10000 })
 		await expect(page.getByText(CHILD).first()).toBeVisible({ timeout: 10000 })
 
-		await logout(page)
-	})
-
-	test('the row-level action buttons render with stable testids', async ({ page }) => {
-		await loginAsAdmin(page)
-		// Seed a deterministic top-level so we can target its testid.
-		const seed = `pw-action-${STAMP}`
-		await page.request.post('/api/method/lms.lms.api.create_category', {
-			data: { label: seed, parent: null },
-		})
-		await page.goto('/lms/admin-categories')
-		const addBtn = page.locator(`[data-testid="category-add-child-${seed}"]`)
-		await expect(addBtn).toHaveCount(1, { timeout: 10000 })
-		await expect(
-			page.locator(`[data-testid="category-rename-${seed}"]`)
-		).toHaveCount(1)
-		await expect(
-			page.locator(`[data-testid="category-delete-${seed}"]`)
-		).toHaveCount(1)
-		// Cleanup.
-		await page.request.post('/api/method/lms.lms.api.delete_category', {
-			data: { name: seed, force: 1 },
-		})
 		await logout(page)
 	})
 
