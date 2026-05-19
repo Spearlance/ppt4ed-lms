@@ -34,24 +34,27 @@
 				<Button
 					size="sm"
 					variant="ghost"
+					:aria-label="__('Add sub-category')"
+					:data-testid="`category-add-child-${node.name}`"
 					@click="$emit('add-child', node)"
-					:tooltip="__('Add sub-category')"
 				>
 					<template #icon><Plus class="h-3.5 w-3.5" /></template>
 				</Button>
 				<Button
 					size="sm"
 					variant="ghost"
+					:aria-label="__('Rename')"
+					:data-testid="`category-rename-${node.name}`"
 					@click="$emit('rename', node)"
-					:tooltip="__('Rename')"
 				>
 					<template #icon><Pencil class="h-3.5 w-3.5" /></template>
 				</Button>
 				<Button
 					size="sm"
 					variant="ghost"
+					:aria-label="__('Move')"
+					:data-testid="`category-move-${node.name}`"
 					@click="$emit('move', node)"
-					:tooltip="__('Move')"
 				>
 					<template #icon><Move class="h-3.5 w-3.5" /></template>
 				</Button>
@@ -59,8 +62,9 @@
 					size="sm"
 					variant="ghost"
 					theme="red"
+					:aria-label="__('Delete')"
+					:data-testid="`category-delete-${node.name}`"
 					@click="$emit('delete', node)"
-					:tooltip="__('Delete')"
 				>
 					<template #icon><Trash2 class="h-3.5 w-3.5" /></template>
 				</Button>
