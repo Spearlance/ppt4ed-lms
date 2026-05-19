@@ -3457,12 +3457,15 @@ def create_category(label: str, parent: str | None = None, is_group: int = 0):
 	if parent and not frappe.db.exists("LMS Category", parent):
 		frappe.throw(_("Parent category {0} does not exist.").format(parent))
 
+	# ignore_permissions: _require_category_admin() above is the auth gate. The
+	# LMS Category doctype only lists Moderator + System Manager in its
+	# permissions; Global Admin gets in via the role check, not doctype perms.
 	doc = frappe.get_doc({
 		"doctype": "LMS Category",
 		"category": label,
 		"parent_lms_category": parent or None,
 		"is_group": 1 if cint(is_group) else 0,
-	}).insert()
+	}).insert(ignore_permissions=True)
 
 	# If we just attached a child to a parent that wasn't a group yet, flip the
 	# parent's is_group flag so the UI knows it's now expandable.
@@ -3470,7 +3473,7 @@ def create_category(label: str, parent: str | None = None, is_group: int = 0):
 		parent_doc = frappe.get_doc("LMS Category", parent)
 		if not parent_doc.is_group:
 			parent_doc.is_group = 1
-			parent_doc.save()
+			parent_doc.save(ignore_permissions=True)
 
 	return {"name": doc.name, "label": doc.category, "parent": doc.parent_lms_category}
 
@@ -3490,7 +3493,7 @@ def rename_category(name: str, new_label: str):
 
 	# frappe.rename_doc cascades the rename to all Link fields pointing at this
 	# doc (including LMS Course.category and LMS Category.parent_lms_category).
-	frappe.rename_doc("LMS Category", name, new_label, merge=False)
+	frappe.rename_doc("LMS Category", name, new_label, merge=False, ignore_permissions=True)
 	return {"name": new_label}
 
 
@@ -3513,14 +3516,14 @@ def move_category(name: str, new_parent: str | None = None):
 
 	doc = frappe.get_doc("LMS Category", name)
 	doc.parent_lms_category = new_parent or None
-	doc.save()
+	doc.save(ignore_permissions=True)
 
 	# Keep is_group flags in sync.
 	if new_parent:
 		parent_doc = frappe.get_doc("LMS Category", new_parent)
 		if not parent_doc.is_group:
 			parent_doc.is_group = 1
-			parent_doc.save()
+			parent_doc.save(ignore_permissions=True)
 	return {"name": name, "parent": new_parent or None}
 
 
@@ -3559,5 +3562,5 @@ def delete_category(name: str, force: int = 0):
 		key=lambda n: frappe.db.get_value("LMS Category", n, "lft") or 0,
 		reverse=True,
 	):
-		frappe.delete_doc("LMS Category", child_name, ignore_permissions=False, force=True)
+		frappe.delete_doc("LMS Category", child_name, ignore_permissions=True, force=True)
 	return {"deleted": True, "orphaned_resources": resource_count}
