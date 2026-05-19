@@ -17,7 +17,7 @@
 								<span>{{ __(tab.label) }}</span>
 							</div>
 							<nav class="space-y-1">
-								<div v-for="item in tab.items" @click="activeTab = item">
+								<div v-for="item in tab.items" @click="onItemClick(item)">
 									<SidebarLink
 										:link="item"
 										:key="item.label"
@@ -63,11 +63,11 @@
 <script setup>
 import { Dialog, createDocumentResource } from 'frappe-ui'
 import { computed, markRaw, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { useSettings } from '@/stores/settings'
 import SettingDetails from '@/components/Settings/SettingDetails.vue'
 import SidebarLink from '@/components/Sidebar/SidebarLink.vue'
 import Members from '@/components/Settings/Members.vue'
-import Categories from '@/components/Settings/Categories.vue'
 import EmailTemplates from '@/components/Settings/EmailTemplates.vue'
 import SidebarLinksSettings from '@/components/Settings/SidebarLinksSettings.vue'
 import BrandSettings from '@/components/Settings/BrandSettings.vue'
@@ -83,6 +83,19 @@ const show = defineModel()
 const doctype = ref('LMS Settings')
 const activeTab = ref(null)
 const settingsStore = useSettings()
+const router = useRouter()
+
+// Items can either render inline (template / sections) or navigate away
+// (route: '<RouteName>'). Navigation items close the dialog instead of
+// switching the active tab.
+const onItemClick = (item) => {
+	if (item.route) {
+		show.value = false
+		router.push({ name: item.route })
+		return
+	}
+	activeTab.value = item
+}
 
 const data = createDocumentResource({
 	doctype: doctype.value,
@@ -254,9 +267,9 @@ const tabsStructure = computed(() => {
 				},
 				{
 					label: 'Categories',
-					description: 'Double click to edit the category',
+					description: 'Organize resources into folders and sub-folders',
 					icon: 'Network',
-					template: markRaw(Categories),
+					route: 'AdminCategories',
 				},
 				{
 					label: 'Email Templates',
@@ -558,10 +571,13 @@ const tabs = computed(() => {
 
 watch(show, async () => {
 	if (show.value) {
-		const currentTab = await tabs.value
-			.flatMap((tab) => tab.items)
-			.find((item) => item.label === settingsStore.activeTab)
-		activeTab.value = currentTab || tabs.value[0].items[0]
+		const flat = tabs.value.flatMap((tab) => tab.items)
+		// Skip route-only items when auto-selecting — they don't render a panel.
+		const currentTab = flat.find(
+			(item) => item.label === settingsStore.activeTab && !item.route
+		)
+		const firstRenderable = flat.find((item) => !item.route)
+		activeTab.value = currentTab || firstRenderable
 	} else {
 		activeTab.value = null
 		settingsStore.isSettingsOpen = false
