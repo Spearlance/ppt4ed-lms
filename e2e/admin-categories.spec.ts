@@ -39,31 +39,27 @@ test.describe('PR A — Admin categories tree', () => {
 	// Cleanup is inline at the end of each test, since the CSRF token needed
 	// for delete_category lives on the in-test page (window.csrf_token).
 
-	test('admin can create top via the dialog and child/grandchild via API show up in the tree', async ({ page }) => {
+	test('admin can create a top-level then enter the folder to create a child', async ({ page }) => {
 		await loginAsAdmin(page)
 		await page.goto('/lms/admin-categories')
 
-		// Existing seed categories should appear as top-level nodes (zero-data-loss
-		// check for the rebuild_lms_category_tree patch).
+		// Root view: only top-level seeds visible as folder cards.
 		await expect(page.getByText('Occupational Therapy').first()).toBeVisible({
 			timeout: 10000,
 		})
 
-		// 1. Create top-level via the dialog UI.
+		// 1. Create top-level via the page-level Add button.
 		await page.getByRole('button', { name: 'Add top-level category' }).click()
 		await page.getByLabel('Name').fill(TOP)
 		await page.getByRole('button', { name: 'Create', exact: true }).click()
 		await expect(page.getByText(TOP).first()).toBeVisible({ timeout: 10000 })
 
-		// 2. + 3. Create a child + grandchild via API. The same create_category
-		// endpoint backs the UI's "Add sub-category" button — covering it here
-		// avoids depending on hover-revealed action buttons.
-		//
-		// Frappe requires both the session cookie AND the X-Frappe-CSRF-Token
-		// header for write methods. page.request shares cookies with the page,
-		// but we have to copy window.csrf_token (set in the page HTML by Frappe
-		// boot) onto the header ourselves — frappe-ui does this automatically
-		// from inside the browser, raw Playwright requests don't.
+		// 2. Click into the new folder. URL gains ?parent=, breadcrumb shows it.
+		await page.getByText(TOP, { exact: true }).first().click()
+		await page.waitForURL(/parent=/, { timeout: 5000 })
+
+		// 3. Inside the folder, the Add button label flips to "Add sub-category".
+		// Use the API for the actual creation (mirrors the UI button — same endpoint).
 		const csrf = await page.evaluate(() => (window as any).csrf_token as string)
 		const headers = { 'X-Frappe-CSRF-Token': csrf }
 		const childRes = await page.request.post(
@@ -71,26 +67,52 @@ test.describe('PR A — Admin categories tree', () => {
 			{ headers, data: { label: CHILD, parent: TOP } }
 		)
 		expect(childRes.ok(), await childRes.text()).toBeTruthy()
-		const grandRes = await page.request.post(
-			'/api/method/lms.lms.api.create_category',
-			{ headers, data: { label: GRANDCHILD, parent: CHILD } }
-		)
-		expect(grandRes.ok(), await grandRes.text()).toBeTruthy()
 
-		// Refresh and confirm the new hierarchy appears under the auto-expanded
-		// first two levels.
+		// Refresh; the child should appear as a folder card inside TOP.
 		await page.reload()
-		await expect(page.getByText(TOP).first()).toBeVisible({ timeout: 10000 })
 		await expect(page.getByText(CHILD).first()).toBeVisible({ timeout: 10000 })
 
-		// Cleanup deepest-first so each delete's empty-child guard passes.
-		for (const name of [GRANDCHILD, CHILD, TOP]) {
+		// Cleanup deepest-first.
+		for (const name of [CHILD, TOP]) {
 			await page.request.post('/api/method/lms.lms.api.delete_category', {
 				headers,
 				data: { name, force: 1 },
 			}).catch(() => {})
 		}
 
+		await logout(page)
+	})
+
+	test('root view hides nested sub-categories', async ({ page }) => {
+		await loginAsAdmin(page)
+
+		// Seed a parent + child so we can prove only the parent shows at root.
+		const csrf = await (async () => {
+			await page.goto('/lms/admin-categories')
+			return page.evaluate(() => (window as any).csrf_token as string)
+		})()
+		const headers = { 'X-Frappe-CSRF-Token': csrf }
+		await page.request.post('/api/method/lms.lms.api.create_category', {
+			headers,
+			data: { label: TOP, parent: null },
+		})
+		await page.request.post('/api/method/lms.lms.api.create_category', {
+			headers,
+			data: { label: CHILD, parent: TOP },
+		})
+
+		// At root, TOP should be visible but CHILD should NOT (it lives one level deeper).
+		await page.goto('/lms/admin-categories')
+		await expect(page.getByText(TOP).first()).toBeVisible({ timeout: 10000 })
+		await expect(page.getByText(CHILD)).toHaveCount(0)
+
+		// Cleanup.
+		for (const name of [CHILD, TOP]) {
+			await page.request.post('/api/method/lms.lms.api.delete_category', {
+				headers,
+				data: { name, force: 1 },
+			}).catch(() => {})
+		}
 		await logout(page)
 	})
 
