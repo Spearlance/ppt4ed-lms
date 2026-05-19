@@ -3272,3 +3272,292 @@ def signup_and_enroll(
 		return {"status": "logged_in", "redirect_to": f"/lms/resources/{target_slug}"}
 
 	return {"status": "logged_in", "redirect_to": "/lms"}
+
+
+# ---------------------------------------------------------------------------
+# LMS Category — tree admin
+# ---------------------------------------------------------------------------
+
+def _require_category_admin():
+	if not any(role in frappe.get_roles() for role in LMS_MODERATOR_ROLES):
+		frappe.throw(_("You are not permitted to manage categories."), frappe.PermissionError)
+
+
+def _category_resource_count(names):
+	"""Map of category name -> count of LMS Course records (any type) under it."""
+	if not names:
+		return {}
+	rows = frappe.db.sql(
+		"""
+		SELECT category, COUNT(*) AS n
+		FROM `tabLMS Course`
+		WHERE category IN %(names)s
+		GROUP BY category
+		""",
+		{"names": tuple(names)},
+		as_dict=True,
+	)
+	return {r.category: r.n for r in rows}
+
+
+@frappe.whitelist(allow_guest=True)
+def get_category_tree():
+	"""Full nested tree of LMS Category nodes. Each node carries direct + subtree
+	resource counts so the admin UI can warn before delete and the folder-browse UI
+	can show '(N items)' on folder cards.
+	"""
+	rows = frappe.get_all(
+		"LMS Category",
+		fields=["name", "category", "parent_lms_category", "is_group", "lft", "rgt"],
+		order_by="lft asc",
+	)
+	direct_counts = _category_resource_count([r.name for r in rows])
+
+	# Pre-compute subtree counts using lft/rgt: a node's subtree = nodes where
+	# their lft is between this node's lft and rgt.
+	subtree_counts = {}
+	for r in rows:
+		descendants = [
+			d.name for d in rows
+			if d.lft >= r.lft and d.rgt <= r.rgt
+		]
+		subtree_counts[r.name] = sum(direct_counts.get(d, 0) for d in descendants)
+
+	nodes_by_name = {}
+	for r in rows:
+		nodes_by_name[r.name] = {
+			"name": r.name,
+			"label": r.category,
+			"parent": r.parent_lms_category,
+			"is_group": bool(r.is_group),
+			"direct_resource_count": direct_counts.get(r.name, 0),
+			"subtree_resource_count": subtree_counts.get(r.name, 0),
+			"children": [],
+		}
+
+	roots = []
+	for r in rows:
+		node = nodes_by_name[r.name]
+		if r.parent_lms_category and r.parent_lms_category in nodes_by_name:
+			nodes_by_name[r.parent_lms_category]["children"].append(node)
+		else:
+			roots.append(node)
+
+	return roots
+
+
+@frappe.whitelist(allow_guest=True)
+def get_category_children(parent: str | None = None):
+	"""Direct children of `parent` (or top-level if not given), with resource counts.
+	Used by the folder-browse UI on /lms/resources.
+	"""
+	filters = {"parent_lms_category": parent} if parent else {"parent_lms_category": ["in", ["", None]]}
+	rows = frappe.get_all(
+		"LMS Category",
+		filters=filters,
+		fields=["name", "category", "is_group", "lft", "rgt"],
+		order_by="category asc",
+	)
+	if not rows:
+		return []
+
+	# Subtree resource counts via lft/rgt range
+	results = []
+	for r in rows:
+		count = frappe.db.sql(
+			"""
+			SELECT COUNT(*) FROM `tabLMS Course`
+			WHERE category IN (
+				SELECT name FROM `tabLMS Category`
+				WHERE lft >= %(lft)s AND rgt <= %(rgt)s
+			)
+			""",
+			{"lft": r.lft, "rgt": r.rgt},
+		)[0][0]
+		results.append({
+			"name": r.name,
+			"label": r.category,
+			"is_group": bool(r.is_group),
+			"subtree_resource_count": count or 0,
+		})
+	return results
+
+
+@frappe.whitelist(allow_guest=True)
+def get_category_options(search: str | None = None):
+	"""Flat list of all categories with full path labels, for picker dropdowns.
+
+	Returns [{value: name, label: 'Parent › Child', is_group: bool}], sorted by path.
+	Optional case-insensitive substring filter on the path string.
+	"""
+	rows = frappe.get_all(
+		"LMS Category",
+		fields=["name", "category", "parent_lms_category", "is_group", "lft"],
+		order_by="lft asc",
+	)
+	label_by_name = {r.name: r.category for r in rows}
+	parent_by_name = {r.name: r.parent_lms_category for r in rows}
+
+	def path(name):
+		parts = []
+		current = name
+		for _ in range(20):
+			if not current:
+				break
+			parts.insert(0, label_by_name.get(current, current))
+			current = parent_by_name.get(current)
+		return " › ".join(parts)
+
+	out = [
+		{
+			"value": r.name,
+			"label": path(r.name),
+			"is_group": bool(r.is_group),
+		}
+		for r in rows
+	]
+	if search:
+		s = search.lower()
+		out = [o for o in out if s in o["label"].lower()]
+	return out
+
+
+@frappe.whitelist(allow_guest=True)
+def get_category_breadcrumbs(name: str):
+	"""Ancestor chain root → ... → self. Each item: {name, label}."""
+	if not name or not frappe.db.exists("LMS Category", name):
+		return []
+	crumbs = []
+	current = name
+	# Cap at 20 to prevent runaway in case of corrupted tree.
+	for _ in range(20):
+		doc = frappe.db.get_value(
+			"LMS Category",
+			current,
+			["name", "category", "parent_lms_category"],
+			as_dict=True,
+		)
+		if not doc:
+			break
+		crumbs.insert(0, {"name": doc.name, "label": doc.category})
+		if not doc.parent_lms_category:
+			break
+		current = doc.parent_lms_category
+	return crumbs
+
+
+@frappe.whitelist()
+def create_category(label: str, parent: str | None = None, is_group: int = 0):
+	_require_category_admin()
+	label = (label or "").strip()
+	if not label:
+		frappe.throw(_("Category name is required."))
+	if frappe.db.exists("LMS Category", label):
+		frappe.throw(_("A category named {0} already exists.").format(label))
+	if parent and not frappe.db.exists("LMS Category", parent):
+		frappe.throw(_("Parent category {0} does not exist.").format(parent))
+
+	doc = frappe.get_doc({
+		"doctype": "LMS Category",
+		"category": label,
+		"parent_lms_category": parent or None,
+		"is_group": 1 if cint(is_group) else 0,
+	}).insert()
+
+	# If we just attached a child to a parent that wasn't a group yet, flip the
+	# parent's is_group flag so the UI knows it's now expandable.
+	if parent:
+		parent_doc = frappe.get_doc("LMS Category", parent)
+		if not parent_doc.is_group:
+			parent_doc.is_group = 1
+			parent_doc.save()
+
+	return {"name": doc.name, "label": doc.category, "parent": doc.parent_lms_category}
+
+
+@frappe.whitelist()
+def rename_category(name: str, new_label: str):
+	_require_category_admin()
+	new_label = (new_label or "").strip()
+	if not new_label:
+		frappe.throw(_("New name is required."))
+	if not frappe.db.exists("LMS Category", name):
+		frappe.throw(_("Category {0} does not exist.").format(name))
+	if new_label == name:
+		return {"name": name}
+	if frappe.db.exists("LMS Category", new_label):
+		frappe.throw(_("A category named {0} already exists.").format(new_label))
+
+	# frappe.rename_doc cascades the rename to all Link fields pointing at this
+	# doc (including LMS Course.category and LMS Category.parent_lms_category).
+	frappe.rename_doc("LMS Category", name, new_label, merge=False)
+	return {"name": new_label}
+
+
+@frappe.whitelist()
+def move_category(name: str, new_parent: str | None = None):
+	_require_category_admin()
+	if not frappe.db.exists("LMS Category", name):
+		frappe.throw(_("Category {0} does not exist.").format(name))
+	if new_parent and not frappe.db.exists("LMS Category", new_parent):
+		frappe.throw(_("Parent category {0} does not exist.").format(new_parent))
+	if new_parent == name:
+		frappe.throw(_("A category cannot be its own parent."))
+
+	# Prevent cycles: refuse if new_parent is a descendant of name.
+	if new_parent:
+		node = frappe.db.get_value("LMS Category", name, ["lft", "rgt"], as_dict=True)
+		parent_lft = frappe.db.get_value("LMS Category", new_parent, "lft")
+		if node and parent_lft and node.lft < parent_lft < node.rgt:
+			frappe.throw(_("Cannot move a category into one of its own descendants."))
+
+	doc = frappe.get_doc("LMS Category", name)
+	doc.parent_lms_category = new_parent or None
+	doc.save()
+
+	# Keep is_group flags in sync.
+	if new_parent:
+		parent_doc = frappe.get_doc("LMS Category", new_parent)
+		if not parent_doc.is_group:
+			parent_doc.is_group = 1
+			parent_doc.save()
+	return {"name": name, "parent": new_parent or None}
+
+
+@frappe.whitelist()
+def delete_category(name: str, force: int = 0):
+	_require_category_admin()
+	if not frappe.db.exists("LMS Category", name):
+		return {"deleted": False}
+
+	node = frappe.db.get_value("LMS Category", name, ["lft", "rgt"], as_dict=True)
+	descendant_names = frappe.get_all(
+		"LMS Category",
+		filters={"lft": [">=", node.lft], "rgt": ["<=", node.rgt]},
+		pluck="name",
+	)
+	resource_count = frappe.db.count("LMS Course", {"category": ["in", descendant_names]})
+	child_count = len(descendant_names) - 1  # exclude self
+
+	if not cint(force) and (child_count > 0 or resource_count > 0):
+		return {
+			"deleted": False,
+			"requires_force": True,
+			"child_count": child_count,
+			"resource_count": resource_count,
+		}
+
+	# Force-delete: orphan any resources in the subtree (set category=None) and
+	# delete children deepest-first so NestedSet stays consistent.
+	if descendant_names and resource_count:
+		frappe.db.sql(
+			"""UPDATE `tabLMS Course` SET category = NULL WHERE category IN %(names)s""",
+			{"names": tuple(descendant_names)},
+		)
+	for child_name in sorted(
+		descendant_names,
+		key=lambda n: frappe.db.get_value("LMS Category", n, "lft") or 0,
+		reverse=True,
+	):
+		frappe.delete_doc("LMS Category", child_name, ignore_permissions=False, force=True)
+	return {"deleted": True, "orphaned_resources": resource_count}

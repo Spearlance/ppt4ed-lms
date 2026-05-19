@@ -28,12 +28,11 @@
 						]"
 						:required="true"
 					/>
-					<Link
+					<CategoryPathPicker
 						v-model="resource.category"
-						doctype="LMS Category"
 						:label="__('Category')"
-						:inlineCreate="true"
-						:onCreate="createCategory"
+						:allowCreate="true"
+						:hint="__('Manage the folder structure at /lms/admin-categories')"
 					/>
 					<MultiSelect
 						v-model="resource.instructors"
@@ -87,8 +86,8 @@
 import { Button, Dialog, FormControl, TextEditor, toast } from 'frappe-ui'
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import Link from '@/components/Controls/Link.vue'
-import { cleanError, sanitizeHTML, createLMSCategory } from '@/utils'
+import CategoryPathPicker from '@/components/Controls/CategoryPathPicker.vue'
+import { cleanError, sanitizeHTML } from '@/utils'
 import MultiSelect from '@/components/Controls/MultiSelect.vue'
 import Uploader from '@/components/Controls/Uploader.vue'
 
@@ -111,14 +110,6 @@ const resource = ref({
 	category: null,
 	image: null,
 })
-
-const createCategory = (name, done) => {
-	createLMSCategory(name).then((categoryName) => {
-		if (!categoryName) return
-		resource.value.category = categoryName
-		done()
-	})
-}
 
 const validateFields = () => {
 	Object.keys(resource.value).forEach((key) => {

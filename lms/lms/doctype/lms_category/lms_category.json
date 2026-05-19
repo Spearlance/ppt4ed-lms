@@ -7,7 +7,12 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "category"
+  "category",
+  "is_group",
+  "parent_lms_category",
+  "old_parent",
+  "lft",
+  "rgt"
  ],
  "fields": [
   {
@@ -18,15 +23,59 @@
    "label": "Category",
    "reqd": 1,
    "unique": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "is_group",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Is Group"
+  },
+  {
+   "fieldname": "parent_lms_category",
+   "fieldtype": "Link",
+   "ignore_user_permissions": 1,
+   "label": "Parent Category",
+   "options": "LMS Category"
+  },
+  {
+   "fieldname": "old_parent",
+   "fieldtype": "Link",
+   "hidden": 1,
+   "ignore_user_permissions": 1,
+   "label": "Old Parent",
+   "options": "LMS Category",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "lft",
+   "fieldtype": "Int",
+   "hidden": 1,
+   "label": "lft",
+   "print_hide": 1,
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "rgt",
+   "fieldtype": "Int",
+   "hidden": 1,
+   "label": "rgt",
+   "print_hide": 1,
+   "read_only": 1,
+   "search_index": 1
   }
  ],
  "index_web_pages_for_search": 1,
+ "is_tree": 1,
  "links": [],
- "modified": "2025-11-08 19:28:28.468137",
- "modified_by": "sayali@frappe.io",
+ "modified": "2026-05-19 12:00:00.000000",
+ "modified_by": "Administrator",
  "module": "LMS",
  "name": "LMS Category",
  "naming_rule": "By fieldname",
+ "nsm_parent_field": "parent_lms_category",
  "owner": "Administrator",
  "permissions": [
   {
