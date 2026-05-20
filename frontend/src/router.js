@@ -242,6 +242,12 @@ const routes = [
 		props: true,
 	},
 	{
+		path: '/admin/certificate-preview/:certName',
+		name: 'CertificatePreview',
+		component: () => import('@/pages/AdminCertificatePreview.vue'),
+		props: true,
+	},
+	{
 		path: '/privacy',
 		name: 'PrivacyPolicy',
 		component: () => import('@/pages/Legal/PrivacyPolicy.vue'),
@@ -274,7 +280,7 @@ let router = createRouter({
 	routes,
 })
 
-const lmsAdminOnlyRoutes = ['Statistics', 'AdminReports']
+const lmsAdminOnlyRoutes = ['Statistics', 'AdminReports', 'CertificatePreview']
 const moderatorOnlyRoutes = ['CommunityEvents', 'CommunityEventForm', 'AdminCategories']
 
 router.beforeEach(async (to, from, next) => {
