@@ -49,12 +49,12 @@ Two architectures were considered:
 
 | | A. Chromium in backend container | B. Dedicated Playwright sidecar |
 |---|---|---|
-| Cert renders by | Frappe's `pdf_generator: "chromium"` → Playwright → headless Chromium, in-process | Backend POSTs cert HTML to sidecar, sidecar returns PDF bytes |
+| Cert renders by | Frappe's `pdf_generator: "chrome"` → Frappe spawns chromium-headless-shell + CDP, in-process | Backend POSTs cert HTML to sidecar, sidecar returns PDF bytes |
 | Image bloat | ~250MB added to backend image | Sidecar is ~500MB on its own, backend unchanged |
 | Inter-service coupling | None — same container | New HTTP boundary, secret sharing, healthcheck |
 | Future PDF features | Reuses the in-container Chromium | Sidecar is a reusable rendering service |
 | Operational complexity | One image to manage | Two services, deploy ordering, network isolation |
-| Frappe-native | Yes — `pdf_generator: "chromium"` is built in | No — custom integration code |
+| Frappe-native | Yes — `pdf_generator: "chrome"` is built in | No — custom integration code |
 
 **Choosing A.** The only argument for B is "we'll need this for other PDFs later," but we have no other PDFs on the near-term roadmap (badges and receipts work fine under wkhtmltopdf for now). YAGNI says we don't build a sidecar today for hypothetical tomorrow. If we ever do need transcripts / resume exports / etc., we can extract the rendering path into a sidecar then.
 
@@ -124,7 +124,9 @@ I will design the SVG borders in the implementation PR. They should be vector-cl
 
 **Files:** `lms/lms/print_format/certificate/certificate.json`
 
-- `"pdf_generator": "wkhtmltopdf"` → `"pdf_generator": "chromium"`
+- `"pdf_generator": "wkhtmltopdf"` → `"pdf_generator": "chrome"` (Frappe v16's
+  Print Format field exposes only `wkhtmltopdf` and `chrome` — verified
+  2026-05-20 against `frappe/printing/doctype/print_format/print_format.json`)
 - Remove the `<meta name="pdfkit-*">` tags from the HTML — Chromium ignores them, they're dead code under the new renderer
 - Verify `@page { size: 11in 8.5in landscape; margin: 0; }` is respected (it is, per Frappe-expert research)
 - Keep `page-break-inside: avoid` as belt-and-suspenders, even though Chromium handles single-page output correctly via fixed dimensions alone
