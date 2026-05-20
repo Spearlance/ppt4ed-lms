@@ -82,6 +82,7 @@ const downloadPdf = () => {
 		name: props.certName,
 		format: 'Certificate',
 		no_letterhead: '1',
+		pdf_generator: 'chrome',
 	})
 	window.open(`/api/method/frappe.utils.print_format.download_pdf?${params.toString()}`, '_blank')
 }
