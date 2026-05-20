@@ -24,3 +24,5 @@ frappe-semgrep-rules
 test-results/
 playwright-report/
 screenshots-walkthrough/
+e2e/_*.png
+e2e/*-debug.spec.ts
