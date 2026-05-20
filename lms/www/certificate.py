@@ -9,5 +9,5 @@ def get_context(context):
 	certificate_id = frappe.form_dict.certificate_id
 	template = quote(template)
 
-	frappe.local.flags.redirect_location = f"/api/method/frappe.utils.print_format.download_pdf?doctype=LMS+Certificate&name={certificate_id}&format={template}"
+	frappe.local.flags.redirect_location = f"/api/method/frappe.utils.print_format.download_pdf?doctype=LMS+Certificate&name={certificate_id}&format={template}&pdf_generator=chrome"
 	raise frappe.Redirect
