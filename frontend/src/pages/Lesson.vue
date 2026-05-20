@@ -467,7 +467,12 @@ import {
 	onBeforeUnmount,
 	nextTick,
 } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import {
+	useRouter,
+	useRoute,
+	onBeforeRouteUpdate,
+	onBeforeRouteLeave,
+} from 'vue-router'
 import {
 	CheckCircle2,
 	ChevronLeft,
@@ -706,21 +711,6 @@ const breadcrumbs = computed(() => {
 
 const switchLesson = async (direction) => {
 	trackVideoWatchDuration()
-	if (
-		direction === 'next' &&
-		lesson.data?.membership &&
-		!lesson.data.progress
-	) {
-		try {
-			const courseProgress = await call(
-				'lms.lms.doctype.course_lesson.course_lesson.save_progress',
-				{ lesson: lesson.data.name, course: props.courseName }
-			)
-			lessonProgress.value = courseProgress
-		} catch (err) {
-			console.error(err)
-		}
-	}
 	let lessonIndex =
 		direction === 'prev'
 			? lesson.data.prev.split('.')
@@ -760,6 +750,34 @@ const markComplete = async ({ silent = false } = {}) => {
 		markCompleteLoading.value = false
 	}
 }
+
+const saveProgressOnExit = async () => {
+	if (!lesson.data?.membership || lesson.data.progress) return
+	if (lesson.data.is_scorm_package) return
+	try {
+		const courseProgress = await call(
+			'lms.lms.doctype.course_lesson.course_lesson.save_progress',
+			{ lesson: lesson.data.name, course: props.courseName }
+		)
+		lessonProgress.value = courseProgress
+	} catch (err) {
+		console.error(err)
+	}
+}
+
+onBeforeRouteUpdate(async (to, from) => {
+	if (
+		from.name === 'Lesson' &&
+		(from.params.chapterNumber !== to.params.chapterNumber ||
+			from.params.lessonNumber !== to.params.lessonNumber)
+	) {
+		await saveProgressOnExit()
+	}
+})
+
+onBeforeRouteLeave(async () => {
+	await saveProgressOnExit()
+})
 
 watch(
 	[() => route.params.chapterNumber, () => route.params.lessonNumber],
