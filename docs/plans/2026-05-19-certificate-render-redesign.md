@@ -60,24 +60,34 @@ Two architectures were considered:
 
 ## Implementation scope
 
-### Task 1 — Add Playwright + Chromium to the backend Docker image
+### Task 1 — Chromium support in the backend image (no-op — already present)
 
-**Files:** `pyproject.toml`, the deploy server's `frappe_docker/images/custom/Containerfile`
+**Status:** No work needed. Verified 2026-05-20 against the running dev container.
 
-- Add `playwright` to `pyproject.toml` dependencies.
-- Update `Containerfile` to install Playwright system deps and the Chromium browser binary at image build time:
-  ```dockerfile
-  RUN pip install playwright \
-      && playwright install --with-deps chromium \
-      && chown -R frappe:frappe /home/frappe/.cache/ms-playwright
-  ```
-- Set `PLAYWRIGHT_BROWSERS_PATH=/home/frappe/.cache/ms-playwright` env in the container so the `frappe` user can find the binary.
-- Bake in (do not download at runtime — that would mean every cold-start re-downloads chromium).
+The deploy image already ships with everything required:
 
-**Verification command (post-build):**
+1. **`chromium-headless-shell`** is installed via apt in the base `Containerfile`
+   (`/opt/frappe_docker/images/custom/Containerfile` on the deploy server) and
+   lives at `/usr/bin/chromium-headless-shell` in the running container.
+2. **`common_site_config.json`** already has
+   `"chromium_path": "/usr/bin/chromium-headless-shell"`, which is the exact
+   knob Frappe's `frappe.utils.print_utils.find_or_download_chromium_executable()`
+   reads first (via `shutil.which`) before falling back to a runtime download.
+3. **No Python `playwright` package is needed.** Frappe v16's chrome PDF
+   generator (`frappe/utils/pdf_generator/chrome_pdf_generator.py`) spawns
+   the binary directly via `subprocess.Popen(...)` and talks to it over the
+   Chrome DevTools Protocol on a stderr-discovered WebSocket URL — no
+   Playwright, no pyppeteer, no extra dep.
+
+**Verification command:**
 ```bash
-docker exec lms-backend-1 python3 -c "from playwright.sync_api import sync_playwright; p = sync_playwright().start(); b = p.chromium.launch(); print('OK', b.version); b.close(); p.stop()"
+ssh root@142.93.186.167 'docker exec lms-backend-1 /usr/bin/chromium-headless-shell --version'
 ```
+
+**Implication for rollout:** **no full Docker image rebuild is required.** The
+whole PR deploys via the normal bind-mount workflow (git pull + migrate +
+backend restart). The original plan's "dev briefly goes down during rebuild"
+caveat is moot.
 
 ### Task 2 — Self-host the cert fonts
 
@@ -156,17 +166,28 @@ Test gates CI on `develop` — never merge a cert layout change that produces tw
 
 ## Rollout
 
-This PR requires a **full Docker image rebuild**, which is rarer for us than bind-mount deploys. Sequence:
+Image rebuild is **not** required (Task 1 above). Normal bind-mount deploy.
+Sequence:
 
-1. **Branch + design review** — this doc lands first as a doc-only commit so we have alignment on scope. Then implementation work proceeds.
-2. **Build image locally on the deploy server** — `cd /opt/frappe_docker && docker build ... -t ppt4ed/lms:dev-chromium .` (~10min build).
-3. **Verify image** — `docker run --rm ppt4ed/lms:dev-chromium python3 -c "from playwright.sync_api import sync_playwright; ..."` before swapping containers.
-4. **Swap containers on dev** — `docker compose -f lms.yaml down && docker compose -f lms.yaml up -d` after pushing the image. Bind-mounted `/opt/ppt4ed-lms` carries the JSON + frontend changes.
-5. **Migrate** for the print format JSON change, then force-import per `feedback_print_format_reload.md`.
-6. **Smoke test** on dev with the 3 variants in Task 6. **If any variant renders 2 pages, do not proceed to prod.**
-7. **Prod rollout:** same sequence on prod. Tag image as `ppt4ed/lms:prod-2026-MM-DD-chromium`. Keep the previous prod tag (`prod-2026-05-13`) ready for one-command rollback.
+1. **Design review** — doc commit landed first so the design is reviewable.
+2. **Merge PR** into `develop`.
+3. **`git pull` on the deploy server** at `/opt/ppt4ed-lms` to pick up the JSON
+   + frontend changes.
+4. **Migrate** for the print format JSON change, then force-import per
+   `feedback_print_format_reload.md` (this is still required — `bench migrate`
+   does not reload print formats).
+5. **Restart backend** to pick up any hooks.py / Python module changes (the
+   admin preview endpoint).
+6. **Frontend asset sync** if the Vue routes changed: `bench build --app lms`
+   on backend, `docker cp` into frontend container per the deploy skill.
+7. **Smoke test** on dev with the 3 variants in Task 6. **If any variant
+   renders 2 pages, do not proceed to prod.**
+8. **Prod rollout:** repeat steps 3-7 on `45.55.89.232` after dev sits clean
+   overnight.
 
-**Rollback path:** revert the JSON `pdf_generator` field to `wkhtmltopdf` (bind-mount edit, ~30s deploy). The image keeps Playwright installed but unused. No data is lost — certs are rendered on demand, not stored.
+**Rollback path:** revert the JSON `pdf_generator` field to `wkhtmltopdf`
+(bind-mount edit, ~30s deploy). No data is lost — certs are rendered on
+demand, not stored.
 
 ## Out of scope (explicitly)
 
@@ -182,11 +203,11 @@ This PR requires a **full Docker image rebuild**, which is rarer for us than bin
 
 2. **Fonts:** keep Playfair Display + Inter + Great Vibes. Self-host all three under `/assets/lms/fonts/`.
 
-3. **Image rebuild timing:** dev going down briefly during the rebuild + container swap is acceptable. **Start when user gives go-ahead** — not before. Prod cutover is a later, separate ask.
+3. **Image rebuild timing:** ~~dev going down briefly during the rebuild + container swap is acceptable~~ — **superseded 2026-05-20**: rebuild is not required (Task 1 above). Deploys via bind mount, no downtime.
 
 4. **Cert preview admin page:** admin-only. Live at `/lms/admin/certificate-preview/<name>`. Not exposed to instructors.
 
-5. **Playwright in backend image:** approved. (Side note: Playwright is also our e2e test runner — that lives on the CI/dev machine, not inside the backend container. This PR adds it to a new place: the backend image itself, so Chromium is available to Frappe at PDF-render time.)
+5. **Playwright in backend image:** ~~approved~~ — **superseded 2026-05-20**: not needed. Frappe v16 invokes Chromium directly via subprocess + CDP. The e2e Playwright (Node) still lives on the dev/CI machine where it always has.
 
 ## Estimated effort
 
