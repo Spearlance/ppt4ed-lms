@@ -320,16 +320,20 @@
 							</span>
 						</Button>
 						<Button
-							v-else-if="
-								activeQuestion != questions.length && quiz.data.show_answers
-							"
+							v-else-if="activeQuestion != questions.length"
 							@click="nextQuestion()"
+							:disabled="!currentQuestionAnswered"
 						>
 							<span>
 								{{ __('Next') }}
 							</span>
 						</Button>
-						<Button variant="solid" v-else @click="handleSubmitClick()">
+						<Button
+							variant="solid"
+							v-else
+							@click="handleSubmitClick()"
+							:disabled="!currentQuestionAnswered"
+						>
 							<span>
 								{{ __('Submit') }}
 							</span>
@@ -648,6 +652,21 @@ const timerProgress = computed(() => {
 	return (timer.value / (quiz.data.duration * 60)) * 100
 })
 
+const currentQuestionAnswered = computed(() => {
+	if (showAnswers.length) return true
+	const type = questionDetails.data?.type
+	if (!type) return false
+	if (type === 'Choices') {
+		return selectedOptions.value.some((v) => v !== 0)
+	}
+	const answer = possibleAnswer.value
+	if (answer == null) return false
+	if (typeof answer === 'string') {
+		return answer.replace(/<[^>]*>/g, '').trim().length > 0
+	}
+	return true
+})
+
 const shuffleArray = (array) => {
 	for (let i = array.length - 1; i > 0; i--) {
 		const j = Math.floor(Math.random() * (i + 1))
@@ -879,7 +898,6 @@ const addToLocalStorage = () => {
 }
 
 const nextQuestion = () => {
-	if (!quiz.data.show_answers) return
 	if (questionDetails.data?.type == 'Open Ended') addToLocalStorage()
 	markCurrentAttempted()
 	resetQuestion()
