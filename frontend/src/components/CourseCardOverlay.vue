@@ -124,18 +124,6 @@
 						{{ __('Start Learning') }}
 					</span>
 				</Button>
-				<Button
-					v-if="canGetCertificate"
-					@click="fetchCertificate()"
-					variant="subtle"
-					class="w-full mt-2"
-					size="md"
-				>
-					<template #prefix>
-						<GraduationCap class="size-4 stroke-1.5" />
-					</template>
-					{{ __('Get Certificate') }}
-				</Button>
 			</div>
 			<div class="space-y-3">
 				<div class="font-medium text-ink-gray-9">
@@ -242,7 +230,7 @@ import {
 	Users,
 } from 'lucide-vue-next'
 import { computed, inject, onMounted, ref, watch } from 'vue'
-import { Badge, Button, call, createResource, Dialog, toast } from 'frappe-ui'
+import { Badge, Button, call, Dialog, toast } from 'frappe-ui'
 import { enablePlyr, formatAmount } from '@/utils/'
 import { useRouter } from 'vue-router'
 import CertificationLinks from '@/components/CertificationLinks.vue'
@@ -321,40 +309,6 @@ const is_instructor = () => {
 		}
 	})
 	return user_is_instructor
-}
-
-const canGetCertificate = computed(() => {
-	if (
-		props.course.data?.enable_certification &&
-		props.course.data?.membership?.progress == 100
-	) {
-		return true
-	}
-	return false
-})
-
-const certificate = createResource({
-	url: 'lms.lms.doctype.lms_certificate.lms_certificate.create_certificate',
-	makeParams(values) {
-		return {
-			course: values.course,
-		}
-	},
-	onSuccess(data) {
-		window.open(
-			`/api/method/frappe.utils.print_format.download_pdf?doctype=LMS+Certificate&name=${
-				data.name
-			}&format=${encodeURIComponent(data.template)}&pdf_generator=chrome`,
-			'_blank'
-		)
-	},
-})
-
-const fetchCertificate = () => {
-	certificate.submit({
-		course: props.course.data?.name,
-		member: user.data?.name,
-	})
 }
 
 const isAdmin = computed(() => {
