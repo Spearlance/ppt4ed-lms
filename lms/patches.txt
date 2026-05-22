@@ -157,3 +157,4 @@ lms.patches.v2_0.hide_professional_and_individual_business_plans #18-05-2026
 lms.patches.v2_0.convert_survey_identity_questions_to_short_text #18-05-2026
 lms.patches.v2_0.rebuild_lms_category_tree #19-05-2026
 lms.patches.v2_0.relax_password_minimum_score #22-05-2026
+lms.patches.v2_0.migrate_course_category_to_multiselect #22-05-2026

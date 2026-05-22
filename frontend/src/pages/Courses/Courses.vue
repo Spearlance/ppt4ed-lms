@@ -207,7 +207,10 @@ const isCeuTab = computed(() => currentTab.value === 'ceu_events')
 const activeResource = computed(() => isCeuTab.value ? ceuEvents : courses)
 
 const setCategories = (data) => {
-	let allCategories = data.map((course) => course.category)
+	// `course.categories` is the new multi-select source of truth (array of
+	// category names attached by the backend `attach_course_categories`
+	// helper). Flatten and dedupe to build the single-select filter dropdown.
+	let allCategories = data.flatMap((course) => course.categories || [])
 	allCategories = allCategories.filter(
 		(category, index) => allCategories.indexOf(category) === index && category
 	)
@@ -341,14 +344,11 @@ const setQueryParams = () => {
 
 const updateCategories = (data) => {
 	data.forEach((course) => {
-		if (
-			course.category &&
-			!categories.value.find((category) => category.value === course.category)
-		)
-			categories.value.push({
-				label: course.category,
-				value: course.category,
-			})
+		;(course.categories || []).forEach((cat) => {
+			if (cat && !categories.value.find((c) => c.value === cat)) {
+				categories.value.push({ label: cat, value: cat })
+			}
+		})
 	})
 }
 

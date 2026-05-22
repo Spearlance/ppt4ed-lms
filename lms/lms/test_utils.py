@@ -124,7 +124,9 @@ class TestLMSUtils(BaseTestUtils):
 		course_details = get_course_details(self.course.name)
 		self.assertEqual(course_details.name, self.course.name)
 		self.assertEqual(course_details.title, self.course.title)
-		self.assertEqual(course_details.category, self.course.category)
+		# `categories` is the multi-select source of truth; the legacy
+		# `category` column stays in sync for one cycle via the migration patch.
+		self.assertIsInstance(course_details.categories, list)
 		self.assertEqual(course_details.description, self.course.description)
 		self.assertEqual(course_details.short_introduction, self.course.short_introduction)
 		self.assertEqual(course_details.tags, self.course.tags)

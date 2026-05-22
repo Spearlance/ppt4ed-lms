@@ -3293,14 +3293,21 @@ def _require_category_admin():
 
 
 def _category_resource_count(names):
-	"""Map of category name -> count of LMS Course records (any type) under it."""
+	"""Map of category name -> count of LMS Course records (any type) under it.
+
+	Reads from the LMS Course Category child table (the new multi-category
+	source of truth). A single course assigned to N categories contributes 1
+	to each — we COUNT(DISTINCT parent) to avoid double-counting if a row
+	repeats. The legacy `LMS Course.category` Link column is no longer
+	consulted; the migration patch copied its values into the child table.
+	"""
 	if not names:
 		return {}
 	rows = frappe.db.sql(
 		"""
-		SELECT category, COUNT(*) AS n
-		FROM `tabLMS Course`
-		WHERE category IN %(names)s
+		SELECT category, COUNT(DISTINCT parent) AS n
+		FROM `tabLMS Course Category`
+		WHERE category IN %(names)s AND parenttype = 'LMS Course'
 		GROUP BY category
 		""",
 		{"names": tuple(names)},
@@ -3548,7 +3555,20 @@ def delete_category(name: str, force: int = 0):
 		filters={"lft": [">=", node.lft], "rgt": ["<=", node.rgt]},
 		pluck="name",
 	)
-	resource_count = frappe.db.count("LMS Course", {"category": ["in", descendant_names]})
+	# Count distinct LMS Course parents that point at any descendant via the
+	# new LMS Course Category child table.
+	resource_count = 0
+	if descendant_names:
+		row = frappe.db.sql(
+			"""
+			SELECT COUNT(DISTINCT parent) AS n
+			FROM `tabLMS Course Category`
+			WHERE category IN %(names)s AND parenttype = 'LMS Course'
+			""",
+			{"names": tuple(descendant_names)},
+			as_dict=True,
+		)
+		resource_count = (row[0].n if row else 0) or 0
 	child_count = len(descendant_names) - 1  # exclude self
 
 	if not cint(force) and (child_count > 0 or resource_count > 0):
@@ -3559,9 +3579,14 @@ def delete_category(name: str, force: int = 0):
 			"resource_count": resource_count,
 		}
 
-	# Force-delete: orphan any resources in the subtree (set category=None) and
-	# delete children deepest-first so NestedSet stays consistent.
+	# Force-delete: drop the child-table assignments so resources stay intact
+	# but no longer belong to any of the deleted categories. Also clear the
+	# legacy `category` column in case it still holds a deleted value.
 	if descendant_names and resource_count:
+		frappe.db.sql(
+			"""DELETE FROM `tabLMS Course Category` WHERE category IN %(names)s AND parenttype = 'LMS Course'""",
+			{"names": tuple(descendant_names)},
+		)
 		frappe.db.sql(
 			"""UPDATE `tabLMS Course` SET category = NULL WHERE category IN %(names)s""",
 			{"names": tuple(descendant_names)},

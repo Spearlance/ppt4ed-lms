@@ -832,6 +832,7 @@ def get_courses(filters: dict = None, start: int = 0) -> list:
 	if show_featured and start == 0:
 		courses = get_featured_courses(filters, or_filters, fields) + courses
 
+	courses = attach_course_categories(courses)
 	courses = get_enrollment_details(courses)
 	courses = get_course_card_details(courses)
 	return courses
@@ -888,10 +889,64 @@ def update_course_filters(filters: dict) -> tuple:
 		or_filters.update({"enable_certification": 1})
 		del filters["certification"]
 
+	# Category filter: a course is now in a category when the LMS Course
+	# Category child table carries that row. Resolve any incoming `category`
+	# filter to the set of LMS Course parents that match, then translate it
+	# into a `name IN [...]` clause (or force-empty results). Mirrors the
+	# subtree expansion already in `get_resources`.
+	category_filter = filters.pop("category", None)
+	if category_filter:
+		course_names = _resolve_category_filter_to_course_names(category_filter)
+		prior = filters.get("name")
+		if isinstance(prior, (list, tuple)) and len(prior) == 2 and prior[0] == "in":
+			# Earlier blocks (enrolled, created) already restricted by name;
+			# intersect so both constraints apply.
+			course_names = [n for n in course_names if n in set(prior[1])]
+		filters["name"] = ["in", course_names or ["__no_match__"]]
+
 	# Exclude resources from the course catalog
 	filters["course_type"] = ["!=", "Resource"]
 
 	return filters, or_filters, show_featured
+
+
+def _resolve_category_filter_to_course_names(category_filter):
+	"""Take a filter value as it appeared on `LMS Course.category` (either a
+	plain string, a [op, val] list, or a [op, [vals]] in-clause) and return
+	the list of LMS Course names that should match.
+
+	Walks the LMS Category nested-set so the folder-browse UI shows every
+	resource under the chosen folder, not only its direct children.
+	"""
+	if isinstance(category_filter, (list, tuple)) and len(category_filter) == 2:
+		op, raw = category_filter
+		root_names = list(raw) if op == "in" and isinstance(raw, (list, tuple)) else [raw]
+	else:
+		root_names = [category_filter]
+
+	expanded = set()
+	for root_name in root_names:
+		if not root_name:
+			continue
+		node = frappe.db.get_value("LMS Category", root_name, ["lft", "rgt"], as_dict=True)
+		if not node:
+			expanded.add(root_name)
+			continue
+		descendants = frappe.get_all(
+			"LMS Category",
+			filters={"lft": [">=", node.lft], "rgt": ["<=", node.rgt]},
+			pluck="name",
+		)
+		expanded.update(descendants or [root_name])
+
+	if not expanded:
+		return []
+
+	return frappe.get_all(
+		"LMS Course Category",
+		filters={"category": ["in", list(expanded)], "parenttype": "LMS Course"},
+		pluck="parent",
+	)
 
 
 def get_enrollment_details(courses: list) -> list:
@@ -976,6 +1031,13 @@ def get_course_details(course: str):
 	)
 
 	course_details.instructors = get_instructors("LMS Course", course_details.name)
+	course_details.categories = frappe.get_all(
+		"LMS Course Category",
+		filters={"parent": course_details.name, "parenttype": "LMS Course"},
+		fields=["category"],
+		order_by="idx",
+		pluck="category",
+	)
 	course_details.membership = membership
 	# course_details.is_instructor = is_instructor(course_details.name)
 	if course_details.paid_course:
@@ -1009,27 +1071,15 @@ def get_resources(filters: dict = None, start: int = 0) -> list:
 	else:
 		filters.pop("resource_type", None)
 
-	# Category subtree expansion: if a `category` filter is set, broaden it to
-	# the category PLUS every descendant in the LMS Category tree so the
-	# folder-browse UI shows everything under a parent folder. Uses the lft/rgt
-	# nested-set range from PR A's tree migration.
+	# Category filter resolves through the LMS Course Category child table
+	# (the new multi-category source of truth). _resolve_category_filter_to_course_names
+	# also expands the chosen category to its full subtree via the lft/rgt
+	# nested-set range, so the folder-browse UI shows everything under a
+	# parent folder.
 	category_filter = filters.pop("category", None)
 	if category_filter:
-		# Already a list/tuple ("in" clause) from createListResource? Leave alone.
-		if isinstance(category_filter, (list, tuple)) and len(category_filter) == 2 and category_filter[0] == "in":
-			filters["category"] = category_filter
-		else:
-			root_name = category_filter[1] if isinstance(category_filter, (list, tuple)) else category_filter
-			node = frappe.db.get_value("LMS Category", root_name, ["lft", "rgt"], as_dict=True)
-			if node:
-				descendant_names = frappe.get_all(
-					"LMS Category",
-					filters={"lft": [">=", node.lft], "rgt": ["<=", node.rgt]},
-					pluck="name",
-				)
-				filters["category"] = ["in", descendant_names or [root_name]]
-			else:
-				filters["category"] = root_name
+		course_names = _resolve_category_filter_to_course_names(category_filter)
+		filters["name"] = ["in", course_names or ["__no_match__"]]
 
 	# Restrict to resources the current user has claimed/enrolled in.
 	only_enrolled = filters.pop("only_enrolled", None)
@@ -1043,7 +1093,17 @@ def get_resources(filters: dict = None, start: int = 0) -> list:
 		)
 		if not enrolled:
 			return []
-		filters["name"] = ["in", enrolled]
+		# Intersect with any prior `name in [...]` constraint (e.g. a category
+		# filter set just above), so both filters apply together.
+		prior = filters.get("name")
+		if isinstance(prior, (list, tuple)) and len(prior) == 2 and prior[0] == "in":
+			prior_set = set(prior[1])
+			intersected = [n for n in enrolled if n in prior_set]
+			if not intersected:
+				return []
+			filters["name"] = ["in", intersected]
+		else:
+			filters["name"] = ["in", enrolled]
 
 	# Handle text search
 	if filters.get("title"):
@@ -1065,6 +1125,7 @@ def get_resources(filters: dict = None, start: int = 0) -> list:
 		page_length=30,
 	)
 
+	resources = attach_course_categories(resources)
 	resources = get_enrollment_details(resources)
 	resources = get_course_card_details(resources)
 	return resources
@@ -2334,6 +2395,30 @@ def get_batches(filters: dict = None, start: int = 0, order_by: str = "start_dat
 	batches = attach_event_days(batches)
 	batches = get_batch_card_details(batches)
 	return batches
+
+
+def attach_course_categories(courses: list) -> list:
+	"""Pull all category rows for the visible courses in one query and
+	bucket them per course. Empty list when a course has none.
+
+	Mirrors `attach_event_categories` so courses and resources expose the
+	same `course.categories = ["X", "Y"]` shape on the frontend.
+	"""
+	if not courses:
+		return courses
+	course_names = [c.name for c in courses]
+	rows = frappe.get_all(
+		"LMS Course Category",
+		filters={"parent": ["in", course_names], "parenttype": "LMS Course"},
+		fields=["parent", "category"],
+		order_by="idx",
+	)
+	by_course = {}
+	for row in rows:
+		by_course.setdefault(row.parent, []).append(row.category)
+	for course in courses:
+		course["categories"] = by_course.get(course.name, [])
+	return courses
 
 
 def attach_event_categories(batches: list) -> list:
