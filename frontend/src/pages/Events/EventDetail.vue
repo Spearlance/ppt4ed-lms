@@ -17,7 +17,7 @@
 					<Link2 class="w-3.5 h-3.5 stroke-1.5 shrink-0" />
 					<span class="truncate">{{ publicUrlShort }}</span>
 				</a>
-				<div v-if="tabIndex == 5 && isAdmin" class="flex items-center space-x-2">
+				<div v-if="tabs[tabIndex]?.label === 'Settings' && isAdmin" class="flex items-center space-x-2">
 					<Badge v-if="childRef?.isDirty" theme="orange">
 						{{ __('Not Saved') }}
 					</Badge>
