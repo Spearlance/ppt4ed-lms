@@ -2157,25 +2157,34 @@ def track_video_watch_duration(lesson: str, videos: list):
 			"source": video.get("source"),
 			"member": frappe.session.user,
 		}
+		# `completed` latches at 1 — once the user reached the end of this video
+		# source we never demote it back to 0 even if a later track call (which
+		# can happen on every navigation away) reports completed: false.
+		reported_completed = 1 if video.get("completed") else 0
 		existing_record = frappe.db.get_value(
-			"LMS Video Watch Duration", filters, ["name", "watch_time"], as_dict=True
+			"LMS Video Watch Duration",
+			filters,
+			["name", "watch_time", "completed"],
+			as_dict=True,
 		)
-		if existing_record and flt(existing_record.watch_time) < flt(video.get("watch_time")):
-			frappe.db.set_value(
-				"LMS Video Watch Duration",
-				filters,
-				"watch_time",
-				video.get("watch_time"),
-			)
-		elif not existing_record:
-			track_new_watch_time(lesson, video)
+		if existing_record:
+			updates = {}
+			if flt(existing_record.watch_time) < flt(video.get("watch_time")):
+				updates["watch_time"] = video.get("watch_time")
+			if reported_completed and not existing_record.completed:
+				updates["completed"] = 1
+			if updates:
+				frappe.db.set_value("LMS Video Watch Duration", filters, updates)
+		else:
+			track_new_watch_time(lesson, video, reported_completed)
 
 
-def track_new_watch_time(lesson: str, video: dict):
+def track_new_watch_time(lesson: str, video: dict, completed: int = 0):
 	doc = frappe.new_doc("LMS Video Watch Duration")
 	doc.lesson = lesson
 	doc.source = video.get("source")
 	doc.watch_time = video.get("watch_time")
+	doc.completed = completed
 	doc.member = frappe.session.user
 	doc.save()
 

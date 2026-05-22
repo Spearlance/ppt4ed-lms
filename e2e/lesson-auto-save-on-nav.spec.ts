@@ -70,14 +70,12 @@ test.describe('Lesson auto-save on navigation', () => {
 		// Land on lesson 1-1.
 		await page.goto(`/lms/courses/${COURSE_SLUG}/learn/1-1`)
 
-		// Wait for the lesson header to render — either "Mark as Complete"
-		// (incomplete) or "Completed" (already done). Either proves
-		// lesson.data.membership exists, which is what gates the save_progress
-		// call in the route guard.
-		await page
-			.getByRole('button', { name: /Mark as Complete|Completed/ })
-			.first()
-			.waitFor({ timeout: 15000 })
+		// Wait for the lesson <h1> to render — that proves lesson.data has
+		// loaded (which is what gates the save_progress call in the route
+		// guard). The Mark as Complete button is hidden on video/quiz lessons
+		// since the lesson auto-completes on watch-end or quiz-pass, so we
+		// can't use that as the sentinel.
+		await page.locator('h1').first().waitFor({ timeout: 15000 })
 
 		// Find a sidebar lesson link that isn't the current 1-1 lesson. The
 		// outline renders router-links with hrefs like
@@ -135,10 +133,7 @@ test.describe('Lesson auto-save on navigation', () => {
 		await ensureEnrolled(page)
 
 		await page.goto(`/lms/courses/${COURSE_SLUG}/learn/1-1`)
-		await page
-			.getByRole('button', { name: /Mark as Complete|Completed/ })
-			.first()
-			.waitFor({ timeout: 15000 })
+		await page.locator('h1').first().waitFor({ timeout: 15000 })
 
 		const saveProgressCalls: string[] = []
 		page.on('request', (req) => {
