@@ -30,7 +30,6 @@
 							<Uploader
 								v-model="profile.image"
 								:label="__('Profile Image')"
-								:required="true"
 								shape="circle"
 							/>
 
@@ -212,7 +211,6 @@ const validateMandatoryFields = () => {
 	let missingFields = []
 	if (!profile.first_name) missingFields.push(__('First Name'))
 	if (!profile.last_name) missingFields.push(__('Last Name'))
-	if (!profile.image) missingFields.push(__('Profile Image'))
 	if (missingFields.length) {
 		toast.error(
 			__('Please fill the mandatory fields: {0}').format(
