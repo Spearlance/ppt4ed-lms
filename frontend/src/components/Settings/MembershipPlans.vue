@@ -40,10 +40,12 @@
                         <!-- View mode -->
                         <div
                             v-if="editing !== plan.name"
-                            class="flex items-center justify-between cursor-pointer hover:bg-surface-gray-2 -mx-2 px-2 rounded"
-                            @click="startEdit(plan)"
+                            class="flex items-center justify-between hover:bg-surface-gray-2 -mx-2 px-2 rounded"
                         >
-                            <div class="space-y-1">
+                            <div
+                                class="space-y-1 cursor-pointer flex-1 py-1"
+                                @click="startEdit(plan)"
+                            >
                                 <div class="text-ink-gray-9 font-medium">
                                     {{ plan.title }}
                                 </div>
@@ -55,9 +57,17 @@
                                     </span>
                                 </div>
                             </div>
-                            <Badge :theme="plan.active ? 'green' : 'gray'">
-                                {{ plan.active ? 'Active' : 'Inactive' }}
-                            </Badge>
+                            <div class="flex items-center gap-2">
+                                <Badge :theme="plan.active ? 'green' : 'gray'">
+                                    {{ plan.active ? 'Active' : 'Hidden' }}
+                                </Badge>
+                                <Button
+                                    :loading="togglingActive === plan.name"
+                                    @click.stop="toggleActive(plan)"
+                                >
+                                    {{ plan.active ? __('Hide') : __('Show') }}
+                                </Button>
+                            </div>
                         </div>
 
                         <!-- Edit mode -->
@@ -104,13 +114,6 @@
                                 :rows="3"
                                 placeholder="Optional marketing copy shown under the CEU hours line on the pricing card"
                             />
-                            <div class="grid grid-cols-2 gap-4">
-                                <FormControl
-                                    v-model="editForm.display_order"
-                                    :label="__('Display Order')"
-                                    type="number"
-                                />
-                            </div>
                             <div class="flex items-center justify-between">
                                 <div class="flex items-center gap-4">
                                     <label class="flex items-center gap-2 text-sm text-ink-gray-7 cursor-pointer">
@@ -233,6 +236,7 @@ const editing = ref(null)
 const saving = ref(false)
 const creating = ref(false)
 const deleting = ref(false)
+const togglingActive = ref(null)
 const showCreate = ref(false)
 
 const editForm = reactive({
@@ -321,6 +325,22 @@ const saveEdit = async () => {
         toast.error(err.messages?.[0] || 'Failed to update plan')
     }
     saving.value = false
+}
+
+const toggleActive = async (plan) => {
+    togglingActive.value = plan.name
+    try {
+        const next = plan.active ? 0 : 1
+        await call('lms.lms.api.update_membership_plan', {
+            plan_name: plan.name,
+            active: next,
+        })
+        plan.active = next
+        toast.success(next ? __('Plan shown on pricing page') : __('Plan hidden from pricing page'))
+    } catch (err) {
+        toast.error(err.messages?.[0] || 'Failed to update plan')
+    }
+    togglingActive.value = null
 }
 
 const confirmDelete = async (plan) => {
