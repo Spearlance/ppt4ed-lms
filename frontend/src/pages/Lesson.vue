@@ -67,7 +67,23 @@
 					</Button>
 				</router-link>
 
-				<Button v-if="lesson.data.next" @click="switchLesson('next')">
+				<Tooltip
+					v-if="lesson.data.next && lesson.data.blocks_forward"
+					:text="__('Complete this lesson to unlock the next one.')"
+				>
+					<Button disabled>
+						<template #suffix>
+							<ChevronRight class="w-4 h-4 stroke-1" />
+						</template>
+						<span>
+							{{ __('Next') }}
+						</span>
+					</Button>
+				</Tooltip>
+				<Button
+					v-else-if="lesson.data.next"
+					@click="switchLesson('next')"
+				>
 					<template #suffix>
 						<ChevronRight class="w-4 h-4 stroke-1" />
 					</template>
@@ -140,6 +156,30 @@
 						{{
 							__(
 								'Complete the previous chapter to unlock these lessons.'
+							)
+						}}
+					</div>
+					<router-link
+						:to="{ name: 'CourseDetail', params: { courseName } }"
+					>
+						<Button variant="solid">
+							{{ __('Back to Course') }}
+						</Button>
+					</router-link>
+				</div>
+			</div>
+			<div v-else-if="lesson.data.is_lesson_locked" class="border-r">
+				<div class="shadow rounded-md w-3/4 mt-10 mx-auto text-center p-4">
+					<div class="flex items-center justify-center mt-4 space-x-2">
+						<LockKeyholeIcon class="size-4 stroke-2 text-ink-gray-5" />
+						<div class="text-lg font-semibold text-ink-gray-7">
+							{{ __('This lesson is locked') }}
+						</div>
+					</div>
+					<div class="mt-1 mb-4 text-ink-gray-7">
+						{{
+							__(
+								'Complete the previous lesson to unlock this one.'
 							)
 						}}
 					</div>
@@ -248,7 +288,23 @@
 									</Button>
 								</router-link>
 
-								<Button v-if="lesson.data.next" @click="switchLesson('next')">
+								<Tooltip
+									v-if="lesson.data.next && lesson.data.blocks_forward"
+									:text="__('Complete this lesson to unlock the next one.')"
+								>
+									<Button disabled>
+										<template #suffix>
+											<ChevronRight class="w-4 h-4 stroke-1" />
+										</template>
+										<span>
+											{{ __('Next') }}
+										</span>
+									</Button>
+								</Tooltip>
+								<Button
+									v-else-if="lesson.data.next"
+									@click="switchLesson('next')"
+								>
 									<template #suffix>
 										<ChevronRight class="w-4 h-4 stroke-1" />
 									</template>
@@ -545,6 +601,9 @@ onMounted(() => {
 	socket.on('update_lesson_progress', (data) => {
 		if (data.course === props.courseName) {
 			lessonProgress.value = data.progress
+			if (data.lesson && data.lesson === lesson.data?.name) {
+				lesson.reload()
+			}
 		}
 	})
 })

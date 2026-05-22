@@ -1147,7 +1147,14 @@ def get_course_outline(course: str, progress: bool = False) -> list:
 	if not guest_access_allowed():
 		return []
 
+	from lms.lms.doctype.course_lesson.course_lesson import lesson_blocks_forward
+
 	locks = get_chapter_lock_states(course)
+	bypass_lesson_lock = frappe.session.user == "Guest" or can_modify_course(course)
+	# Walk lessons in course order; once one is found that has an unpassed
+	# quiz / unwatched video, every subsequent lesson is locked. The blocking
+	# lesson itself stays navigable so the user can clear the gate.
+	sequence_blocked = False
 	outline = []
 	chapters = frappe.get_all("Chapter Reference", {"parent": course}, ["chapter", "idx"], order_by="idx")
 	for chapter in chapters:
@@ -1161,7 +1168,12 @@ def get_course_outline(course: str, progress: bool = False) -> list:
 		chapter_details.is_locked = 1 if locks.get(chapter.idx) else 0
 		chapter_details.lessons = get_lessons(course, chapter_details, progress=progress)
 		for lesson_row in chapter_details.lessons:
-			lesson_row["is_locked"] = chapter_details.is_locked
+			locked = chapter_details.is_locked
+			if not bypass_lesson_lock and sequence_blocked:
+				locked = 1
+			lesson_row["is_locked"] = locked
+			if not bypass_lesson_lock and not sequence_blocked and lesson_blocks_forward(lesson_row.name):
+				sequence_blocked = True
 
 		if chapter_details.is_scorm_package:
 			chapter_details.scorm_package = frappe.db.get_value(
@@ -1173,6 +1185,34 @@ def get_course_outline(course: str, progress: bool = False) -> list:
 
 		outline.append(chapter_details)
 	return outline
+
+
+def is_lesson_forward_locked(course: str, lesson_name: str, member: str = None) -> bool:
+	"""True iff an earlier lesson in the same chapter has an unpassed quiz /
+	unwatched video for `member`. Cross-chapter gating is already covered by
+	`get_chapter_lock_states` (chapter N requires all of N-1 Complete), so we
+	only need to walk the current chapter to catch the within-chapter shortcut.
+	Admins/instructors/Guest bypass.
+	"""
+	if not member:
+		member = frappe.session.user
+	if member == "Guest" or can_modify_course(course):
+		return False
+
+	from lms.lms.doctype.course_lesson.course_lesson import lesson_blocks_forward
+
+	chapter = frappe.db.get_value("Course Lesson", lesson_name, "chapter")
+	if not chapter:
+		return False
+	lessons = frappe.get_all(
+		"Lesson Reference", {"parent": chapter}, ["lesson", "idx"], order_by="idx"
+	)
+	for lr in lessons:
+		if lr.lesson == lesson_name:
+			return False
+		if lesson_blocks_forward(lr.lesson):
+			return True
+	return False
 
 
 def get_chapter_lock_states(course: str, member: str = None) -> dict:
@@ -1259,6 +1299,13 @@ def get_lesson(course: str, chapter: int, lesson: int) -> dict:
 			"course_title": course_info.title,
 		}
 
+	if membership and is_lesson_forward_locked(course, lesson_name):
+		return {
+			"is_lesson_locked": 1,
+			"title": lesson_details.title,
+			"course_title": course_info.title,
+		}
+
 	lesson_details = frappe.db.get_value(
 		"Course Lesson",
 		lesson_name,
@@ -1297,6 +1344,12 @@ def get_lesson(course: str, chapter: int, lesson: int) -> dict:
 	lesson_details.disable_self_learning = course_info.disable_self_learning
 	lesson_details.enable_certification = course_info.enable_certification
 	lesson_details.videos = get_video_details(lesson_name)
+	if membership and not can_modify_course(course):
+		from lms.lms.doctype.course_lesson.course_lesson import lesson_blocks_forward
+
+		lesson_details.blocks_forward = lesson_blocks_forward(lesson_name)
+	else:
+		lesson_details.blocks_forward = False
 	return lesson_details
 
 
