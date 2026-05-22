@@ -28,11 +28,11 @@
 						]"
 						:required="true"
 					/>
-					<CategoryPathPicker
-						v-model="resource.category"
-						:label="__('Category')"
+					<CategoryMultiPicker
+						v-model="resource.categories"
+						:label="__('Categories')"
 						:allowCreate="true"
-						:hint="__('Manage the folder structure at /lms/admin-categories')"
+						:hint="__('Pick one or more categories. Manage the folder structure at /lms/admin-categories')"
 					/>
 					<MultiSelect
 						v-model="resource.instructors"
@@ -86,7 +86,7 @@
 import { Button, Dialog, FormControl, TextEditor, toast } from 'frappe-ui'
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import CategoryPathPicker from '@/components/Controls/CategoryPathPicker.vue'
+import CategoryMultiPicker from '@/components/Controls/CategoryMultiPicker.vue'
 import { cleanError, sanitizeHTML } from '@/utils'
 import MultiSelect from '@/components/Controls/MultiSelect.vue'
 import Uploader from '@/components/Controls/Uploader.vue'
@@ -107,7 +107,7 @@ const resource = ref({
 	description: '',
 	resource_type: 'Download',
 	instructors: [],
-	category: null,
+	categories: [],
 	image: null,
 })
 
@@ -131,6 +131,9 @@ const saveResource = (close = () => {}) => {
 			instructors: resource.value.instructors.map((instructor) => ({
 				instructor: instructor,
 			})),
+			categories: (resource.value.categories || []).map((c) =>
+				typeof c === 'string' ? { category: c } : c
+			),
 		},
 		{
 			onSuccess(data) {

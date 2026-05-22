@@ -17,12 +17,11 @@
 								:required="true"
 								@input="makeFormDirty()"
 							/>
-							<Link
-								v-model="courseResource.doc.category"
-								doctype="LMS Category"
-								:label="__('Category')"
-								:inlineCreate="true"
-								:onCreate="createCategory"
+							<CategoryMultiPicker
+								v-model="courseResource.doc.categories"
+								:label="__('Categories')"
+								:allowCreate="true"
+								:hint="__('Pick one or more categories. Manage the folder structure at /lms/admin-categories')"
 								@update:modelValue="makeFormDirty()"
 							/>
 						</div>
@@ -377,11 +376,11 @@ import {
 	getMetaInfo,
 	sanitizeHTML,
 	updateMetaInfo,
-	createLMSCategory,
 } from '@/utils'
 import { X } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 import Link from '@/components/Controls/Link.vue'
+import CategoryMultiPicker from '@/components/Controls/CategoryMultiPicker.vue'
 import CourseOutline from '@/components/CourseOutline.vue'
 import MultiSelect from '@/components/Controls/MultiSelect.vue'
 import ColorSwatches from '@/components/Controls/ColorSwatches.vue'
@@ -611,15 +610,6 @@ const checkPermission = () => {
 	if (!user_is_instructor) {
 		router.push({ name: 'Courses' })
 	}
-}
-
-const createCategory = (name, done) => {
-	createLMSCategory(name).then((categoryName) => {
-		if (!categoryName) return
-		courseResource.doc.category = categoryName
-		done()
-		makeFormDirty()
-	})
 }
 
 const makeFormDirty = () => {

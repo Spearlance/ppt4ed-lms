@@ -15,12 +15,11 @@
 						:required="true"
 						autocomplete="off"
 					/>
-					<Link
-						v-model="course.category"
-						doctype="LMS Category"
-						:label="__('Category')"
-						:inlineCreate="true"
-						:onCreate="createCategory"
+					<CategoryMultiPicker
+						v-model="course.categories"
+						:label="__('Categories')"
+						:allowCreate="true"
+						:hint="__('Pick one or more categories. Manage the folder structure at /lms/admin-categories')"
 					/>
 					<MultiSelect
 						v-model="course.instructors"
@@ -82,8 +81,8 @@ import { Button, Dialog, FormControl, TextEditor, toast } from 'frappe-ui'
 import { useOnboarding, useTelemetry } from 'frappe-ui/frappe'
 import { inject, onMounted, onBeforeUnmount, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import Link from '@/components/Controls/Link.vue'
-import { cleanError, sanitizeHTML, createLMSCategory } from '@/utils'
+import CategoryMultiPicker from '@/components/Controls/CategoryMultiPicker.vue'
+import { cleanError, sanitizeHTML } from '@/utils'
 import MultiSelect from '@/components/Controls/MultiSelect.vue'
 import Uploader from '@/components/Controls/Uploader.vue'
 import NewMemberModal from '@/components/Modals/NewMemberModal.vue'
@@ -105,7 +104,7 @@ type Course = {
 	short_introduction: string
 	description: string
 	instructors: string[]
-	category: string | null
+	categories: { category: string }[]
 	image: string | null
 }
 
@@ -114,17 +113,9 @@ const course = ref<Course>({
 	short_introduction: '',
 	description: '',
 	instructors: [],
-	category: null,
+	categories: [],
 	image: null,
 })
-
-const createCategory = (name: string, done: () => void) => {
-	createLMSCategory(name).then((categoryName: string) => {
-		if (!categoryName) return
-		course.value.category = categoryName
-		done()
-	})
-}
 
 const onInstructorCreated = (user: any) => {
 	course.value.instructors = [...course.value.instructors, user.name]
@@ -148,6 +139,9 @@ const saveCourse = (close: () => void = () => {}) => {
 			instructors: course.value.instructors.map((instructor) => ({
 				instructor: instructor,
 			})),
+			categories: (course.value.categories || []).map((c: any) =>
+				typeof c === 'string' ? { category: c } : c
+			),
 		},
 		{
 			onSuccess(data: any) {

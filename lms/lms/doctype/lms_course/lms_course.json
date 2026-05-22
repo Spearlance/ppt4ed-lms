@@ -16,6 +16,7 @@
   "column_break_3",
   "instructors",
   "category",
+  "categories",
   "status",
   "column_break_htgn",
   "image",
@@ -255,10 +256,19 @@
    "fieldtype": "Column Break"
   },
   {
+   "description": "Deprecated: use the Categories table below. Kept for one cycle so the data migration is reversible.",
    "fieldname": "category",
    "fieldtype": "Link",
-   "label": "Category",
-   "options": "LMS Category"
+   "hidden": 1,
+   "label": "Category (legacy)",
+   "options": "LMS Category",
+   "read_only": 1
+  },
+  {
+   "fieldname": "categories",
+   "fieldtype": "Table MultiSelect",
+   "label": "Categories",
+   "options": "LMS Course Category"
   },
   {
    "fieldname": "tab_4_tab",
