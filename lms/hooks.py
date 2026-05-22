@@ -149,7 +149,10 @@ scheduler_events = {
 	],
 }
 
-fixtures = ["Custom Field", "Function", "Industry", "LMS Category", "CEU Membership Plan"]
+# CEU Membership Plan intentionally not fixture-tracked — admin manages plans via
+# the Settings UI (create/edit/active/delete). Listing it here re-imports the
+# fixture JSON on every bench migrate and silently undoes admin changes.
+fixtures = ["Custom Field", "Function", "Industry", "LMS Category"]
 
 # Testing
 # -------
