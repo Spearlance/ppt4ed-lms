@@ -30,7 +30,7 @@
 					</span>
 				</Button>
 				<Button
-					v-else-if="lesson.data.membership"
+					v-else-if="lesson.data.membership && !hasAutoCompletion"
 					variant="solid"
 					:loading="markCompleteLoading"
 					@click="markComplete()"
@@ -211,7 +211,7 @@
 									</span>
 								</Button>
 								<Button
-									v-else-if="lesson.data.membership"
+									v-else-if="lesson.data.membership && !hasAutoCompletion"
 									variant="solid"
 									:loading="markCompleteLoading"
 									@click="markComplete()"
@@ -689,6 +689,14 @@ const notes = createListResource({
 	},
 })
 
+// Hide "Mark as Complete" when the lesson has its own completion gate:
+// a video auto-completes when watched to the end; a quiz auto-completes when
+// the user reaches the passing percentage (enforced server-side in
+// course_lesson.get_quiz_progress).
+const hasAutoCompletion = computed(
+	() => !!(lesson.data?.youtube || lesson.data?.quiz_id)
+)
+
 const breadcrumbs = computed(() => {
 	let crumbs = [{ label: __('Courses'), route: { name: 'Courses' } }]
 	crumbs.push({
@@ -755,6 +763,10 @@ const saveProgressOnExit = async () => {
 	if (!lesson.data?.membership || lesson.data.progress) return
 	if (lesson.data.is_scorm_package) return
 	try {
+		// Flush the latest watch state first so save_progress's video gate
+		// sees completed=1 for sources the user actually watched to the end —
+		// otherwise a user paused exactly at the end would still fail the gate.
+		await trackVideoWatchDuration()
 		const courseProgress = await call(
 			'lms.lms.doctype.course_lesson.course_lesson.save_progress',
 			{ lesson: lesson.data.name, course: props.courseName }
@@ -810,21 +822,31 @@ const trackVideoWatchDuration = () => {
 	if (!lesson.data.membership) return
 	let videoDetails = getVideoDetails()
 	videoDetails = videoDetails.concat(getPlyrSourceDetails())
-	call('lms.lms.api.track_video_watch_duration', {
+	return call('lms.lms.api.track_video_watch_duration', {
 		lesson: lesson.data.name,
 		videos: videoDetails,
 	})
 }
+
+// Small tolerance — codec/metadata jitter can leave currentTime fractionally
+// short of duration even after the `ended` event has fired.
+const VIDEO_COMPLETION_TOLERANCE_SECONDS = 1
+
+const isVideoAtEnd = (currentTime, duration) =>
+	Number.isFinite(duration) &&
+	duration > 0 &&
+	currentTime >= duration - VIDEO_COMPLETION_TOLERANCE_SECONDS
 
 const getVideoDetails = () => {
 	let details = []
 	const videos = document.querySelectorAll('video')
 	if (videos.length > 0) {
 		videos.forEach((video) => {
-			if (video.currentTime == video.duration) markComplete({ silent: true })
 			details.push({
 				source: video.src,
 				watch_time: video.currentTime,
+				completed:
+					video.ended || isVideoAtEnd(video.currentTime, video.duration),
 			})
 		})
 	}
@@ -834,11 +856,12 @@ const getVideoDetails = () => {
 const getPlyrSourceDetails = () => {
 	let details = []
 	plyrSources.value.forEach((source) => {
-		if (source.currentTime == source.duration) markComplete({ silent: true })
 		let src = cleanYouTubeUrl(source.source)
 		details.push({
 			source: src,
 			watch_time: source.currentTime,
+			completed:
+				source.ended || isVideoAtEnd(source.currentTime, source.duration),
 		})
 	})
 	return details
@@ -882,9 +905,13 @@ const updateVideoWatchDuration = () => {
 }
 
 const attachVideoEndedListeners = () => {
-	const onVideoEnded = () => {
+	// Track must finish before markComplete — save_progress now checks
+	// LMS Video Watch Duration.completed=1 as part of the gate, so the watch
+	// record needs to be persisted first or the lesson won't actually mark
+	// Complete.
+	const onVideoEnded = async () => {
+		await trackVideoWatchDuration()
 		markComplete({ silent: true })
-		trackVideoWatchDuration()
 	}
 
 	document.querySelectorAll('video').forEach((video) => {

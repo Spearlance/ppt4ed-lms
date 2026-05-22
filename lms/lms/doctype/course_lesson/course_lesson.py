@@ -103,11 +103,18 @@ def save_progress(lesson: str, course: str, scorm_details: dict = None):
 
 	quiz_completed = get_quiz_progress(lesson)
 	assignment_completed = get_assignment_progress(lesson)
+	video_completed = get_video_progress(lesson)
 
 	if scorm_details:
 		scorm_details = frappe._dict(**scorm_details)
 
-	if not progress_already_exists and quiz_completed and assignment_completed and not scorm_details:
+	if (
+		not progress_already_exists
+		and quiz_completed
+		and assignment_completed
+		and video_completed
+		and not scorm_details
+	):
 		frappe.get_doc(
 			{
 				"doctype": "LMS Course Progress",
@@ -162,8 +169,13 @@ def save_progress(lesson: str, course: str, scorm_details: dict = None):
 
 
 def get_quiz_progress(lesson):
-	lesson_details = frappe.db.get_value("Course Lesson", lesson, ["body", "content"], as_dict=1)
+	lesson_details = frappe.db.get_value(
+		"Course Lesson", lesson, ["body", "content", "quiz_id"], as_dict=1
+	)
 	quizzes = []
+
+	if lesson_details.quiz_id:
+		quizzes.append(lesson_details.quiz_id)
 
 	if lesson_details.content:
 		content = json.loads(lesson_details.content)
@@ -193,6 +205,56 @@ def get_quiz_progress(lesson):
 		):
 			return False
 	return True
+
+
+def lesson_has_videos(lesson_details) -> bool:
+	"""True when the lesson contains at least one video — by dedicated youtube
+	field, by `{{ YouTubeVideo(...) }}` / `{{ Video(...) }}` macro in body, or
+	by an `upload` block in editor.js content."""
+	if lesson_details.youtube:
+		return True
+
+	if lesson_details.content:
+		try:
+			content = json.loads(lesson_details.content)
+		except (TypeError, ValueError):
+			content = None
+		if content:
+			for block in content.get("blocks") or []:
+				if block.get("type") == "upload":
+					return True
+
+	if lesson_details.body:
+		macros = find_macros(lesson_details.body)
+		for name, _value in macros:
+			if name in ("YouTubeVideo", "Video"):
+				return True
+
+	return False
+
+
+def get_video_progress(lesson):
+	"""Returns False when the lesson contains a video and the user has not
+	watched any of its sources through to the end. The frontend marks
+	completion via track_video_watch_duration (latching `completed=1`)
+	once a video's currentTime reaches its duration."""
+	lesson_details = frappe.db.get_value(
+		"Course Lesson", lesson, ["body", "content", "youtube"], as_dict=1
+	)
+
+	if not lesson_has_videos(lesson_details):
+		return True
+
+	return bool(
+		frappe.db.exists(
+			"LMS Video Watch Duration",
+			{
+				"lesson": lesson,
+				"member": frappe.session.user,
+				"completed": 1,
+			},
+		)
+	)
 
 
 def get_assignment_progress(lesson):

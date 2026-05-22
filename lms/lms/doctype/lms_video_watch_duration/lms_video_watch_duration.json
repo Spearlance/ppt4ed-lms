@@ -16,7 +16,8 @@
   "section_break_fywc",
   "source",
   "column_break_uuyv",
-  "watch_time"
+  "watch_time",
+  "completed"
  ],
  "fields": [
   {
@@ -97,6 +98,14 @@
    "in_list_view": 1,
    "label": "Watch Time",
    "reqd": 1
+  },
+  {
+   "default": "0",
+   "description": "Set to 1 once the user has watched the video through to its end. Latches — never set back to 0.",
+   "fieldname": "completed",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Completed"
   }
  ],
  "grid_page_length": 50,
