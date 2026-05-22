@@ -257,6 +257,22 @@ def get_video_progress(lesson):
 	)
 
 
+def lesson_blocks_forward(lesson: str) -> bool:
+	"""True iff the lesson has a quiz/video gate the current user hasn't cleared.
+
+	Used to lock subsequent lessons in course order so users can't skip past a
+	quiz or video by clicking Next / sidebar. Narrower than `LMS Course
+	Progress.status='Complete'`: only quiz+video count, not assignment (which
+	requires external grading and shouldn't gate self-paced flow).
+	"""
+	if frappe.db.exists(
+		"LMS Course Progress",
+		{"lesson": lesson, "member": frappe.session.user, "status": "Complete"},
+	):
+		return False
+	return not get_quiz_progress(lesson) or not get_video_progress(lesson)
+
+
 def get_assignment_progress(lesson):
 	lesson_details = frappe.db.get_value("Course Lesson", lesson, ["body", "content"], as_dict=1)
 	assignments = []

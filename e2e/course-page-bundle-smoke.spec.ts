@@ -65,10 +65,11 @@ test.describe('Course-page bundle post-deploy smoke', () => {
 		await loginAsStudent(page)
 
 		// pro@test.com isn't necessarily enrolled in Catch the Wave on dev,
-		// so chapter 5 may return no_preview (non-enrolled) rather than
-		// is_chapter_locked (enrolled but locked). Either is acceptable —
-		// the failure mode we're guarding against is a 500 or a missing
-		// field. Three legal shapes: no_preview, is_chapter_locked, or full
+		// so chapter 5 may return no_preview (non-enrolled), is_chapter_locked
+		// (enrolled but chapter gated), or is_lesson_locked (enrolled but a
+		// prior in-chapter quiz/video gate isn't cleared). The failure mode
+		// we're guarding against is a 500 or a missing field. Four legal
+		// shapes: no_preview, is_chapter_locked, is_lesson_locked, or full
 		// lesson payload.
 		const response = await page.request.get(
 			`/api/method/lms.lms.utils.get_lesson?course=${CATCH_THE_WAVE}&chapter=5&lesson=1`
@@ -77,7 +78,7 @@ test.describe('Course-page bundle post-deploy smoke', () => {
 		const body = await response.json()
 		const data = body.message
 
-		if (data.is_chapter_locked) {
+		if (data.is_chapter_locked || data.is_lesson_locked) {
 			expect(data).toHaveProperty('title')
 			expect(data).toHaveProperty('course_title')
 		} else if (data.no_preview) {
