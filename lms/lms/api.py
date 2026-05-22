@@ -3019,7 +3019,7 @@ def get_membership_plans():
 		"CEU Membership Plan",
 		filters={"active": 1, "plan_type": ["!=", "PPT Employee"]},
 		fields=["name", "title", "plan_type", "ceu_hours", "price", "description", "stripe_price_id", "display_order", "is_recommended"],
-		order_by="display_order asc, price asc"
+		order_by="price asc"
 	)
 	return plans
 
@@ -3032,7 +3032,7 @@ def get_all_membership_plans():
 	return frappe.get_all(
 		"CEU Membership Plan",
 		fields=["name", "title", "plan_type", "ceu_hours", "price", "description", "stripe_price_id", "active", "display_order", "is_recommended"],
-		order_by="display_order asc, price asc"
+		order_by="price asc"
 	)
 
 
@@ -3081,7 +3081,7 @@ def delete_membership_plan(plan_name):
 	linked = frappe.db.count("CEU Membership", {"plan": plan_name})
 	if linked:
 		frappe.throw(
-			_("Cannot delete plan '{0}' — {1} membership(s) still reference it. Deactivate it instead.").format(
+			_("Can't delete '{0}' because {1} membership(s) still reference it. Click 'Hide' instead to remove it from the pricing page while keeping existing memberships intact.").format(
 				plan_name, linked
 			)
 		)
