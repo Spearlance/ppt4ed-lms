@@ -37,7 +37,7 @@
 					:label="__('Bonus Chapter')"
 					:description="
 						__(
-							'Bonus chapters are always accessible, don\\'t gate other chapters, and don\\'t count toward course completion.'
+							'Bonus chapters are always accessible and do not count toward course completion.'
 						)
 					"
 					v-model="chapter.is_bonus"
