@@ -143,11 +143,11 @@ test.describe('Marketing quick-wins post-deploy smoke (PR #123)', () => {
 		await logout(page)
 	})
 
-	test('#5 — Contact form recipient is configured in LMS Settings (recipient non-empty)', async ({
+	test('#5 — Contact Us recipient is configured in LMS Settings (recipient non-empty)', async ({
 		request,
 	}) => {
-		// Avoid actually sending an email. Verify the wiring instead:
-		// LMS Settings exposes contact_us_email to the public, and the value is non-empty.
+		// The Contact Us sidebar link now opens mailto:<contact_us_email>, so
+		// the address still needs to be configured for the link to work.
 		const response = await request.get(
 			'/api/method/lms.lms.api.get_lms_settings'
 		)
@@ -157,7 +157,7 @@ test.describe('Marketing quick-wins post-deploy smoke (PR #123)', () => {
 		expect(settings, 'get_lms_settings must return a payload').toBeTruthy()
 		expect(
 			settings.contact_us_email,
-			'LMS Settings.contact_us_email must be set or the Contact form will fail-fast'
+			'LMS Settings.contact_us_email must be set or the Contact Us link has no recipient'
 		).toBeTruthy()
 		expect(settings.contact_us_email).toMatch(/@/)
 	})
