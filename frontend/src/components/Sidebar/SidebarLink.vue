@@ -59,18 +59,15 @@
 			</div>
 		</div>
 	</button>
-	<ContactUsEmail v-model="showContactForm" />
 </template>
 <script setup>
 import { Tooltip } from 'frappe-ui'
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { useRouter } from 'vue-router'
-import ContactUsEmail from '@/components/ContactUsEmail.vue'
 import * as icons from 'lucide-vue-next'
 
 const router = useRouter()
 const emit = defineEmits(['openModal', 'deletePage'])
-const showContactForm = ref(false)
 
 const props = defineProps({
 	link: {
@@ -95,7 +92,7 @@ function handleClick() {
 	if (router.hasRoute(props.link.to)) {
 		router.push({ name: props.link.to })
 	} else if (props.link.to?.includes('@')) {
-		showContactForm.value = true
+		window.location.href = `mailto:${props.link.to}`
 	} else if (props.link.to) {
 		if (props.link.to.startsWith('http')) {
 			window.open(props.link.to, '_blank')
