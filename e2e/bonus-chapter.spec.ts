@@ -26,20 +26,28 @@ async function loginAs(page: Page, email: string, password: string) {
 	await page.waitForURL('**/lms/**', { timeout: 15000 })
 }
 
-async function setValue(
+async function setChapterBonus(
 	page: Page,
-	doctype: string,
-	name: string,
-	field: string,
-	value: number | string
+	chapter: { name: string; title: string; is_scorm_package?: number | boolean },
+	course: string,
+	isBonus: 0 | 1
 ) {
+	// upsert_chapter is the only admin path that Global Admin can use; raw
+	// frappe.client.set_value gets blocked by doctype-level perms that omit
+	// Global Admin (see feedback_global_admin_doctype_perms).
 	const csrf = await page.evaluate(() => (window as any).csrf_token as string)
-	const res = await page.request.post('/api/method/frappe.client.set_value', {
+	const res = await page.request.post('/api/method/lms.lms.api.upsert_chapter', {
 		headers: { 'X-Frappe-CSRF-Token': csrf },
-		data: { doctype, name, fieldname: field, value },
+		data: {
+			title: chapter.title,
+			course,
+			is_scorm_package: chapter.is_scorm_package ? 1 : 0,
+			name: chapter.name,
+			is_bonus: isBonus,
+		},
 	})
 	if (!res.ok()) {
-		throw new Error(`set_value failed: ${await res.text()}`)
+		throw new Error(`upsert_chapter failed: ${await res.text()}`)
 	}
 }
 
@@ -65,7 +73,7 @@ test.describe('Bonus chapter', () => {
 		const originalBonus = targetChapter.is_bonus ?? 0
 
 		try {
-			await setValue(adminPage, 'Course Chapter', targetChapter.name, 'is_bonus', 1)
+			await setChapterBonus(adminPage, targetChapter, COURSE_SLUG, 1)
 
 			// Verify from a separate non-admin context (no can_modify_course bypass).
 			const studentCtx = await browser.newContext()
@@ -92,12 +100,11 @@ test.describe('Bonus chapter', () => {
 
 			await studentCtx.close()
 		} finally {
-			await setValue(
+			await setChapterBonus(
 				adminPage,
-				'Course Chapter',
-				targetChapter.name,
-				'is_bonus',
-				originalBonus
+				targetChapter,
+				COURSE_SLUG,
+				originalBonus ? 1 : 0
 			)
 			await adminCtx.close()
 		}
