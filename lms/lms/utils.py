@@ -360,7 +360,7 @@ def is_instructor(course: str) -> bool:
 
 def has_moderator_role(member: str = None):
 	roles = frappe.get_roles(member or frappe.session.user)
-	return "Moderator" in roles or "System Manager" in roles
+	return any(role in roles for role in LMS_MODERATOR_ROLES)
 
 
 def ensure_instructors_have_moderator_role(instructor_users):
