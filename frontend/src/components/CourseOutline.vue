@@ -58,6 +58,14 @@
 									@click="redirectToChapter(chapter)"
 								>
 									{{ chapter.title }}
+									<Badge
+										v-if="chapter.is_bonus"
+										theme="blue"
+										size="sm"
+										class="ml-2"
+									>
+										{{ __('Bonus') }}
+									</Badge>
 									<Lock
 										v-if="chapter.is_locked && !allowEdit"
 										class="h-3.5 w-3.5 stroke-1.5 text-ink-gray-5 ml-2"
@@ -198,7 +206,7 @@
 	/>
 </template>
 <script setup>
-import { Button, createResource, Tooltip, toast } from 'frappe-ui'
+import { Badge, Button, createResource, Tooltip, toast } from 'frappe-ui'
 import { getCurrentInstance, inject, ref, watch } from 'vue'
 import Draggable from 'vuedraggable'
 import { Disclosure, DisclosureButton, DisclosurePanel } from '@headlessui/vue'

@@ -9,6 +9,7 @@
  "engine": "InnoDB",
  "field_order": [
   "title",
+  "is_bonus",
   "column_break_3",
   "course",
   "course_title",
@@ -101,6 +102,13 @@
    "fieldtype": "Data",
    "label": "Course Title",
    "read_only": 1
+  },
+  {
+   "default": "0",
+   "description": "Bonus chapters are always accessible, don't gate other chapters, and don't count toward course completion.",
+   "fieldname": "is_bonus",
+   "fieldtype": "Check",
+   "label": "Is Bonus Chapter"
   }
  ],
  "grid_page_length": 50,
