@@ -32,6 +32,16 @@
 					"
 					v-model="chapter.is_scorm_package"
 				/>
+				<Switch
+					size="sm"
+					:label="__('Bonus Chapter')"
+					:description="
+						__(
+							'Bonus chapters are always accessible, don\\'t gate other chapters, and don\\'t count toward course completion.'
+						)
+					"
+					v-model="chapter.is_bonus"
+				/>
 				<div v-if="chapter.is_scorm_package">
 					<FileUploader
 						v-if="!chapter.scorm_package"
@@ -107,6 +117,7 @@ const props = defineProps({
 const chapter = reactive({
 	title: '',
 	is_scorm_package: 0,
+	is_bonus: 0,
 	scorm_package: null,
 })
 
@@ -117,6 +128,7 @@ const chapterResource = createResource({
 			title: chapter.title,
 			course: props.course,
 			is_scorm_package: chapter.is_scorm_package,
+			is_bonus: chapter.is_bonus,
 			scorm_package: chapter.scorm_package,
 			name: props.chapterDetail?.name,
 		}
@@ -184,6 +196,7 @@ const validateChapter = () => {
 const cleanChapter = () => {
 	chapter.title = ''
 	chapter.is_scorm_package = 0
+	chapter.is_bonus = 0
 	chapter.scorm_package = null
 }
 
@@ -213,6 +226,7 @@ watch(
 	(newChapter) => {
 		chapter.title = newChapter?.title
 		chapter.is_scorm_package = newChapter?.is_scorm_package
+		chapter.is_bonus = newChapter?.is_bonus
 		chapter.scorm_package = newChapter?.scorm_package
 	}
 )

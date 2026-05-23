@@ -309,16 +309,45 @@ def get_progress(course: str, lesson: str, member: str = None):
 
 
 def get_course_progress(course: str, member: str = None):
-	"""Returns the course progress of the session user"""
-	lesson_count = get_lessons(course, get_details=False)
-	if not lesson_count:
+	"""Returns the course progress of the session user.
+
+	Bonus chapters are excluded from both the numerator (completed lessons)
+	and denominator (total lessons), so an incomplete bonus chapter cannot
+	block the course from reaching 100% / certificate mint.
+	"""
+	non_bonus_lessons = _non_bonus_lesson_names(course)
+	if not non_bonus_lessons:
 		return 0
-	completed_lessons = frappe.db.count(
+	completed = frappe.db.count(
 		"LMS Course Progress",
-		{"course": course, "member": member or frappe.session.user, "status": "Complete"},
+		{
+			"course": course,
+			"member": member or frappe.session.user,
+			"lesson": ["in", non_bonus_lessons],
+			"status": "Complete",
+		},
 	)
 	precision = cint(frappe.db.get_default("float_precision")) or 3
-	return flt(((completed_lessons / lesson_count) * 100), precision)
+	return flt(((completed / len(non_bonus_lessons)) * 100), precision)
+
+
+def _non_bonus_lesson_names(course: str) -> list:
+	"""Lesson names belonging to non-bonus chapters of the given course."""
+	chapter_names = frappe.get_all(
+		"Chapter Reference", filters={"parent": course}, pluck="chapter"
+	)
+	if not chapter_names:
+		return []
+	non_bonus = frappe.get_all(
+		"Course Chapter",
+		filters={"name": ["in", chapter_names], "is_bonus": 0},
+		pluck="name",
+	)
+	if not non_bonus:
+		return []
+	return frappe.get_all(
+		"Lesson Reference", filters={"parent": ["in", non_bonus]}, pluck="lesson"
+	)
 
 
 def is_instructor(course: str) -> bool:
@@ -1214,7 +1243,9 @@ def get_course_outline(course: str, progress: bool = False) -> list:
 	bypass_lesson_lock = frappe.session.user == "Guest" or can_modify_course(course)
 	# Walk lessons in course order; once one is found that has an unpassed
 	# quiz / unwatched video, every subsequent lesson is locked. The blocking
-	# lesson itself stays navigable so the user can clear the gate.
+	# lesson itself stays navigable so the user can clear the gate. Bonus
+	# chapters are transparent to this chain: their lessons stay unlocked and
+	# don't trigger sequence_blocked for downstream lessons.
 	sequence_blocked = False
 	outline = []
 	chapters = frappe.get_all("Chapter Reference", {"parent": course}, ["chapter", "idx"], order_by="idx")
@@ -1222,13 +1253,16 @@ def get_course_outline(course: str, progress: bool = False) -> list:
 		chapter_details = frappe.db.get_value(
 			"Course Chapter",
 			chapter.chapter,
-			["name", "title", "is_scorm_package", "launch_file", "scorm_package"],
+			["name", "title", "is_scorm_package", "launch_file", "scorm_package", "is_bonus"],
 			as_dict=True,
 		)
 		chapter_details["idx"] = chapter.idx
 		chapter_details.is_locked = 1 if locks.get(chapter.idx) else 0
 		chapter_details.lessons = get_lessons(course, chapter_details, progress=progress)
 		for lesson_row in chapter_details.lessons:
+			if chapter_details.is_bonus:
+				lesson_row["is_locked"] = 0
+				continue
 			locked = chapter_details.is_locked
 			if not bypass_lesson_lock and sequence_blocked:
 				locked = 1
@@ -1265,6 +1299,8 @@ def is_lesson_forward_locked(course: str, lesson_name: str, member: str = None) 
 	chapter = frappe.db.get_value("Course Lesson", lesson_name, "chapter")
 	if not chapter:
 		return False
+	if frappe.db.get_value("Course Chapter", chapter, "is_bonus"):
+		return False
 	lessons = frappe.get_all(
 		"Lesson Reference", {"parent": chapter}, ["lesson", "idx"], order_by="idx"
 	)
@@ -1281,7 +1317,9 @@ def get_chapter_lock_states(course: str, member: str = None) -> dict:
 
 	Chapter-level gating: chapter N is unlocked iff chapter N-1 is fully complete
 	(all linked lessons have an `LMS Course Progress` row with status='Complete').
-	Empty chapters do not gate. Admins and instructors of this course bypass.
+	Empty chapters do not gate. Bonus chapters are always unlocked and pass
+	through the gate chain (they don't count toward unlocking the next chapter).
+	Admins and instructors of this course bypass.
 	"""
 	if not member:
 		member = frappe.session.user
@@ -1291,11 +1329,16 @@ def get_chapter_lock_states(course: str, member: str = None) -> dict:
 	chapters = frappe.get_all(
 		"Chapter Reference", {"parent": course}, ["chapter", "idx"], order_by="idx"
 	)
+	bonus_map = _bonus_chapter_map([c.chapter for c in chapters])
 	locked = {}
 	prev_complete = True
 	for ch in chapters:
-		if not prev_complete:
+		is_bonus = bonus_map.get(ch.chapter, False)
+		if not is_bonus and not prev_complete:
 			locked[ch.idx] = True
+		if is_bonus:
+			# Bonus chapters never lock + don't advance the gate chain.
+			continue
 		lesson_names = frappe.get_all("Lesson Reference", {"parent": ch.chapter}, pluck="lesson")
 		if not lesson_names:
 			# Empty chapter — pass-through to the next gate check.
@@ -1311,6 +1354,18 @@ def get_chapter_lock_states(course: str, member: str = None) -> dict:
 		)
 		prev_complete = completed >= len(lesson_names)
 	return locked
+
+
+def _bonus_chapter_map(chapter_names: list) -> dict:
+	"""{chapter_name: bool(is_bonus)} for the given chapter names."""
+	if not chapter_names:
+		return {}
+	rows = frappe.get_all(
+		"Course Chapter",
+		filters={"name": ["in", chapter_names]},
+		fields=["name", "is_bonus"],
+	)
+	return {r.name: bool(r.is_bonus) for r in rows}
 
 
 @frappe.whitelist(allow_guest=True)
