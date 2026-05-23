@@ -1503,7 +1503,11 @@ def upsert_chapter(
 		chapter = frappe.new_doc("Course Chapter")
 
 	chapter.update(values)
-	chapter.save()
+	# Role gate above (can_modify_course) already authorized this; the
+	# Course Chapter doctype perm table omits Global Admin (see
+	# feedback_global_admin_doctype_perms), so the framework's perm check
+	# would otherwise 403 for them.
+	chapter.save(ignore_permissions=True)
 
 	if is_scorm_package and not len(chapter.lessons):
 		add_lesson(title, chapter.name, course, 1)
