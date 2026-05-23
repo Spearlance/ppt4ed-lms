@@ -1,14 +1,6 @@
 <template>
 	<div class="p-5">
 		<LowCreditAlert class="mb-4" />
-		<LessonsRemainingPanel
-			v-if="
-				course.data.membership &&
-				(course.data.membership.progress ?? 0) < 100
-			"
-			:courseName="course.data.name"
-			class="mb-4"
-		/>
 		<div class="flex justify-between w-full space-x-5">
 			<div class="md:w-2/3">
 				<h1 class="text-3xl font-semibold text-ink-gray-9">
@@ -95,7 +87,6 @@ import { Star, Users } from 'lucide-vue-next'
 import { Badge, Tooltip } from 'frappe-ui'
 import CourseCardOverlay from '@/components/CourseCardOverlay.vue'
 import LowCreditAlert from '@/components/LowCreditAlert.vue'
-import LessonsRemainingPanel from '@/components/LessonsRemainingPanel.vue'
 import CourseOutline from '@/components/CourseOutline.vue'
 import UserAvatar from '@/components/UserAvatar.vue'
 import CourseInstructors from '@/components/CourseInstructors.vue'
