@@ -159,10 +159,11 @@ test.describe('Public signup flow', () => {
 		await expect(page.getByRole('button', { name: 'Log in' })).toBeVisible()
 	})
 
-	test('6a. @ppt4kids.com signup on paid event lands free, NOT on Stripe', async ({ page }) => {
-		// Regression: pre-fix the public Register modal routed every signer to
-		// Stripe regardless of email domain. PPT staff were getting the paywall
-		// from public event landings. See PR #166.
+	test('6a. @ppt4kids.com signup on paid event shows verification gate, NOT Stripe', async ({ page }) => {
+		// PR #168: PPT-domain signups defer User creation until the email link
+		// is clicked, so ex-employees with dead inboxes can't mint free access.
+		// We assert the holding message; the link-click path is covered by the
+		// backend test_consume_ppt_signup_token_* tests.
 		const email = pptEmail()
 
 		await page.goto(`/e/${PAID_EVENT_SLUG}`)
@@ -176,12 +177,17 @@ test.describe('Public signup flow', () => {
 		await signup.locator('input[name="password"]').fill(password())
 		await signup.locator('button[type="submit"]').click()
 
-		// Should land on the in-app event page, free-registered.
-		await page.waitForURL(`**/lms/events/${PAID_EVENT_SLUG}**`, { timeout: 20000 })
+		// Holding message rendered into #register-modal-alert by the verification_sent branch.
+		await expect(page.locator('#register-modal-alert')).toContainText(
+			'We sent a verification link to',
+			{ timeout: 15000 },
+		)
+		await expect(page.locator('#register-modal-alert')).toContainText(email)
 		expect(page.url()).not.toContain('checkout.stripe.com')
+		expect(page.url()).toContain(`/e/${PAID_EVENT_SLUG}`)
 	})
 
-	test('6b. @ppt4kids.com signup on paid course lands free, NOT on Stripe', async ({ page }) => {
+	test('6b. @ppt4kids.com signup on paid course shows verification gate, NOT Stripe', async ({ page }) => {
 		const email = pptEmail()
 
 		await page.goto(`/c/${PAID_COURSE_SLUG}`)
@@ -193,8 +199,13 @@ test.describe('Public signup flow', () => {
 		await signup.locator('input[name="password"]').fill(password())
 		await signup.locator('button[type="submit"]').click()
 
-		await page.waitForURL(`**/lms/courses/${PAID_COURSE_SLUG}**`, { timeout: 20000 })
+		await expect(page.locator('#register-modal-alert')).toContainText(
+			'We sent a verification link to',
+			{ timeout: 15000 },
+		)
+		await expect(page.locator('#register-modal-alert')).toContainText(email)
 		expect(page.url()).not.toContain('checkout.stripe.com')
+		expect(page.url()).toContain(`/c/${PAID_COURSE_SLUG}`)
 	})
 
 	test('7. Signup bypasses 2FA on first session; subsequent login still gates', async ({ page }) => {

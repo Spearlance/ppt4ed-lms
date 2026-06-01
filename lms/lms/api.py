@@ -3135,23 +3135,8 @@ def claim_resource(resource_name: str):
 	return {"enrollment": enrollment.name, "already_enrolled": False}
 
 
-@frappe.whitelist(allow_guest=True, methods=["POST"])
-def signup_and_enroll(
-	email: str,
-	password: str,
-	full_name: str,
-	target_type: str | None = None,
-	target_slug: str | None = None,
-	intent: str | None = None,
-):
-	"""Public signup. Creates a free LMS Student, logs them in, then either
-	enrolls them in `target_slug` or returns a Stripe checkout URL.
-
-	`target_type`: 'course' | 'event' | 'resource' | None
-	`intent`: 'free' | 'paid' | f'membership:{plan_name}' | None
-
-	Uses `login_as` so the freshly-created session skips a 2FA reprompt.
-	"""
+def _validate_signup_inputs(email, password, full_name):
+	"""Shared input validation for signup_and_enroll + start_ppt_signup."""
 	from frappe.utils import validate_email_address
 
 	email = (email or "").strip().lower()
@@ -3164,11 +3149,13 @@ def signup_and_enroll(
 	if not password or len(password) < 8:
 		frappe.throw(_("Password must be at least 8 characters."))
 
-	if frappe.db.exists("User", email):
-		# Frontend pivots to the Log In tab with email prefilled.
-		return {"status": "exists"}
+	return email, full_name
 
-	# Validate target before creating any user state.
+
+def _validate_signup_target(target_type, target_slug, intent):
+	"""Validate target_type/target_slug/intent for the signup flow. Returns
+	(plan_name, plan_price_id) for membership intents; (None, None) otherwise.
+	Throws if anything is invalid so we never persist user state for a doomed flow."""
 	if target_type == "course":
 		if not target_slug or not frappe.db.exists("LMS Course", target_slug):
 			frappe.throw(_("Course not found."))
@@ -3210,6 +3197,12 @@ def signup_and_enroll(
 			frappe.throw(_("Membership plan is not configured for purchase."))
 		plan_price_id = plan.stripe_price_id
 
+	return plan_name, plan_price_id
+
+
+def _create_signup_user(email, full_name, password, target_type, target_slug):
+	"""Create the User row and persist signup attribution. Used by the immediate
+	(non-PPT) signup path AND by verify_ppt_signup after email verification."""
 	parts = full_name.split(None, 1)
 	first_name = parts[0]
 	last_name = parts[1] if len(parts) > 1 else ""
@@ -3245,13 +3238,16 @@ def signup_and_enroll(
 			update_modified=False,
 		)
 
-	frappe.db.commit()
+	return user
 
-	frappe.local.login_manager.login_as(email)
 
-	# PPT staff bypass every paywall — they get instant free enrollment via the
-	# CEU credit_source path. The membership row was just minted by the
-	# User.after_insert hook; _mint_ppt_employee_membership is idempotent so the
+def _finalize_signup_enrollment(email, full_name, target_type, target_slug, intent, plan_name, plan_price_id):
+	"""Post-login branch: turn an intent + target into either a free enrollment
+	(returns {status:'logged_in', redirect_to}) or a Stripe checkout
+	(returns {status:'checkout_required', checkout_url}). Caller has already
+	called login_as(email)."""
+	# PPT staff bypass every paywall via credit_source. Membership was minted
+	# by User.after_insert; _mint_ppt_employee_membership is idempotent so the
 	# second call here just returns the existing name.
 	is_ppt_employee = _is_ppt_employee_email(email)
 	ppt_membership_name = _mint_ppt_employee_membership(email) if is_ppt_employee else None
@@ -3312,6 +3308,178 @@ def signup_and_enroll(
 		return {"status": "logged_in", "redirect_to": f"/lms/resources/{target_slug}"}
 
 	return {"status": "logged_in", "redirect_to": "/lms"}
+
+
+def _consume_ppt_signup_token(token: str) -> str:
+	"""Validate a PPT signup verification token; on success, create the User,
+	log them in, run the original enrollment intent, and return the URL to
+	redirect them to. On any failure (missing/expired/used/race), return a
+	fallback URL — never throw, since this is on a critical user-facing path.
+	Callers (www page + tests) take the returned URL and 302 to it."""
+	from frappe.utils import get_datetime, now_datetime
+
+	failure_redirect = "/lms?signup_verification=failed"
+
+	if not token:
+		return failure_redirect
+
+	row_name = frappe.db.get_value("PPT Enrollment Verification", {"token": token}, "name")
+	if not row_name:
+		return failure_redirect
+
+	verification = frappe.get_doc("PPT Enrollment Verification", row_name)
+
+	if verification.used:
+		# Token already consumed — send them to /login as their next best step.
+		return "/login"
+
+	if get_datetime(verification.expires_on) < now_datetime():
+		return failure_redirect
+
+	# Mark used FIRST and commit so a refresh / double-click can't double-create.
+	verification.db_set("used", 1, commit=True)
+
+	email = verification.email
+	full_name = verification.full_name or email
+	password = verification.get_password("password")
+	target_type = verification.target_type or None
+	target_slug = verification.target_slug or None
+	intent = verification.intent or None
+
+	# Race: someone signed up with the same email through another path between
+	# `start_ppt_signup` and clicking the link. Just send them to /login.
+	if frappe.db.exists("User", email):
+		return "/login"
+
+	# Re-validate target — the course/event might have been unpublished while
+	# the email sat in their inbox. On failure, create the user anyway (so
+	# they get their PPT Employee membership and access) but skip enrollment.
+	try:
+		plan_name, plan_price_id = _validate_signup_target(target_type, target_slug, intent)
+	except frappe.ValidationError:
+		_create_signup_user(email, full_name, password, None, None)
+		frappe.db.commit()
+		frappe.local.login_manager.login_as(email)
+		return "/lms?signup_target_expired=1"
+
+	_create_signup_user(email, full_name, password, target_type, target_slug)
+	frappe.db.commit()
+	frappe.local.login_manager.login_as(email)
+
+	result = _finalize_signup_enrollment(
+		email=email,
+		full_name=full_name,
+		target_type=target_type,
+		target_slug=target_slug,
+		intent=intent,
+		plan_name=plan_name,
+		plan_price_id=plan_price_id,
+	)
+	return result.get("checkout_url") or result.get("redirect_to") or "/lms"
+
+
+def _start_ppt_signup_verification(email, password, full_name, target_type, target_slug, intent):
+	"""Hold a pending PPT-domain signup until the user proves email ownership.
+
+	The User row is NOT created here — only after the user clicks the verification
+	link in the email (handled by lms/www/verify-ppt-signup.py). This blocks ex-
+	employees from minting a PPT Employee membership against an old inbox they
+	no longer control. Site-wide 2FA already blocks the *return-visit* login;
+	this gate closes the session-#1 hole that login_as opens for fresh signups."""
+	# Invalidate any previous pending tokens for this email so a stale link
+	# from an earlier attempt can't be replayed.
+	for old in frappe.get_all(
+		"PPT Enrollment Verification",
+		filters={"email": email, "used": 0},
+		pluck="name",
+	):
+		frappe.delete_doc("PPT Enrollment Verification", old, force=True, ignore_permissions=True)
+
+	verification = frappe.get_doc({
+		"doctype": "PPT Enrollment Verification",
+		"email": email,
+		"full_name": full_name,
+		"password": password,
+		"target_type": target_type or "",
+		"target_slug": target_slug or "",
+		"intent": intent or "",
+	})
+	verification.flags.ignore_permissions = True
+	verification.insert()
+
+	from frappe.utils import get_url
+	verify_url = get_url(f"/verify-ppt-signup?token={verification.token}")
+
+	first_name = (full_name.split(None, 1) or [full_name])[0]
+	lms_send_template_mail(
+		recipients=[email],
+		default_subject="Verify your PPT4Ed email to finish signing up",
+		jinja_template="ppt_signup_verification",
+		args={
+			"first_name": first_name,
+			"verify_url": verify_url,
+			"expires_minutes": 15,
+		},
+		template_name="PPT Signup Verification",
+		now=True,
+		retry=3,
+	)
+
+	return {"status": "verification_sent", "email": email}
+
+
+@frappe.whitelist(allow_guest=True, methods=["POST"])
+def signup_and_enroll(
+	email: str,
+	password: str,
+	full_name: str,
+	target_type: str | None = None,
+	target_slug: str | None = None,
+	intent: str | None = None,
+):
+	"""Public signup. Creates a free LMS Student, logs them in, then either
+	enrolls them in `target_slug` or returns a Stripe checkout URL.
+
+	`target_type`: 'course' | 'event' | 'resource' | None
+	`intent`: 'free' | 'paid' | f'membership:{plan_name}' | None
+
+	For non-PPT emails: uses `login_as` so the freshly-created session skips
+	a 2FA reprompt. For @ppt4ed.com / @ppt4kids.com emails: routes through an
+	email-verification gate (no User row until the link in the email is clicked)
+	so an ex-employee with a dead inbox can't mint themselves a PPT Employee
+	membership.
+	"""
+	email, full_name = _validate_signup_inputs(email, password, full_name)
+
+	if frappe.db.exists("User", email):
+		# Frontend pivots to the Log In tab with email prefilled.
+		return {"status": "exists"}
+
+	plan_name, plan_price_id = _validate_signup_target(target_type, target_slug, intent)
+
+	if _is_ppt_employee_email(email):
+		return _start_ppt_signup_verification(
+			email=email,
+			password=password,
+			full_name=full_name,
+			target_type=target_type,
+			target_slug=target_slug,
+			intent=intent,
+		)
+
+	_create_signup_user(email, full_name, password, target_type, target_slug)
+	frappe.db.commit()
+	frappe.local.login_manager.login_as(email)
+
+	return _finalize_signup_enrollment(
+		email=email,
+		full_name=full_name,
+		target_type=target_type,
+		target_slug=target_slug,
+		intent=intent,
+		plan_name=plan_name,
+		plan_price_id=plan_price_id,
+	)
 
 
 # ---------------------------------------------------------------------------

@@ -4,57 +4,68 @@
     "creation": "2026-04-13 00:00:00.000000",
     "doctype": "DocType",
     "engine": "InnoDB",
-    "field_order": ["user", "course", "membership", "token", "status", "expires_on"],
+    "field_order": ["email", "full_name", "password", "target_type", "target_slug", "intent", "token", "expires_on", "used"],
     "fields": [
         {
-            "fieldname": "user",
-            "fieldtype": "Link",
+            "fieldname": "email",
+            "fieldtype": "Data",
             "in_list_view": 1,
-            "label": "User",
-            "options": "User",
+            "label": "Email",
+            "reqd": 1,
+            "options": "Email"
+        },
+        {
+            "fieldname": "full_name",
+            "fieldtype": "Data",
+            "label": "Full Name"
+        },
+        {
+            "fieldname": "password",
+            "fieldtype": "Password",
+            "label": "Password",
             "reqd": 1
         },
         {
-            "fieldname": "course",
-            "fieldtype": "Link",
-            "in_list_view": 1,
-            "label": "Course",
-            "options": "LMS Course",
-            "reqd": 1
+            "fieldname": "target_type",
+            "fieldtype": "Data",
+            "label": "Target Type"
         },
         {
-            "fieldname": "membership",
-            "fieldtype": "Link",
-            "label": "Membership",
-            "options": "CEU Membership",
-            "reqd": 1
+            "fieldname": "target_slug",
+            "fieldtype": "Data",
+            "label": "Target Slug"
+        },
+        {
+            "fieldname": "intent",
+            "fieldtype": "Data",
+            "label": "Intent"
         },
         {
             "fieldname": "token",
             "fieldtype": "Data",
             "label": "Token",
             "read_only": 1,
-            "unique": 1
-        },
-        {
-            "default": "Pending",
-            "fieldname": "status",
-            "fieldtype": "Select",
-            "in_list_view": 1,
-            "in_standard_filter": 1,
-            "label": "Status",
-            "options": "\nPending\nVerified\nExpired"
+            "unique": 1,
+            "reqd": 1,
+            "in_list_view": 1
         },
         {
             "fieldname": "expires_on",
             "fieldtype": "Datetime",
             "in_list_view": 1,
             "label": "Expires On"
+        },
+        {
+            "default": "0",
+            "fieldname": "used",
+            "fieldtype": "Check",
+            "label": "Used",
+            "in_standard_filter": 1
         }
     ],
     "index_web_pages_for_search": 0,
     "links": [],
-    "modified": "2026-04-13 00:00:00.000000",
+    "modified": "2026-06-01 00:00:00.000000",
     "modified_by": "Administrator",
     "module": "LMS",
     "name": "PPT Enrollment Verification",
