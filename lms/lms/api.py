@@ -3249,6 +3249,13 @@ def signup_and_enroll(
 
 	frappe.local.login_manager.login_as(email)
 
+	# PPT staff bypass every paywall — they get instant free enrollment via the
+	# CEU credit_source path. The membership row was just minted by the
+	# User.after_insert hook; _mint_ppt_employee_membership is idempotent so the
+	# second call here just returns the existing name.
+	is_ppt_employee = _is_ppt_employee_email(email)
+	ppt_membership_name = _mint_ppt_employee_membership(email) if is_ppt_employee else None
+
 	if intent and intent.startswith("membership:"):
 		from lms.lms.ceu_stripe import create_subscription_checkout
 		result = create_subscription_checkout(plan_name, plan_price_id, email)
@@ -3256,6 +3263,10 @@ def signup_and_enroll(
 
 	if target_type == "course":
 		is_paid = bool(frappe.db.get_value("LMS Course", target_slug, "paid_course"))
+		if is_paid and is_ppt_employee:
+			from lms.lms.ceu_enrollment import enroll_ppt_employee
+			enroll_ppt_employee(target_slug, ppt_membership_name)
+			return {"status": "logged_in", "redirect_to": f"/lms/courses/{target_slug}"}
 		if is_paid:
 			from lms.lms.ceu_stripe import create_one_off_checkout
 			result = create_one_off_checkout(target_slug)
@@ -3270,6 +3281,10 @@ def signup_and_enroll(
 
 	if target_type == "event":
 		is_paid = bool(frappe.db.get_value("LMS Event", target_slug, "paid_event"))
+		if is_paid and is_ppt_employee:
+			from lms.lms.ceu_enrollment import register_ppt_employee_for_event
+			register_ppt_employee_for_event(target_slug, ppt_membership_name)
+			return {"status": "logged_in", "redirect_to": f"/lms/events/{target_slug}"}
 		if is_paid:
 			from lms.lms.ceu_stripe import create_event_checkout
 			result = create_event_checkout(target_slug)

@@ -31,6 +31,12 @@ def create_one_off_checkout(course_name):
     if frappe.session.user == "Guest":
         frappe.throw(_("You must be logged in to purchase a course"), frappe.AuthenticationError)
 
+    # PPT staff never pay — short-circuit before hitting Stripe so a stale tab
+    # or future UI regression can't charge them.
+    from lms.lms.api import _is_ppt_employee_email
+    if _is_ppt_employee_email(frappe.session.user):
+        frappe.throw(_("PPT staff have free access — please refresh the page to enroll."))
+
     course = frappe.get_doc("LMS Course", course_name)
     if not course.paid_course:
         frappe.throw(_("This course is not for sale"))
@@ -79,6 +85,10 @@ def create_event_checkout(event_name):
     """
     if frappe.session.user == "Guest":
         frappe.throw(_("You must be logged in to register for an event"), frappe.AuthenticationError)
+
+    from lms.lms.api import _is_ppt_employee_email
+    if _is_ppt_employee_email(frappe.session.user):
+        frappe.throw(_("PPT staff have free access — please refresh the page to register."))
 
     event = frappe.get_doc("LMS Event", event_name)
     if not event.paid_event:
