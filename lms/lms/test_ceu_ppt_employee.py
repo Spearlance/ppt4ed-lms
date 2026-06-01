@@ -163,6 +163,8 @@ class TestPPTEmployee(UnitTestCase):
             frappe.delete_doc("LMS Enrollment", e.name, force=True, ignore_permissions=True)
         for m in frappe.get_all("CEU Membership", filters={"member": email}):
             frappe.delete_doc("CEU Membership", m.name, force=True, ignore_permissions=True)
+        for v in frappe.get_all("PPT Enrollment Verification", filters={"email": email}):
+            frappe.delete_doc("PPT Enrollment Verification", v.name, force=True, ignore_permissions=True)
         if frappe.db.exists("User", email):
             frappe.delete_doc("User", email, force=True, ignore_permissions=True)
 
@@ -259,18 +261,18 @@ class TestPPTEmployee(UnitTestCase):
             {"member": email, "membership_type": "PPT Employee"},
         ))
 
-    def test_signup_and_enroll_paid_event_ppt_employee_skips_checkout(self):
-        """Public signup from a paid event landing page with a PPT email must
-        free-enroll instead of returning a Stripe checkout URL. This is the
-        regression that prompted the audit — pre-fix, PPT staff got the paywall."""
+    def test_signup_and_enroll_ppt_email_returns_verification_sent(self):
+        """PPT-domain public signup must defer User creation until the email
+        link is clicked. This is the inbox-ownership gate that blocks an
+        ex-employee from minting free access against a dead inbox."""
+        from unittest.mock import patch
         from lms.lms.api import signup_and_enroll
 
         event_name = self._ensure_paid_event()
         email = "test-signup-ppt-event@ppt4kids.com"
         self._delete_user_state(email)
 
-        original_user = frappe.session.user
-        try:
+        with patch("lms.lms.api.lms_send_template_mail") as mock_mail:
             result = signup_and_enroll(
                 email=email,
                 password="testpass1234",
@@ -279,45 +281,180 @@ class TestPPTEmployee(UnitTestCase):
                 target_slug=event_name,
                 intent="paid",
             )
+
+        self.assertEqual(result["status"], "verification_sent")
+        self.assertEqual(result["email"], email)
+        # No User created until verification
+        self.assertFalse(frappe.db.exists("User", email))
+        # No membership either
+        self.assertFalse(frappe.db.exists("CEU Membership", {"member": email}))
+        # A pending verification row exists with the right intent
+        verification = frappe.db.get_value(
+            "PPT Enrollment Verification",
+            {"email": email, "used": 0},
+            ["target_type", "target_slug", "intent"],
+            as_dict=True,
+        )
+        self.assertIsNotNone(verification)
+        self.assertEqual(verification.target_type, "event")
+        self.assertEqual(verification.target_slug, event_name)
+        # Mail send was attempted exactly once
+        self.assertEqual(mock_mail.call_count, 1)
+
+    def test_consume_ppt_signup_token_paid_event_finalizes_enrollment(self):
+        """Clicking the verification link creates the User, mints the PPT
+        Employee membership via after_insert, and free-registers them for
+        the target event."""
+        from unittest.mock import patch
+        from lms.lms.api import signup_and_enroll, _consume_ppt_signup_token
+
+        event_name = self._ensure_paid_event()
+        email = "test-consume-ppt-event@ppt4kids.com"
+        self._delete_user_state(email)
+
+        with patch("lms.lms.api.lms_send_template_mail"):
+            signup_and_enroll(
+                email=email, password="testpass1234", full_name="Consume PPT",
+                target_type="event", target_slug=event_name, intent="paid",
+            )
+
+        token = frappe.db.get_value("PPT Enrollment Verification", {"email": email}, "token")
+        original_user = frappe.session.user
+        try:
+            redirect = _consume_ppt_signup_token(token)
         finally:
             frappe.set_user(original_user)
 
-        self.assertEqual(result["status"], "logged_in")
-        self.assertEqual(result["redirect_to"], f"/lms/events/{event_name}")
+        self.assertEqual(redirect, f"/lms/events/{event_name}")
+        self.assertTrue(frappe.db.exists("User", email))
+        self.assertTrue(frappe.db.exists("CEU Membership", {
+            "member": email, "membership_type": "PPT Employee", "status": "Active",
+        }))
         self.assertTrue(frappe.db.exists("LMS Event Registration", {
-            "event": event_name,
-            "member": email,
-            "credit_source": "PPT Employee",
-        }), "Expected free PPT-employee registration with credit_source set")
+            "event": event_name, "member": email, "credit_source": "PPT Employee",
+        }))
 
-    def test_signup_and_enroll_paid_course_ppt_employee_skips_checkout(self):
-        """Same as the event flow, for paid courses."""
-        from lms.lms.api import signup_and_enroll
+    def test_consume_ppt_signup_token_paid_course_finalizes_enrollment(self):
+        """Same as event flow, for paid courses."""
+        from unittest.mock import patch
+        from lms.lms.api import signup_and_enroll, _consume_ppt_signup_token
 
         course_name = self._ensure_paid_course()
-        email = "test-signup-ppt-course@ppt4kids.com"
+        email = "test-consume-ppt-course@ppt4kids.com"
         self._delete_user_state(email)
+
+        with patch("lms.lms.api.lms_send_template_mail"):
+            signup_and_enroll(
+                email=email, password="testpass1234", full_name="Consume PPT Course",
+                target_type="course", target_slug=course_name, intent="paid",
+            )
+
+        token = frappe.db.get_value("PPT Enrollment Verification", {"email": email}, "token")
+        original_user = frappe.session.user
+        try:
+            redirect = _consume_ppt_signup_token(token)
+        finally:
+            frappe.set_user(original_user)
+
+        self.assertEqual(redirect, f"/lms/courses/{course_name}")
+        self.assertTrue(frappe.db.exists("LMS Enrollment", {
+            "course": course_name, "member": email, "credit_source": "PPT Employee",
+        }))
+
+    def test_consume_ppt_signup_token_rejects_used_token(self):
+        """Replay protection: a token can only be consumed once. Second call
+        redirects to /login rather than creating a duplicate user."""
+        from unittest.mock import patch
+        from lms.lms.api import signup_and_enroll, _consume_ppt_signup_token
+
+        event_name = self._ensure_paid_event()
+        email = "test-consume-ppt-used@ppt4kids.com"
+        self._delete_user_state(email)
+
+        with patch("lms.lms.api.lms_send_template_mail"):
+            signup_and_enroll(
+                email=email, password="testpass1234", full_name="Used Token PPT",
+                target_type="event", target_slug=event_name, intent="paid",
+            )
+        token = frappe.db.get_value("PPT Enrollment Verification", {"email": email}, "token")
 
         original_user = frappe.session.user
         try:
-            result = signup_and_enroll(
-                email=email,
-                password="testpass1234",
-                full_name="Test PPT Course",
-                target_type="course",
-                target_slug=course_name,
-                intent="paid",
-            )
+            first = _consume_ppt_signup_token(token)
+            second = _consume_ppt_signup_token(token)
         finally:
             frappe.set_user(original_user)
 
-        self.assertEqual(result["status"], "logged_in")
-        self.assertEqual(result["redirect_to"], f"/lms/courses/{course_name}")
-        self.assertTrue(frappe.db.exists("LMS Enrollment", {
-            "course": course_name,
-            "member": email,
-            "credit_source": "PPT Employee",
-        }), "Expected free PPT-employee enrollment with credit_source set")
+        self.assertEqual(first, f"/lms/events/{event_name}")
+        self.assertEqual(second, "/login")
+
+    def test_consume_ppt_signup_token_rejects_expired_token(self):
+        """Expired tokens redirect to the failure URL — no User is created."""
+        from unittest.mock import patch
+        from frappe.utils import add_to_date, now_datetime
+        from lms.lms.api import signup_and_enroll, _consume_ppt_signup_token
+
+        event_name = self._ensure_paid_event()
+        email = "test-consume-ppt-expired@ppt4kids.com"
+        self._delete_user_state(email)
+
+        with patch("lms.lms.api.lms_send_template_mail"):
+            signup_and_enroll(
+                email=email, password="testpass1234", full_name="Expired PPT",
+                target_type="event", target_slug=event_name, intent="paid",
+            )
+        row_name = frappe.db.get_value("PPT Enrollment Verification", {"email": email}, "name")
+        # Force-expire by setting expires_on into the past
+        frappe.db.set_value(
+            "PPT Enrollment Verification", row_name,
+            "expires_on", add_to_date(now_datetime(), minutes=-1),
+        )
+        frappe.db.commit()
+        token = frappe.db.get_value("PPT Enrollment Verification", row_name, "token")
+
+        redirect = _consume_ppt_signup_token(token)
+        self.assertEqual(redirect, "/lms?signup_verification=failed")
+        self.assertFalse(frappe.db.exists("User", email))
+
+    def test_consume_ppt_signup_token_rejects_unknown_token(self):
+        """Unknown tokens (typo, replay of an old deleted record) redirect
+        without creating anything."""
+        from lms.lms.api import _consume_ppt_signup_token
+        redirect = _consume_ppt_signup_token("not-a-real-token-zzzz")
+        self.assertEqual(redirect, "/lms?signup_verification=failed")
+
+    def test_start_ppt_signup_invalidates_prior_pending(self):
+        """A second signup attempt with the same email must invalidate the
+        previous pending verification so a stolen-link replay can't succeed."""
+        from unittest.mock import patch
+        from lms.lms.api import signup_and_enroll
+
+        event_name = self._ensure_paid_event()
+        email = "test-signup-ppt-replay@ppt4kids.com"
+        self._delete_user_state(email)
+
+        with patch("lms.lms.api.lms_send_template_mail"):
+            signup_and_enroll(
+                email=email, password="testpass1234", full_name="Replay PPT",
+                target_type="event", target_slug=event_name, intent="paid",
+            )
+            first_token = frappe.db.get_value(
+                "PPT Enrollment Verification", {"email": email}, "token"
+            )
+
+            signup_and_enroll(
+                email=email, password="testpass1234", full_name="Replay PPT",
+                target_type="event", target_slug=event_name, intent="paid",
+            )
+
+        # Only ONE pending verification row, and it has a different token.
+        rows = frappe.get_all(
+            "PPT Enrollment Verification",
+            filters={"email": email, "used": 0},
+            pluck="token",
+        )
+        self.assertEqual(len(rows), 1)
+        self.assertNotEqual(rows[0], first_token)
 
     def test_create_event_checkout_blocks_ppt_employee(self):
         """Belt-and-suspenders: even if a PPT employee somehow reaches the

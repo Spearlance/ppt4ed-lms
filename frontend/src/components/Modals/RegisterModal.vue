@@ -37,7 +37,17 @@
 					{{ infoMessage }}
 				</div>
 
-				<form v-if="activeTab === 'signup'" class="space-y-3" @submit.prevent="submitSignup">
+				<div
+					v-if="verificationSentTo"
+					class="rounded-md border border-blue-100 bg-surface-blue-2 px-3 py-3 text-sm text-ink-blue-link"
+				>
+					<div class="font-semibold mb-1">{{ __('Check your email') }}</div>
+					<p>
+						{{ __('We sent a verification link to {0}. Click it to finish creating your account — the link expires in 15 minutes.').format(verificationSentTo) }}
+					</p>
+				</div>
+
+				<form v-if="activeTab === 'signup' && !verificationSentTo" class="space-y-3" @submit.prevent="submitSignup">
 					<p v-if="contextLabel" class="text-sm text-ink-gray-5">
 						{{ __('To register for {0}').format(contextLabel) }}
 					</p>
@@ -75,7 +85,7 @@
 					</Button>
 				</form>
 
-				<form v-else class="space-y-3" @submit.prevent="submitLogin">
+				<form v-else-if="!verificationSentTo" class="space-y-3" @submit.prevent="submitLogin">
 					<FormControl
 						v-model="login.usr"
 						:label="__('Email')"
@@ -124,6 +134,7 @@ const activeTab = ref('signup')
 const submitting = ref(false)
 const errorMessage = ref('')
 const infoMessage = ref('')
+const verificationSentTo = ref('')
 
 const signup = reactive({
 	full_name: '',
@@ -141,6 +152,7 @@ watch(show, (next) => {
 		activeTab.value = 'signup'
 		errorMessage.value = ''
 		infoMessage.value = ''
+		verificationSentTo.value = ''
 		signup.full_name = ''
 		signup.email = props.prefillEmail || ''
 		signup.password = ''
@@ -186,6 +198,13 @@ async function submitSignup() {
 			target_slug: props.targetSlug,
 			intent: props.intent,
 		})
+		if (result?.status === 'verification_sent') {
+			// PPT-domain signup gate: User row is NOT created until the user
+			// clicks the link in the email. Show a holding message; modal
+			// stays open so they can close it or fall back to login.
+			verificationSentTo.value = result.email || signup.email.trim()
+			return
+		}
 		if (result?.status === 'checkout_required' && result.checkout_url) {
 			window.location.href = result.checkout_url
 			return
