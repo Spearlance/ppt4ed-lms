@@ -21,6 +21,25 @@ def validate_username_duplicates(doc, method):
 
 def after_insert(doc, method):
 	doc.add_roles("LMS Student")
+	_maybe_mint_ppt_employee_membership(doc)
+
+
+def _maybe_mint_ppt_employee_membership(doc):
+	"""Grant a PPT Employee CEU Membership to every user signing up with a
+	PPT-internal email. Centralized here so every code path that creates a
+	User — public signup, legacy /signup form, Desk creation, admin invite —
+	gets the benefit automatically. The mint helper is idempotent; failure
+	is swallowed (logged) so it can never block user creation."""
+	try:
+		from lms.lms.api import _is_ppt_employee_email, _mint_ppt_employee_membership
+
+		if _is_ppt_employee_email(doc.email):
+			_mint_ppt_employee_membership(doc.email)
+	except Exception:
+		frappe.log_error(
+			frappe.get_traceback(),
+			f"PPT Employee auto-mint failed for {doc.email}",
+		)
 
 
 @frappe.whitelist(allow_guest=True)
