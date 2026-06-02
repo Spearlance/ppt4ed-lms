@@ -309,6 +309,20 @@
 			},
 			callback: function(r) {
 				const result = (r && r.message) || {};
+				if (result.status === 'verification_sent') {
+					// PPT-domain gate: hide the form, show a "check your email"
+					// holding message until they click the link.
+					setSubmitting(signupForm, false);
+					signupForm.hidden = true;
+					loginForm.hidden = true;
+					modal.querySelectorAll('.register-modal__tabs').forEach(t => t.hidden = true);
+					showAlert(
+						'info',
+						"{{ _('We sent a verification link to ') }}" + (result.email || signupForm.elements.email.value.trim()) +
+						"{{ _('. Click it to finish creating your account — the link expires in 15 minutes.') }}"
+					);
+					return;
+				}
 				if (result.status === 'checkout_required' && result.checkout_url) {
 					window.location.href = result.checkout_url;
 					return;

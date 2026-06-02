@@ -21,8 +21,15 @@ import { test, expect, Page } from '@playwright/test'
 
 const FREE_COURSE_SLUG =
 	'the-power-of-play-linking-play-to-language-cognitive-social-emotional-literacy-development'
-const PAID_EVENT_SLUG = 'paid-test-event'
+const PAID_EVENT_SLUG = 'pediatric-adaptive-equipment-evaluation-and-fitting'
 const PAID_PLAN_NAME = 'Individual Professional'
+const PAID_COURSE_SLUG =
+	'catch-the-wave-introduction-to-whole-body-vibration-in-pediatric-therapy-for-pts-ots-and-slps'
+
+function pptEmail(): string {
+	const stamp = Date.now().toString(36) + Math.random().toString(36).slice(2, 6)
+	return `signup-test+${stamp}@ppt4kids.com`
+}
 
 function uniqueEmail(): string {
 	const stamp = Date.now().toString(36) + Math.random().toString(36).slice(2, 6)
@@ -152,7 +159,56 @@ test.describe('Public signup flow', () => {
 		await expect(page.getByRole('button', { name: 'Log in' })).toBeVisible()
 	})
 
-	test('6. Signup bypasses 2FA on first session; subsequent login still gates', async ({ page }) => {
+	test('6a. @ppt4kids.com signup on paid event shows verification gate, NOT Stripe', async ({ page }) => {
+		// PR #168: PPT-domain signups defer User creation until the email link
+		// is clicked, so ex-employees with dead inboxes can't mint free access.
+		// We assert the holding message; the link-click path is covered by the
+		// backend test_consume_ppt_signup_token_* tests.
+		const email = pptEmail()
+
+		await page.goto(`/e/${PAID_EVENT_SLUG}`)
+		await page.locator('[data-action="open-register"]').first().click()
+
+		// Scope by `name=` because the Jinja modal keeps both signup + login
+		// forms in DOM (`hidden` on login), so getByLabel('Email') is ambiguous.
+		const signup = page.locator('#register-modal-signup')
+		await signup.locator('input[name="full_name"]').fill('PPT Kids Event')
+		await signup.locator('input[name="email"]').fill(email)
+		await signup.locator('input[name="password"]').fill(password())
+		await signup.locator('button[type="submit"]').click()
+
+		// Holding message rendered into #register-modal-alert by the verification_sent branch.
+		await expect(page.locator('#register-modal-alert')).toContainText(
+			'We sent a verification link to',
+			{ timeout: 15000 },
+		)
+		await expect(page.locator('#register-modal-alert')).toContainText(email)
+		expect(page.url()).not.toContain('checkout.stripe.com')
+		expect(page.url()).toContain(`/e/${PAID_EVENT_SLUG}`)
+	})
+
+	test('6b. @ppt4kids.com signup on paid course shows verification gate, NOT Stripe', async ({ page }) => {
+		const email = pptEmail()
+
+		await page.goto(`/c/${PAID_COURSE_SLUG}`)
+		await page.locator('[data-action="open-register"]').first().click()
+
+		const signup = page.locator('#register-modal-signup')
+		await signup.locator('input[name="full_name"]').fill('PPT Kids Course')
+		await signup.locator('input[name="email"]').fill(email)
+		await signup.locator('input[name="password"]').fill(password())
+		await signup.locator('button[type="submit"]').click()
+
+		await expect(page.locator('#register-modal-alert')).toContainText(
+			'We sent a verification link to',
+			{ timeout: 15000 },
+		)
+		await expect(page.locator('#register-modal-alert')).toContainText(email)
+		expect(page.url()).not.toContain('checkout.stripe.com')
+		expect(page.url()).toContain(`/c/${PAID_COURSE_SLUG}`)
+	})
+
+	test('7. Signup bypasses 2FA on first session; subsequent login still gates', async ({ page }) => {
 		// 2FA enforcement on devlms is the production model: the freshly-created
 		// session is exempt (login_as path), but the next /login attempt should
 		// behave like any other login. We do not assert OTP UI here because OTP
