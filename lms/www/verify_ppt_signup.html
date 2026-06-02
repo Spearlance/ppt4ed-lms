@@ -1,0 +1,17 @@
+{# Server-side work happened in get_context (_consume_ppt_signup_token):
+   User created, logged in via login_as, enrollment finalized. All cookies
+   are already on the response, so all we need here is to bounce the browser.
+   Frappe's raise-Redirect doesn't fire from get_context in a www page, so
+   we use a body-level JS redirect (works under any modern browser) with a
+   visible fallback link. Template is a fragment — Frappe wraps it in the
+   site chrome, so no <html>/<head>/<body> here. #}
+<script>
+  (function() {
+    var target = {{ redirect_to | tojson }};
+    if (target) window.location.replace(target);
+  })();
+</script>
+<div style="max-width: 480px; margin: 4rem auto; padding: 2rem; font-family: system-ui, -apple-system, Segoe UI, Helvetica, Arial, sans-serif; text-align: center;">
+    <h1 style="font-size: 1.5rem; margin-bottom: 0.75rem;">Verifying your email…</h1>
+    <p style="color: #4b5563;">If you are not redirected automatically, <a href="{{ redirect_to }}">continue to PPT4Ed</a>.</p>
+</div>

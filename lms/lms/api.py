@@ -3382,7 +3382,7 @@ def _start_ppt_signup_verification(email, password, full_name, target_type, targ
 	"""Hold a pending PPT-domain signup until the user proves email ownership.
 
 	The User row is NOT created here — only after the user clicks the verification
-	link in the email (handled by lms/www/verify-ppt-signup.py). This blocks ex-
+	link in the email (handled by lms/www/verify_ppt_signup.py). This blocks ex-
 	employees from minting a PPT Employee membership against an old inbox they
 	no longer control. Site-wide 2FA already blocks the *return-visit* login;
 	this gate closes the session-#1 hole that login_as opens for fresh signups."""
@@ -3408,7 +3408,7 @@ def _start_ppt_signup_verification(email, password, full_name, target_type, targ
 	verification.insert()
 
 	from frappe.utils import get_url
-	verify_url = get_url(f"/verify-ppt-signup?token={verification.token}")
+	verify_url = get_url(f"/verify_ppt_signup?token={verification.token}")
 
 	first_name = (full_name.split(None, 1) or [full_name])[0]
 	lms_send_template_mail(
