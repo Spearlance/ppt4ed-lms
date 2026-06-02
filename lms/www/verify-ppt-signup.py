@@ -6,6 +6,12 @@ PPT Enrollment Verification row and a link to /verify-ppt-signup?token=...
 is mailed to the address. Clicking that link runs this page, which delegates
 to `_consume_ppt_signup_token` for the actual work and then redirects to
 wherever the helper points us.
+
+The redirect itself is rendered into the .html template as a meta-refresh
+plus a JS fallback: Frappe's `raise frappe.Redirect` does not fire from
+inside a www page's `get_context`, so we pass the URL to the template and
+let the browser bounce. All side effects (User creation + login + enrollment)
+have already happened by the time the template renders.
 """
 
 import frappe
@@ -17,5 +23,4 @@ def get_context(context):
 
 	from lms.lms.api import _consume_ppt_signup_token
 
-	frappe.local.flags.redirect_location = _consume_ppt_signup_token(token)
-	raise frappe.Redirect
+	context.redirect_to = _consume_ppt_signup_token(token)
