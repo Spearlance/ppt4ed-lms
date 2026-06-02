@@ -3375,6 +3375,10 @@ def _consume_ppt_signup_token(token: str) -> str:
 		plan_name=plan_name,
 		plan_price_id=plan_price_id,
 	)
+	# Frappe's www page rendering doesn't auto-commit after get_context, so the
+	# enrollment / ledger inserts done by _finalize_signup_enrollment get rolled
+	# back at end-of-request unless we explicitly persist them here.
+	frappe.db.commit()
 	return result.get("checkout_url") or result.get("redirect_to") or "/lms"
 
 
