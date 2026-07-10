@@ -160,3 +160,4 @@ lms.patches.v2_0.relax_password_minimum_score #22-05-2026
 lms.patches.v2_0.migrate_course_category_to_multiselect #22-05-2026
 lms.patches.v2_0.backfill_ppt_employee_memberships #01-06-2026
 lms.patches.v2_0.seed_ppt_signup_verification_template #01-06-2026
+lms.patches.v2_0.publish_issued_certificates #10-07-2026

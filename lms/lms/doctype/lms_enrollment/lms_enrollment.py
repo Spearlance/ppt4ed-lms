@@ -57,6 +57,11 @@ class LMSEnrollment(Document):
 					"course": self.course,
 					"issue_date": nowdate(),
 					"template": template,
+					# Reaching progress == 100 on a certified course provably requires
+					# submitting the final Course Survey (the survey is a quiz-lesson;
+					# lesson completion is gated on an LMS Quiz Submission existing).
+					# So publishing here means "finished the course + final survey".
+					"published": 1,
 				}
 			).insert(ignore_permissions=True)
 		except Exception:
