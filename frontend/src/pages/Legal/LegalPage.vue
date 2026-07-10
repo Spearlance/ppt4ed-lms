@@ -20,9 +20,9 @@
 			<div class="mt-12 border-t border-outline-gray-1 pt-6 text-p-sm text-ink-gray-6">
 				{{ __('Questions about this policy?') }}
 				<a
-					href="mailto:support@ppt4ed.org"
+					href="mailto:info@ppt4ed.org"
 					class="text-ink-gray-9 underline hover:text-ink-gray-7"
-				>support@ppt4ed.org</a>.
+				>info@ppt4ed.org</a>.
 			</div>
 		</article>
 	</div>
