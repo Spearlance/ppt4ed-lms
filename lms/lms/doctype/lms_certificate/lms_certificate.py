@@ -371,6 +371,10 @@ def create_certificate(course: str):
 				"course": course,
 				"issue_date": nowdate(),
 				"template": default_certificate_template,
+				# Eligibility is gated at progress == 100 (see
+				# validate_certification_eligibility), which requires the final
+				# Course Survey submission — safe to list on the participant page.
+				"published": 1,
 			}
 		)
 		certificate.save(ignore_permissions=True)
