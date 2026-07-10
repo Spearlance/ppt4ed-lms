@@ -164,6 +164,9 @@ fixtures = ["Custom Field", "Function", "Industry", "LMS Category"]
 #
 override_whitelisted_methods = {
 	# "frappe.desk.search.get_names_for_mentions": "lms.lms.utils.get_names_for_mentions",
+	# Rescue legacy certificate email links that omit pdf_generator=chrome and
+	# would otherwise 500 on wkhtmltopdf (see lms/overrides/print_format.py).
+	"frappe.utils.print_format.download_pdf": "lms.overrides.print_format.download_pdf",
 }
 #
 # each overriding function accepts a `data` argument;
