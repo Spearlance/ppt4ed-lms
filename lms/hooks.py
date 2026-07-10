@@ -265,6 +265,7 @@ lms_markdown_macro_renderers = {
 
 page_renderer = [
 	"lms.page_renderers.SCORMRenderer",
+	"lms.page_renderers.CertificateRenderer",
 ]
 
 # set this to "/" to have profiles on the top-level
