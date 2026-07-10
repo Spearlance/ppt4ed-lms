@@ -570,7 +570,7 @@ def _render_brand_email(inner_html):
 		"brand_logo_url": get_url("/assets/lms/images/ppt4ed-logo.png"),
 		"brand_name": frappe.db.get_single_value("Website Settings", "app_name") or "PPT4ed",
 		"site_url": get_url(),
-		"support_email": "support@ppt4ed.org",
+		"support_email": "info@ppt4ed.org",
 		"current_year": now_datetime().year,
 	}
 	return frappe.render_template("templates/emails/_brand_wrapper.html", wrapper_args)

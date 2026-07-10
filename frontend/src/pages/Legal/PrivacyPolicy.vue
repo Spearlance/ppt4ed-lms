@@ -102,7 +102,7 @@
 			<li>
 				<strong>Deletion</strong> — to request deletion of your account and
 				associated personal data, contact
-				<a href="mailto:support@ppt4ed.org">support@ppt4ed.org</a>. Note that
+				<a href="mailto:info@ppt4ed.org">info@ppt4ed.org</a>. Note that
 				we may retain transaction records and issued certificates for legal,
 				tax, and continuing-education compliance purposes.
 			</li>

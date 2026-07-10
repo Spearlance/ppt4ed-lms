@@ -25,7 +25,7 @@ Click below to accept the invitation and either sign in or create your free acco
 {% if expires_on %}
 <p style="font-size:12px;color:#6b7280;">This invitation expires on {{ frappe.utils.format_datetime(expires_on, "MMM d, yyyy") }}.</p>
 {% endif %}
-<p>Questions? Reply to this email or write to support@ppt4ed.org.</p>"""
+<p>Questions? Reply to this email or write to info@ppt4ed.org.</p>"""
 		),
 	},
 	"Company Admin Invite": {
@@ -43,7 +43,7 @@ review enrollment requests, and oversee billing for your team.</p>
 {% if expires_on %}
 <p style="font-size:12px;color:#6b7280;">This invitation expires on {{ frappe.utils.format_datetime(expires_on, "MMM d, yyyy") }}.</p>
 {% endif %}
-<p>Questions? Reply to this email or write to support@ppt4ed.org.</p>"""
+<p>Questions? Reply to this email or write to info@ppt4ed.org.</p>"""
 		),
 	},
 	"LMS Member Welcome": {
@@ -59,7 +59,7 @@ as a{% if role_label == "Instructor" %}n{% endif %} {{ role_label.lower() }}.</p
 <p style="font-size:12px;color:#6b7280;">Or copy this link into your browser: <a href="{{ setup_url }}">{{ setup_url }}</a></p>
 <p>Once signed in, your dashboard at PPT4ed will show your enrolled courses, upcoming events,
 and certificates as you earn them.</p>
-<p>Questions? Reply to this email or write to support@ppt4ed.org.</p>"""
+<p>Questions? Reply to this email or write to info@ppt4ed.org.</p>"""
 		),
 	},
 }
