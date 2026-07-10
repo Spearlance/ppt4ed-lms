@@ -66,7 +66,7 @@
 		<h2>5. Refunds</h2>
 		<p>
 			Refund requests should be sent to
-			<a href="mailto:support@ppt4ed.org">support@ppt4ed.org</a>. Refunds are
+			<a href="mailto:info@ppt4ed.org">info@ppt4ed.org</a>. Refunds are
 			at the discretion of PPT4ed and are typically considered when:
 		</p>
 		<ul>
