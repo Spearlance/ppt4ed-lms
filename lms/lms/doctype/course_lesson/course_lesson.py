@@ -207,10 +207,21 @@ def get_quiz_progress(lesson):
 	return True
 
 
+# Mirrors isVideo() in frontend/src/utils/upload.js — upload blocks with any
+# other file_type (PDF, image, audio) render without a video player, so no
+# watch record can ever be written for them and they must not gate progress.
+VIDEO_UPLOAD_FILE_TYPES = ("mov", "mp4", "avi", "mkv", "webm")
+
+
+def upload_block_is_video(block) -> bool:
+	file_type = (block.get("data") or {}).get("file_type") or ""
+	return file_type.lower() in VIDEO_UPLOAD_FILE_TYPES
+
+
 def lesson_has_videos(lesson_details) -> bool:
 	"""True when the lesson contains at least one video — by dedicated youtube
 	field, by `{{ YouTubeVideo(...) }}` / `{{ Video(...) }}` macro in body, or
-	by an `upload` block in editor.js content."""
+	by a video-type `upload` block in editor.js content."""
 	if lesson_details.youtube:
 		return True
 
@@ -221,7 +232,7 @@ def lesson_has_videos(lesson_details) -> bool:
 			content = None
 		if content:
 			for block in content.get("blocks") or []:
-				if block.get("type") == "upload":
+				if block.get("type") == "upload" and upload_block_is_video(block):
 					return True
 
 	if lesson_details.body:
