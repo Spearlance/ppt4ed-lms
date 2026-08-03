@@ -229,6 +229,18 @@ def _create_one_off_enrollment(
         "payment": payment.name,
     }).insert(ignore_permissions=True)
 
+    # Best-effort confirmation/receipt email — the helper fails open so a mail
+    # problem can't 500 the webhook and make Stripe re-deliver.
+    from lms.lms.ceu_enrollment import send_enrollment_confirmation_email
+    send_enrollment_confirmation_email(
+        member=user,
+        course=course,
+        credit_source="One-Off",
+        amount=amount,
+        currency=(currency or "usd").upper(),
+        payment_reference=payment.name,
+    )
+
 
 def _create_event_registration(
     event,

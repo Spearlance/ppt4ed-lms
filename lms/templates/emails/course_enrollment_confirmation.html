@@ -1,0 +1,47 @@
+<p>
+    {{ _("Hi") }} {{ first_name }},
+</p>
+<br>
+<p>
+    {{ _("You're enrolled! This email confirms your enrollment in the course below.") }}
+</p>
+<br>
+<p>
+    <b>{{ _("Course:") }}</b> {{ course_title }}
+</p>
+{% if amount_display %}
+<p>
+    <b>{{ _("Amount paid:") }}</b> {{ amount_display }}
+</p>
+<p>
+    <b>{{ _("Payment reference:") }}</b> {{ payment_reference }}
+</p>
+<p>
+    <b>{{ _("Date:") }}</b> {{ purchase_date }}
+</p>
+<p style="font-size: 12px; color: #6b7280;">
+    {{ _("Please keep this email as your receipt.") }}
+</p>
+{% elif ceu_hours %}
+<p>
+    <b>{{ _("CEU hours used:") }}</b> {{ ceu_hours }} ({{ credit_source }})
+</p>
+<p>
+    <b>{{ _("Date:") }}</b> {{ purchase_date }}
+</p>
+{% endif %}
+<br>
+<p>
+    <a href="{{ course_url }}" style="display: inline-block; padding: 10px 20px; background-color: #2563eb; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600;">
+        {{ _("Start Learning") }}
+    </a>
+</p>
+<br>
+<p>
+    {{ _("If you have any questions, just reply to this email.") }}
+</p>
+<br>
+<p>
+    {{ _("Best regards,") }}<br>
+    {{ _("PPT4Ed") }}
+</p>
