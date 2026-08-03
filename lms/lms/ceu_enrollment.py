@@ -3,6 +3,56 @@ from frappe import _
 from frappe.utils import now_datetime
 
 
+def send_enrollment_confirmation_email(
+    member,
+    course,
+    credit_source,
+    ceu_hours=0,
+    amount=None,
+    currency=None,
+    payment_reference=None,
+):
+    """Email the learner a course enrollment confirmation (with receipt when paid).
+
+    Best-effort: a mail failure must never roll back the enrollment or bubble
+    a 5xx out of the Stripe webhook, so the whole body fails open.
+    """
+    try:
+        from frappe.utils import fmt_money, format_date, get_url, today
+
+        from lms.lms.utils import get_lms_route, lms_send_template_mail
+
+        course_title = frappe.db.get_value("LMS Course", course, "title") or course
+        first_name = frappe.db.get_value("User", member, "first_name") or member
+
+        amount_display = None
+        if amount:
+            amount_display = fmt_money(amount, currency=(currency or "USD").upper())
+
+        lms_send_template_mail(
+            recipients=member,
+            default_subject=_("Enrollment Confirmation for {0}").format(course_title),
+            jinja_template="course_enrollment_confirmation",
+            args={
+                "first_name": first_name,
+                "course_title": course_title,
+                "credit_source": credit_source,
+                "ceu_hours": ceu_hours,
+                "amount_display": amount_display,
+                "payment_reference": payment_reference,
+                "purchase_date": format_date(today(), "long"),
+                "course_url": get_url(get_lms_route(f"courses/{course}")),
+            },
+            template_name="Course Enrollment Confirmation",
+            retry=3,
+        )
+    except Exception:
+        frappe.log_error(
+            title="Course enrollment confirmation email failed",
+            message=f"member: {member}\ncourse: {course}\n\n{frappe.get_traceback()}",
+        )
+
+
 def check_enrollment_eligibility(membership_name, course_ceu_hours):
     """Check if a user can enroll based on their membership."""
     if not membership_name:
@@ -42,6 +92,13 @@ def enroll_professional_member(course_name, membership_name):
         "credit_source": "Professional Membership",
         "membership": membership_name,
     }).insert(ignore_permissions=True)
+
+    send_enrollment_confirmation_email(
+        member=frappe.session.user,
+        course=course_name,
+        credit_source="Professional Membership",
+        ceu_hours=ceu_hours,
+    )
 
     return enrollment.name
 
@@ -90,6 +147,13 @@ def enroll_company_member(course_name, company_name):
             "membership": company.membership,
         }).insert(ignore_permissions=True)
 
+        send_enrollment_confirmation_email(
+            member=frappe.session.user,
+            course=course_name,
+            credit_source="Company Membership",
+            ceu_hours=ceu_hours,
+        )
+
         return {"status": "enrolled", "enrollment": enrollment.name}
 
 
@@ -115,6 +179,13 @@ def approve_enrollment_request(request_name):
         "credit_source": "Company Membership",
         "membership": company.membership,
     }).insert(ignore_permissions=True)
+
+    send_enrollment_confirmation_email(
+        member=request.user,
+        course=request.course,
+        credit_source="Company Membership",
+        ceu_hours=ceu_hours,
+    )
 
     request.status = "Approved"
     request.reviewed_by = frappe.session.user
