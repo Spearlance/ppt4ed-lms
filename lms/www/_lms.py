@@ -36,6 +36,9 @@ def get_boot():
 			"csrf_token": frappe.sessions.get_csrf_token(),
 			"site_name": frappe.local.site,
 			"lms_path": get_lms_path(),
+			# Mirrors the gate on the standard /login page: the "email me a
+			# login link" option only shows when System Settings enables it.
+			"login_with_email_link": int(frappe.get_system_settings("login_with_email_link") or 0),
 		}
 	)
 

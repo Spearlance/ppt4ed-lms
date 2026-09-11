@@ -2,7 +2,7 @@
 	<Dialog
 		v-model="show"
 		:options="{
-			title: activeTab === 'signup' ? __('Create your account') : __('Welcome back'),
+			title: dialogTitle,
 			size: 'sm',
 		}"
 	>
@@ -20,7 +20,7 @@
 					</button>
 					<button
 						class="flex-1 py-2 text-sm font-semibold border-b-2 transition-colors"
-						:class="activeTab === 'login'
+						:class="activeTab !== 'signup'
 							? 'border-blue-500 text-ink-blue-link'
 							: 'border-transparent text-ink-gray-5 hover:text-ink-gray-7'"
 						@click="switchTab('login')"
@@ -85,7 +85,11 @@
 					</Button>
 				</form>
 
-				<form v-else-if="!verificationSentTo" class="space-y-3" @submit.prevent="submitLogin">
+				<form
+					v-else-if="activeTab === 'login' && !verificationSentTo"
+					class="space-y-3"
+					@submit.prevent="submitLogin"
+				>
 					<FormControl
 						v-model="login.usr"
 						:label="__('Email')"
@@ -101,6 +105,15 @@
 						autocomplete="current-password"
 						:required="true"
 					/>
+					<div class="flex justify-end -mt-1">
+						<button
+							type="button"
+							class="text-xs text-ink-gray-6 hover:text-ink-blue-link underline-offset-2 hover:underline"
+							@click="switchTab('forgot')"
+						>
+							{{ __('Forgot password?') }}
+						</button>
+					</div>
 					<Button
 						class="w-full"
 						variant="solid"
@@ -109,7 +122,91 @@
 					>
 						{{ __('Log in') }}
 					</Button>
+					<template v-if="loginWithEmailLinkEnabled">
+						<div class="flex items-center gap-3 text-xs text-ink-gray-5">
+							<span class="h-px flex-1 bg-outline-gray-2"></span>
+							<span>{{ __('or') }}</span>
+							<span class="h-px flex-1 bg-outline-gray-2"></span>
+						</div>
+						<Button
+							class="w-full"
+							variant="subtle"
+							type="button"
+							@click="switchTab('magic')"
+						>
+							{{ __('Email me a login link') }}
+						</Button>
+					</template>
 				</form>
+
+				<form
+					v-else-if="activeTab === 'forgot' && !linkSentTo"
+					class="space-y-3"
+					@submit.prevent="submitForgot"
+				>
+					<p class="text-sm text-ink-gray-6">
+						{{ __("Enter your email and we'll send you a link to reset your password.") }}
+					</p>
+					<FormControl
+						v-model="login.usr"
+						:label="__('Email')"
+						placeholder="jane@example.com"
+						type="email"
+						autocomplete="email"
+						:required="true"
+					/>
+					<Button
+						class="w-full"
+						variant="solid"
+						type="submit"
+						:loading="submitting"
+					>
+						{{ __('Send reset link') }}
+					</Button>
+					<BackToLogin @click="switchTab('login')" />
+				</form>
+
+				<form
+					v-else-if="activeTab === 'magic' && !linkSentTo"
+					class="space-y-3"
+					@submit.prevent="submitMagicLink"
+				>
+					<p class="text-sm text-ink-gray-6">
+						{{ __("Enter your email and we'll send you a one-time link that logs you in without a password.") }}
+					</p>
+					<FormControl
+						v-model="login.usr"
+						:label="__('Email')"
+						placeholder="jane@example.com"
+						type="email"
+						autocomplete="email"
+						:required="true"
+					/>
+					<Button
+						class="w-full"
+						variant="solid"
+						type="submit"
+						:loading="submitting"
+					>
+						{{ __('Send login link') }}
+					</Button>
+					<BackToLogin @click="switchTab('login')" />
+				</form>
+
+				<div v-else-if="linkSentTo" class="space-y-3">
+					<div
+						class="rounded-md border border-blue-100 bg-surface-blue-2 px-3 py-3 text-sm text-ink-blue-link"
+					>
+						<div class="font-semibold mb-1">{{ __('Check your email') }}</div>
+						<p v-if="activeTab === 'forgot'">
+							{{ __('We sent password reset instructions to {0}. Once your password is reset, come back here to log in.').format(linkSentTo) }}
+						</p>
+						<p v-else>
+							{{ __('We sent a login link to {0}. Click it to log in, then return to this page to register.').format(linkSentTo) }}
+						</p>
+					</div>
+					<BackToLogin @click="switchTab('login')" />
+				</div>
 			</div>
 		</template>
 	</Dialog>
@@ -117,7 +214,30 @@
 
 <script setup>
 import { Button, call, Dialog, ErrorMessage, FormControl } from 'frappe-ui'
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, h, reactive, ref, watch } from 'vue'
+
+// Small inline "Back to log in" link shared by the forgot / magic-link views.
+const BackToLogin = {
+	emits: ['click'],
+	setup(_, { emit }) {
+		return () =>
+			h('div', { class: 'text-center' }, [
+				h(
+					'button',
+					{
+						type: 'button',
+						class:
+							'text-xs text-ink-gray-6 hover:text-ink-blue-link underline-offset-2 hover:underline',
+						onClick: () => emit('click'),
+					},
+					__('Back to log in')
+				),
+			])
+	},
+}
+
+// Set by lms/www/_lms.py boot; mirrors the gate on the standard /login page.
+const loginWithEmailLinkEnabled = Boolean(window.login_with_email_link)
 
 const show = defineModel('open', { default: false })
 
@@ -130,11 +250,21 @@ const props = defineProps({
 	redirectUrl: { type: String, default: '/lms' },
 })
 
+// 'signup' | 'login' | 'forgot' | 'magic'
 const activeTab = ref('signup')
 const submitting = ref(false)
 const errorMessage = ref('')
 const infoMessage = ref('')
 const verificationSentTo = ref('')
+// Email a reset / login link was sent to (forgot + magic views).
+const linkSentTo = ref('')
+
+const dialogTitle = computed(() => {
+	if (activeTab.value === 'signup') return __('Create your account')
+	if (activeTab.value === 'forgot') return __('Reset your password')
+	if (activeTab.value === 'magic') return __('Log in with a link')
+	return __('Welcome back')
+})
 
 const signup = reactive({
 	full_name: '',
@@ -153,6 +283,7 @@ watch(show, (next) => {
 		errorMessage.value = ''
 		infoMessage.value = ''
 		verificationSentTo.value = ''
+		linkSentTo.value = ''
 		signup.full_name = ''
 		signup.email = props.prefillEmail || ''
 		signup.password = ''
@@ -172,6 +303,7 @@ function switchTab(tab) {
 	activeTab.value = tab
 	errorMessage.value = ''
 	infoMessage.value = ''
+	linkSentTo.value = ''
 }
 
 function extractError(err) {
@@ -253,6 +385,64 @@ async function submitLogin() {
 		errorMessage.value = msg
 	} catch (err) {
 		errorMessage.value = __('Login failed. Please try again.')
+	} finally {
+		submitting.value = false
+	}
+}
+
+// Same endpoint the standard /login page's "Forgot Password?" uses.
+// Guest-callable, rate limited by Frappe (5/hour per IP).
+async function submitForgot() {
+	errorMessage.value = ''
+	infoMessage.value = ''
+	const email = login.usr.trim()
+	if (!email) {
+		errorMessage.value = __('Please enter your email.')
+		return
+	}
+	submitting.value = true
+	try {
+		const result = await call('frappe.core.doctype.user.user.reset_password', {
+			user: email,
+		})
+		if (result === 'not found') {
+			errorMessage.value = __('No account found with that email. Try creating one instead.')
+		} else if (result === 'disabled') {
+			errorMessage.value = __('This account is disabled. Please contact support.')
+		} else if (result === 'not allowed') {
+			errorMessage.value = __('Password reset is not allowed for this account.')
+		} else {
+			linkSentTo.value = email
+		}
+	} catch (err) {
+		// Frappe returns 404 for unknown users, which `call` raises.
+		if (err?.status === 404 || err?.exc_type === 'DoesNotExistError') {
+			errorMessage.value = __('No account found with that email. Try creating one instead.')
+		} else {
+			errorMessage.value = extractError(err) || __('Could not send reset email. Please try again.')
+		}
+	} finally {
+		submitting.value = false
+	}
+}
+
+// Same endpoint as the standard /login page's "Login with Email Link".
+// Server-side it silently no-ops when the setting is off, so the button is
+// gated on the boot flag; the link logs the user in and lands on LMS home.
+async function submitMagicLink() {
+	errorMessage.value = ''
+	infoMessage.value = ''
+	const email = login.usr.trim()
+	if (!email) {
+		errorMessage.value = __('Please enter your email.')
+		return
+	}
+	submitting.value = true
+	try {
+		await call('frappe.www.login.send_login_link', { email })
+		linkSentTo.value = email
+	} catch (err) {
+		errorMessage.value = extractError(err) || __('Could not send login link. Please try again.')
 	} finally {
 		submitting.value = false
 	}
