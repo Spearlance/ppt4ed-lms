@@ -150,6 +150,53 @@
 	color: #1e40af;
 	border: 1px solid #bfdbfe;
 }
+.register-modal__link-row {
+	display: flex;
+	justify-content: flex-end;
+	margin: -0.5rem 0 0.75rem;
+}
+.register-modal__link-row--center {
+	justify-content: center;
+	margin: 0.9rem 0 0;
+}
+.register-modal__link {
+	background: none;
+	border: 0;
+	padding: 0;
+	font-size: 0.8rem;
+	color: #627d98;
+	cursor: pointer;
+	text-decoration: none;
+}
+.register-modal__link:hover { color: #2c5282; text-decoration: underline; }
+.register-modal__divider {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	margin: 1rem 0 0.75rem;
+	font-size: 0.78rem;
+	color: #829ab1;
+}
+.register-modal__divider::before,
+.register-modal__divider::after {
+	content: "";
+	flex: 1;
+	height: 1px;
+	background: #e4e9f0;
+}
+.register-modal__secondary {
+	display: block;
+	width: 100%;
+	padding: 0.7rem 1rem;
+	background: #f0f4f8;
+	color: #243b53;
+	border: 1px solid #d9e2ec;
+	border-radius: 8px;
+	font-size: 0.95rem;
+	font-weight: 600;
+	cursor: pointer;
+}
+.register-modal__secondary:hover { background: #e4e9f0; }
 </style>
 
 <div id="register-modal" class="register-modal" hidden>
@@ -196,8 +243,46 @@
 			<label>{{ _("Password") }}
 				<input name="pwd" type="password" autocomplete="current-password" required>
 			</label>
+			<div class="register-modal__link-row">
+				<button type="button" class="register-modal__link" data-goto="forgot">{{ _("Forgot password?") }}</button>
+			</div>
 
 			<button type="submit" class="register-modal__submit">{{ _("Log in") }}</button>
+			{# Same gate as the standard /login page: System Settings > Login With Email Link #}
+			{% if frappe.get_system_settings("login_with_email_link") %}
+			<div class="register-modal__divider">{{ _("or") }}</div>
+			<button type="button" class="register-modal__secondary" data-goto="magic">{{ _("Email me a login link") }}</button>
+			{% endif %}
+		</form>
+
+		{# Same endpoint the standard /login page's "Forgot Password?" uses. #}
+		<form class="register-modal__pane" data-pane="forgot" id="register-modal-forgot" hidden>
+			<h2>{{ _("Reset your password") }}</h2>
+			<p class="register-modal__sub">{{ _("Enter your email and we'll send you a link to reset your password.") }}</p>
+
+			<label>{{ _("Email") }}
+				<input name="email" type="email" autocomplete="email" required>
+			</label>
+
+			<button type="submit" class="register-modal__submit">{{ _("Send reset link") }}</button>
+			<div class="register-modal__link-row register-modal__link-row--center">
+				<button type="button" class="register-modal__link" data-goto="login">{{ _("Back to log in") }}</button>
+			</div>
+		</form>
+
+		{# Same endpoint as the standard /login page's "Login with Email Link". #}
+		<form class="register-modal__pane" data-pane="magic" id="register-modal-magic" hidden>
+			<h2>{{ _("Log in with a link") }}</h2>
+			<p class="register-modal__sub">{{ _("Enter your email and we'll send you a one-time link that logs you in without a password.") }}</p>
+
+			<label>{{ _("Email") }}
+				<input name="email" type="email" autocomplete="email" required>
+			</label>
+
+			<button type="submit" class="register-modal__submit">{{ _("Send login link") }}</button>
+			<div class="register-modal__link-row register-modal__link-row--center">
+				<button type="button" class="register-modal__link" data-goto="login">{{ _("Back to log in") }}</button>
+			</div>
 		</form>
 	</div>
 </div>
@@ -214,12 +299,32 @@
 	const modal = document.getElementById('register-modal');
 	const signupForm = document.getElementById('register-modal-signup');
 	const loginForm = document.getElementById('register-modal-login');
+	const forgotForm = document.getElementById('register-modal-forgot');
+	const magicForm = document.getElementById('register-modal-magic');
 	const alertEl = document.getElementById('register-modal-alert');
 	const tabs = modal.querySelectorAll('.register-modal__tab');
+	const panes = [signupForm, loginForm, forgotForm, magicForm];
 
 	function showPane(name) {
-		tabs.forEach(t => t.classList.toggle('is-active', t.dataset.pane === name));
-		[signupForm, loginForm].forEach(f => { f.hidden = (f.dataset.pane !== name); });
+		// forgot / magic live under the "Log in" tab
+		const tabName = (name === 'signup') ? 'signup' : 'login';
+		tabs.forEach(t => t.classList.toggle('is-active', t.dataset.pane === tabName));
+		panes.forEach(f => { f.hidden = (f.dataset.pane !== name); });
+	}
+
+	// Carry the typed email between login / forgot / magic so the user
+	// doesn't have to retype it.
+	function gotoPane(name) {
+		const current = panes.find(f => !f.hidden);
+		const currentEmail = current
+			? ((current.elements.usr || current.elements.email || {}).value || '').trim()
+			: '';
+		hideAlert();
+		showPane(name);
+		const next = panes.find(f => f.dataset.pane === name);
+		const nextInput = next && (next.elements.usr || next.elements.email);
+		if (nextInput && currentEmail && !nextInput.value) nextInput.value = currentEmail;
+		setTimeout(() => { if (nextInput) nextInput.focus(); }, 30);
 	}
 
 	function showAlert(kind, text) {
@@ -262,7 +367,11 @@
 	document.addEventListener('keydown', (e) => {
 		if (e.key === 'Escape' && !modal.hidden) closeModal();
 	});
-	tabs.forEach(t => t.addEventListener('click', () => { hideAlert(); showPane(t.dataset.pane); }));
+	tabs.forEach(t => t.addEventListener('click', () => gotoPane(t.dataset.pane)));
+	modal.addEventListener('click', (e) => {
+		const goto = e.target.closest('[data-goto]');
+		if (goto) { e.preventDefault(); gotoPane(goto.dataset.goto); }
+	});
 
 	function extractError(err) {
 		const messages = err && err.responseJSON && err.responseJSON._server_messages;
@@ -381,6 +490,77 @@
 		}).catch(() => {
 			setSubmitting(loginForm, false);
 			showAlert('error', "{{ _('Login failed. Please try again.') }}");
+		});
+	});
+
+	// After a reset / login link is sent: back to the login pane with the
+	// email prefilled and a "check your email" notice above it.
+	function linkSent(email, text) {
+		showPane('login');
+		loginForm.elements.usr.value = email;
+		loginForm.elements.pwd.value = '';
+		showAlert('info', text);
+	}
+
+	forgotForm.addEventListener('submit', (e) => {
+		e.preventDefault();
+		hideAlert();
+		const email = forgotForm.elements.email.value.trim();
+		setSubmitting(forgotForm, true, "{{ _('Sending…') }}");
+
+		// Guest-callable, rate limited by Frappe (5/hour/IP by default).
+		frappe.call({
+			method: 'frappe.core.doctype.user.user.reset_password',
+			type: 'POST',
+			args: { user: email },
+			callback: function(r) {
+				setSubmitting(forgotForm, false);
+				const result = r && r.message;
+				if (result === 'not found') {
+					showAlert('error', "{{ _('No account found with that email. Try creating one instead.') }}");
+				} else if (result === 'disabled') {
+					showAlert('error', "{{ _('This account is disabled. Please contact support.') }}");
+				} else if (result === 'not allowed') {
+					showAlert('error', "{{ _('Password reset is not allowed for this account.') }}");
+				} else {
+					linkSent(email,
+						"{{ _('We sent password reset instructions to ') }}" + email +
+						"{{ _('. Once your password is reset, come back here to log in.') }}");
+				}
+			},
+			error: function(err) {
+				setSubmitting(forgotForm, false);
+				// Frappe answers unknown users with HTTP 404 + "not found".
+				if (err && err.status === 404) {
+					showAlert('error', "{{ _('No account found with that email. Try creating one instead.') }}");
+					return;
+				}
+				showAlert('error', extractError(err) || "{{ _('Could not send reset email. Please try again.') }}");
+			}
+		});
+	});
+
+	magicForm.addEventListener('submit', (e) => {
+		e.preventDefault();
+		hideAlert();
+		const email = magicForm.elements.email.value.trim();
+		setSubmitting(magicForm, true, "{{ _('Sending…') }}");
+
+		// The link logs the user in and lands on the LMS home page.
+		frappe.call({
+			method: 'frappe.www.login.send_login_link',
+			type: 'POST',
+			args: { email: email },
+			callback: function() {
+				setSubmitting(magicForm, false);
+				linkSent(email,
+					"{{ _('We sent a login link to ') }}" + email +
+					"{{ _('. Click it to log in, then return to this page to register.') }}");
+			},
+			error: function(err) {
+				setSubmitting(magicForm, false);
+				showAlert('error', extractError(err) || "{{ _('Could not send login link. Please try again.') }}");
+			}
 		});
 	});
 
