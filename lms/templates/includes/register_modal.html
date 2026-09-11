@@ -502,6 +502,40 @@
 		showAlert('info', text);
 	}
 
+	// Plain fetch (like the login handler above) rather than frappe.call:
+	// the website frappe.call pops its own "Not found" msgprint dialog on a
+	// 404 before our error callback runs. Returns { ok, status, data }.
+	function apiPost(method, args) {
+		const fd = new FormData();
+		fd.append('cmd', method);
+		Object.keys(args).forEach(k => fd.append(k, args[k]));
+		return fetch('/api/method/' + method, {
+			method: 'POST',
+			body: fd,
+			credentials: 'same-origin',
+			headers: { 'Accept': 'application/json', 'X-Frappe-CSRF-Token': (window.csrf_token || '') }
+		}).then(res => res.json().catch(() => ({})).then(data => ({ ok: res.ok, status: res.status, data: data })));
+	}
+
+	function errorFromData(data) {
+		if (!data) return null;
+		if (data._server_messages) {
+			try {
+				const parsed = JSON.parse(data._server_messages);
+				if (parsed && parsed.length) {
+					const first = JSON.parse(parsed[0]);
+					if (first && first.message) return String(first.message).replace(/<[^>]+>/g, '');
+				}
+			} catch (e) {}
+		}
+		if (data.exception) {
+			// "frappe.exceptions.DoesNotExistError: User with email ... does not exist"
+			return String(data.exception).split(':').slice(1).join(':').trim().replace(/<[^>]+>/g, '') || null;
+		}
+		if (typeof data.message === 'string') return data.message.replace(/<[^>]+>/g, '');
+		return null;
+	}
+
 	forgotForm.addEventListener('submit', (e) => {
 		e.preventDefault();
 		hideAlert();
@@ -509,34 +543,26 @@
 		setSubmitting(forgotForm, true, "{{ _('Sending…') }}");
 
 		// Guest-callable, rate limited by Frappe (5/hour/IP by default).
-		frappe.call({
-			method: 'frappe.core.doctype.user.user.reset_password',
-			type: 'POST',
-			args: { user: email },
-			callback: function(r) {
-				setSubmitting(forgotForm, false);
-				const result = r && r.message;
-				if (result === 'not found') {
-					showAlert('error', "{{ _('No account found with that email. Try creating one instead.') }}");
-				} else if (result === 'disabled') {
-					showAlert('error', "{{ _('This account is disabled. Please contact support.') }}");
-				} else if (result === 'not allowed') {
-					showAlert('error', "{{ _('Password reset is not allowed for this account.') }}");
-				} else {
-					linkSent(email,
-						"{{ _('We sent password reset instructions to ') }}" + email +
-						"{{ _('. Once your password is reset, come back here to log in.') }}");
-				}
-			},
-			error: function(err) {
-				setSubmitting(forgotForm, false);
-				// Frappe answers unknown users with HTTP 404 + "not found".
-				if (err && err.status === 404) {
-					showAlert('error', "{{ _('No account found with that email. Try creating one instead.') }}");
-					return;
-				}
-				showAlert('error', extractError(err) || "{{ _('Could not send reset email. Please try again.') }}");
+		apiPost('frappe.core.doctype.user.user.reset_password', { user: email }).then(({ ok, status, data }) => {
+			setSubmitting(forgotForm, false);
+			const result = data && data.message;
+			// Frappe answers unknown users with HTTP 404 + "not found".
+			if (status === 404 || result === 'not found') {
+				showAlert('error', "{{ _('No account found with that email. Try creating one instead.') }}");
+			} else if (result === 'disabled') {
+				showAlert('error', "{{ _('This account is disabled. Please contact support.') }}");
+			} else if (result === 'not allowed') {
+				showAlert('error', "{{ _('Password reset is not allowed for this account.') }}");
+			} else if (!ok) {
+				showAlert('error', errorFromData(data) || "{{ _('Could not send reset email. Please try again.') }}");
+			} else {
+				linkSent(email,
+					"{{ _('We sent password reset instructions to ') }}" + email +
+					"{{ _('. Once your password is reset, come back here to log in.') }}");
 			}
+		}).catch(() => {
+			setSubmitting(forgotForm, false);
+			showAlert('error', "{{ _('Could not send reset email. Please try again.') }}");
 		});
 	});
 
@@ -547,20 +573,21 @@
 		setSubmitting(magicForm, true, "{{ _('Sending…') }}");
 
 		// The link logs the user in and lands on the LMS home page.
-		frappe.call({
-			method: 'frappe.www.login.send_login_link',
-			type: 'POST',
-			args: { email: email },
-			callback: function() {
-				setSubmitting(magicForm, false);
-				linkSent(email,
-					"{{ _('We sent a login link to ') }}" + email +
-					"{{ _('. Click it to log in, then return to this page to register.') }}");
-			},
-			error: function(err) {
-				setSubmitting(magicForm, false);
-				showAlert('error', extractError(err) || "{{ _('Could not send login link. Please try again.') }}");
+		apiPost('frappe.www.login.send_login_link', { email: email }).then(({ ok, status, data }) => {
+			setSubmitting(magicForm, false);
+			if (!ok) {
+				const msg = (status === 404)
+					? "{{ _('No account found with that email. Try creating one instead.') }}"
+					: (errorFromData(data) || "{{ _('Could not send login link. Please try again.') }}");
+				showAlert('error', msg);
+				return;
 			}
+			linkSent(email,
+				"{{ _('We sent a login link to ') }}" + email +
+				"{{ _('. Click it to log in, then return to this page to register.') }}");
+		}).catch(() => {
+			setSubmitting(magicForm, false);
+			showAlert('error', "{{ _('Could not send login link. Please try again.') }}");
 		});
 	});
 
