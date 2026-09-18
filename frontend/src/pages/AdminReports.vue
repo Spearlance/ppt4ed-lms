@@ -23,7 +23,9 @@
 import { markRaw, ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Breadcrumbs, Tabs, usePageMeta } from 'frappe-ui'
-import ReportRevenue from '@/pages/AdminReports/ReportRevenue.vue'
+import ReportMoney from '@/pages/AdminReports/ReportMoney.vue'
+import ReportMonthlyCourses from '@/pages/AdminReports/ReportMonthlyCourses.vue'
+import ReportCreditAllocations from '@/pages/AdminReports/ReportCreditAllocations.vue'
 import ReportCoursesTaken from '@/pages/AdminReports/ReportCoursesTaken.vue'
 import ReportResources from '@/pages/AdminReports/ReportResources.vue'
 import ReportMembers from '@/pages/AdminReports/ReportMembers.vue'
@@ -39,7 +41,8 @@ const tabIndex = ref(0)
 usePageMeta({ title: 'Admin Reports' })
 
 const tabs = ref([
-	{ label: 'Revenue', component: markRaw(ReportRevenue) },
+	{ label: 'Money', component: markRaw(ReportMoney) },
+	{ label: 'Monthly', component: markRaw(ReportMonthlyCourses) },
 	{ label: 'Courses', component: markRaw(ReportCoursesTaken) },
 	{ label: 'Resources', component: markRaw(ReportResources) },
 	{ label: 'Members', component: markRaw(ReportMembers) },
@@ -47,6 +50,7 @@ const tabs = ref([
 	{ label: 'Health', component: markRaw(ReportCreditHealth) },
 	{ label: 'Performance', component: markRaw(ReportCoursePerformance) },
 	{ label: 'Disciplines', component: markRaw(ReportDisciplineDemand) },
+	{ label: 'Credits', component: markRaw(ReportCreditAllocations) },
 ])
 
 watch(tabIndex, () => {
