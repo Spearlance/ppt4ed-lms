@@ -204,7 +204,7 @@ def get_member_purchase_detail(member):
         "CEU Transaction",
         filters={"member": user.name},
         fields=[
-            "name AS stripe_id", "transaction_date", "transaction_type", "status",
+            "name as stripe_id", "transaction_date", "transaction_type", "status",
             "gross_amount", "refunded_amount", "net_amount", "currency", "item_title",
         ],
         order_by="transaction_date desc",
