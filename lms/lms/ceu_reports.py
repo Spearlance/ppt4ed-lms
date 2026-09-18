@@ -474,7 +474,14 @@ def get_member_usage_report():
 
 @frappe.whitelist()
 def get_credit_health_report():
-    """Memberships with low balance or upcoming expiry."""
+    """Memberships with low balance or upcoming expiry.
+
+    `CEU Membership` has no `expiry_date` column — the renewal date lives in
+    `end_date`, which `handle_invoice_paid` pushes forward a year on every paid
+    invoice. This query used to select `m.expiry_date`, so the whole Health tab
+    failed with an unknown-column error. Aliased to `expiry_date` to keep the
+    existing frontend column working.
+    """
     _require_admin()
 
     three_months = add_months(nowdate(), 3)
@@ -487,11 +494,11 @@ def get_credit_health_report():
             m.plan,
             m.credit_balance,
             m.status,
-            m.expiry_date
+            m.end_date as expiry_date
         FROM `tabCEU Membership` m
         LEFT JOIN `tabUser` u ON u.name = m.member
         WHERE m.status = 'Active'
-          AND (m.credit_balance <= 2 OR m.expiry_date <= %(cutoff)s)
+          AND (m.credit_balance <= 2 OR m.end_date <= %(cutoff)s)
         ORDER BY m.credit_balance ASC
     """, {"cutoff": three_months}, as_dict=True)
 

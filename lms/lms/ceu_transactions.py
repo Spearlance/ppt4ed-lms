@@ -21,7 +21,6 @@ Classification is deliberately layered, cheapest and most reliable first:
 import json
 
 import frappe
-from frappe import _
 from frappe.utils import add_days, cint, flt, get_datetime, now_datetime
 
 SYNC_OVERLAP_DAYS = 3
