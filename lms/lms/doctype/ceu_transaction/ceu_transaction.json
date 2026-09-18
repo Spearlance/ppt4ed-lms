@@ -1,0 +1,202 @@
+{
+    "actions": [],
+    "autoname": "field:stripe_id",
+    "creation": "2026-09-18 00:00:00.000000",
+    "doctype": "DocType",
+    "engine": "InnoDB",
+    "field_order": [
+        "stripe_id", "transaction_date", "transaction_type", "status",
+        "description", "column_break_amounts",
+        "gross_amount", "refunded_amount", "net_amount", "currency",
+        "member_section", "customer_email", "member", "member_full_name",
+        "item_section", "item_type", "item", "item_title",
+        "stripe_section", "stripe_customer_id", "stripe_payment_intent_id",
+        "stripe_invoice_id", "stripe_subscription_id", "stripe_metadata",
+        "sync_section", "classified_by", "synced_at"
+    ],
+    "fields": [
+        {
+            "fieldname": "stripe_id",
+            "fieldtype": "Data",
+            "in_list_view": 1,
+            "label": "Stripe Charge ID",
+            "reqd": 1,
+            "unique": 1
+        },
+        {
+            "fieldname": "transaction_date",
+            "fieldtype": "Datetime",
+            "in_list_view": 1,
+            "label": "Transaction Date",
+            "reqd": 1,
+            "search_index": 1
+        },
+        {
+            "fieldname": "transaction_type",
+            "fieldtype": "Select",
+            "in_list_view": 1,
+            "in_standard_filter": 1,
+            "label": "Type",
+            "options": "\nCourse\nEvent\nMembership\nOther",
+            "reqd": 1,
+            "search_index": 1
+        },
+        {
+            "fieldname": "status",
+            "fieldtype": "Select",
+            "in_standard_filter": 1,
+            "label": "Status",
+            "options": "\nSucceeded\nPartially Refunded\nRefunded\nFailed"
+        },
+        {
+            "fieldname": "description",
+            "fieldtype": "Data",
+            "label": "Description"
+        },
+        {
+            "fieldname": "column_break_amounts",
+            "fieldtype": "Column Break"
+        },
+        {
+            "fieldname": "gross_amount",
+            "fieldtype": "Currency",
+            "in_list_view": 1,
+            "label": "Gross Amount",
+            "options": "currency"
+        },
+        {
+            "fieldname": "refunded_amount",
+            "fieldtype": "Currency",
+            "label": "Refunded Amount",
+            "options": "currency"
+        },
+        {
+            "fieldname": "net_amount",
+            "fieldtype": "Currency",
+            "label": "Net Amount",
+            "options": "currency"
+        },
+        {
+            "default": "USD",
+            "fieldname": "currency",
+            "fieldtype": "Data",
+            "label": "Currency"
+        },
+        {
+            "fieldname": "member_section",
+            "fieldtype": "Section Break",
+            "label": "Customer"
+        },
+        {
+            "fieldname": "customer_email",
+            "fieldtype": "Data",
+            "label": "Customer Email",
+            "options": "Email",
+            "search_index": 1
+        },
+        {
+            "fieldname": "member",
+            "fieldtype": "Link",
+            "label": "Member",
+            "options": "User",
+            "search_index": 1
+        },
+        {
+            "fieldname": "member_full_name",
+            "fieldtype": "Data",
+            "label": "Member Name"
+        },
+        {
+            "fieldname": "item_section",
+            "fieldtype": "Section Break",
+            "label": "Purchased"
+        },
+        {
+            "fieldname": "item_type",
+            "fieldtype": "Select",
+            "label": "Item Type",
+            "options": "\nLMS Course\nLMS Event\nCEU Membership Plan"
+        },
+        {
+            "fieldname": "item",
+            "fieldtype": "Dynamic Link",
+            "label": "Item",
+            "options": "item_type"
+        },
+        {
+            "fieldname": "item_title",
+            "fieldtype": "Data",
+            "label": "Item Title"
+        },
+        {
+            "fieldname": "stripe_section",
+            "fieldtype": "Section Break",
+            "label": "Stripe Reference"
+        },
+        {
+            "fieldname": "stripe_customer_id",
+            "fieldtype": "Data",
+            "label": "Stripe Customer ID"
+        },
+        {
+            "fieldname": "stripe_payment_intent_id",
+            "fieldtype": "Data",
+            "label": "Stripe Payment Intent ID"
+        },
+        {
+            "fieldname": "stripe_invoice_id",
+            "fieldtype": "Data",
+            "label": "Stripe Invoice ID"
+        },
+        {
+            "fieldname": "stripe_subscription_id",
+            "fieldtype": "Data",
+            "label": "Stripe Subscription ID"
+        },
+        {
+            "fieldname": "stripe_metadata",
+            "fieldtype": "Small Text",
+            "label": "Stripe Metadata"
+        },
+        {
+            "fieldname": "sync_section",
+            "fieldtype": "Section Break",
+            "label": "Sync"
+        },
+        {
+            "fieldname": "classified_by",
+            "fieldtype": "Select",
+            "label": "Classified By",
+            "options": "\nlms_payment\ninvoice_subscription\ncheckout_metadata\nwebhook\nunclassified"
+        },
+        {
+            "fieldname": "synced_at",
+            "fieldtype": "Datetime",
+            "label": "Last Synced At"
+        }
+    ],
+    "in_create": 1,
+    "index_web_pages_for_search": 0,
+    "links": [],
+    "modified": "2026-09-18 00:00:00.000000",
+    "modified_by": "Administrator",
+    "module": "LMS",
+    "name": "CEU Transaction",
+    "naming_rule": "By fieldname",
+    "owner": "Administrator",
+    "permissions": [
+        {
+            "read": 1, "report": 1, "export": 1,
+            "role": "System Manager"
+        },
+        {
+            "read": 1, "report": 1, "export": 1,
+            "role": "Global Admin"
+        }
+    ],
+    "row_format": "Dynamic",
+    "sort_field": "transaction_date",
+    "sort_order": "DESC",
+    "states": [],
+    "track_changes": 0
+}

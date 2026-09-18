@@ -136,6 +136,7 @@ scheduler_events = {
 		"lms.lms.doctype.lms_event.lms_event.send_event_15_minute_reminder",
 	],
 	"hourly": [
+		"lms.lms.ceu_transactions.sync_recent",
 		"lms.lms.doctype.lms_course.lms_course.update_course_statistics",
 		"lms.lms.doctype.lms_live_class.lms_live_class.update_attendance",
 		"lms.lms.doctype.lms_event.lms_event.send_event_one_hour_reminder",
