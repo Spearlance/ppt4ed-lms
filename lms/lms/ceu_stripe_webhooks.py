@@ -132,6 +132,12 @@ def handle_invoice_paid(subscription_id, invoice_id=None):
 
     frappe.db.set_value("CEU Membership", membership.name, "end_date", add_years(today(), 1))
 
+    # Record the dollars. Credit allocation alone left membership revenue
+    # invisible to reporting. Fails open inside the helper — a reporting row is
+    # never worth failing a payment webhook and triggering a Stripe retry.
+    from lms.lms.ceu_transactions import record_invoice_transaction
+    record_invoice_transaction(invoice_id, subscription_id=subscription_id)
+
 
 def handle_subscription_updated(data):
     """Handle plan changes."""
