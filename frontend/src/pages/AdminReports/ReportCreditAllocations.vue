@@ -1,6 +1,6 @@
 <template>
 	<div class="p-5">
-		<div v-if="revenue.data?.length" class="overflow-x-auto">
+		<div v-if="allocations.data?.length" class="overflow-x-auto">
 			<table class="w-full text-sm">
 				<thead>
 					<tr class="border-b text-left text-ink-gray-5">
@@ -11,7 +11,7 @@
 				</thead>
 				<tbody>
 					<tr
-						v-for="row in revenue.data"
+						v-for="row in allocations.data"
 						:key="row.period"
 						class="border-b last:border-0"
 					>
@@ -22,11 +22,11 @@
 				</tbody>
 			</table>
 		</div>
-		<div v-else-if="revenue.loading" class="text-center py-10 text-ink-gray-5">
+		<div v-else-if="allocations.loading" class="text-center py-10 text-ink-gray-5">
 			{{ __('Loading...') }}
 		</div>
 		<div v-else class="text-center py-10 text-ink-gray-5">
-			{{ __('No revenue data yet.') }}
+			{{ __('No credit allocations yet.') }}
 		</div>
 	</div>
 </template>
@@ -34,10 +34,10 @@
 <script setup>
 import { createResource } from 'frappe-ui'
 
-const revenue = createResource({
-	url: 'lms.lms.ceu_reports.get_revenue_report',
+const allocations = createResource({
+	url: 'lms.lms.ceu_reports.get_credit_allocation_report',
 	params: { period: 'monthly' },
-	cache: ['report-revenue'],
+	cache: ['report-credit-allocations'],
 	auto: true,
 })
 </script>
