@@ -320,9 +320,13 @@ def _charge_datetime(charge: dict):
 
     utc_dt = datetime.fromtimestamp(cint(created), tz=timezone.utc)
     try:
-        return convert_utc_to_system_timezone(utc_dt.replace(tzinfo=None))
+        local_dt = convert_utc_to_system_timezone(utc_dt.replace(tzinfo=None))
     except Exception:
-        return utc_dt.replace(tzinfo=None)
+        local_dt = utc_dt
+    # MariaDB rejects an aware datetime ("Incorrect datetime value ... -04:00"),
+    # which made every insert in the first backfill fail. Store it naive, in
+    # system time, like every other Datetime field in Frappe.
+    return local_dt.replace(tzinfo=None)
 
 
 def upsert_transaction(row: dict) -> str | None:

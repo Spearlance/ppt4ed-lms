@@ -151,6 +151,14 @@ class TestCEUTransactions(UnitTestCase):
         self.assertEqual(row["net_amount"], 150.0)
         self.assertEqual(row["currency"], "USD")
 
+    def test_transaction_date_is_naive_system_time(self):
+        """MariaDB rejects aware datetimes; the first backfill lost all 41 charges to this."""
+        from lms.lms.ceu_transactions import _charge_datetime
+
+        when = _charge_datetime(_charge(created=1757009332))  # 2025-09-04 18:08:52 UTC
+        self.assertIsNone(when.tzinfo)
+        self.assertEqual((when.year, when.month, when.day), (2025, 9, 4))
+
     def test_upsert_is_idempotent_and_picks_up_refunds(self):
         from lms.lms.ceu_transactions import charge_to_row, upsert_transaction
 
