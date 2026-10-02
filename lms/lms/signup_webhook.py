@@ -66,11 +66,19 @@ def build_payload(doctype, name):
 	return builder(name) if builder else None
 
 
+def _url(path=""):
+	"""Absolute site URL. The delivery job has no request to read the scheme
+	from, so `get_url` falls back to http:// there. The sites are HTTPS-only."""
+	url = get_url(path)
+	return "https://" + url[len("http://") :] if url.startswith("http://") else url
+
+
 def _payload(event, occurred_at, **values):
 	payload = {
 		"event": event,
-		"occurred_at": str(occurred_at or ""),
-		"site": get_url(),
+		# Site-timezone timestamp, to the second.
+		"occurred_at": str(occurred_at or "")[:19],
+		"site": _url(),
 		"email": "",
 		"full_name": "",
 		"first_name": "",
@@ -131,7 +139,7 @@ def _course_item(course):
 		"item_type": "Resource" if is_resource else "Course",
 		"item_id": course,
 		"item_title": details.title or "",
-		"item_url": get_url(f"/lms/{'resources' if is_resource else 'courses'}/{course}"),
+		"item_url": _url(f"/lms/{'resources' if is_resource else 'courses'}/{course}"),
 		"audience": details.audience or "",
 		"resource_type": details.resource_type or "",
 		"paid": bool(details.paid_course),
@@ -147,7 +155,7 @@ def _event_item(event):
 		"item_type": "Event",
 		"item_id": event,
 		"item_title": details.title or "",
-		"item_url": get_url(f"/lms/events/{event}"),
+		"item_url": _url(f"/lms/events/{event}"),
 		"audience": details.audience or "",
 		"paid": bool(details.paid_event),
 	}
@@ -251,7 +259,7 @@ def _community_event_registration_payload(name):
 		item_type="Community Event",
 		item_id=registration.parent_event,
 		item_title=event.get("title") or "",
-		item_url=get_url(f"/{event.get('route')}") if event.get("route") else "",
+		item_url=_url(f"/{event.get('route')}") if event.get("route") else "",
 		paid=float(registration.donation_total or 0) > 0,
 	)
 

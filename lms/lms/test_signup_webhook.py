@@ -224,6 +224,24 @@ class TestSignupWebhook(UnitTestCase):
 		self.assertEqual(payload["item_url"], "https://lms.test/community-events/family-fun-day")
 		self.assertIs(payload["paid"], False)
 
+	def test_links_are_https_and_time_is_to_the_second(self):
+		"""The delivery job has no request, so `get_url` hands back http://."""
+		rows = {
+			("LMS Enrollment", "ENR-1"): {
+				"creation": "2026-10-02 09:30:00.123456",
+				"member": "pat@example.com",
+				"course": "sensory-play",
+			},
+			("User", "pat@example.com"): MEMBER,
+			("LMS Course", "sensory-play"): RESOURCE,
+		}
+		with _site(rows), patch.object(signup_webhook, "get_url", lambda path="": f"http://lms.test{path}"):
+			payload = build_payload("LMS Enrollment", "ENR-1")
+
+		self.assertEqual(payload["site"], "https://lms.test")
+		self.assertEqual(payload["item_url"], "https://lms.test/lms/resources/sensory-play")
+		self.assertEqual(payload["occurred_at"], "2026-10-02 09:30:00")
+
 	def test_every_event_sends_the_same_keys(self):
 		rows = {
 			("LMS Enrollment", "ENR-1"): {"creation": "", "member": "pat@example.com", "course": "sensory-play"},
