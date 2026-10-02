@@ -3238,6 +3238,12 @@ def _create_signup_user(email, full_name, password, target_type, target_slug):
 			update_modified=False,
 		)
 
+	# The entry point above says which page they signed up on. This says how
+	# they reached the site at all (UTM tags / referring site). Both callers
+	# run in the new visitor's own request, so the cookie read here is theirs.
+	from lms.lms.traffic_source import save_signup_traffic_source
+	save_signup_traffic_source(email)
+
 	return user
 
 

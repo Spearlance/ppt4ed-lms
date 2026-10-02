@@ -296,6 +296,92 @@ def get_monthly_course_stats(from_date=None, to_date=None):
 
 
 @frappe.whitelist()
+def get_traffic_source_report(from_date=None, to_date=None):
+    """Where new accounts and enrollments came from, by traffic source.
+
+    Source, medium and campaign are captured in the visitor's browser (UTM tags,
+    ad click IDs or the referring site) and stamped onto the User at signup and
+    onto each LMS Enrollment. See `lms/lms/traffic_source.py`.
+
+    A blank source is reported as "not tracked": the row predates tracking, or
+    was created by an admin, an import or a company seat assignment rather than
+    by the member in their own browser. "direct" means a real visit with no UTM
+    tags and no referring site.
+    """
+    _require_admin()
+    from_date, to_date = _date_window(from_date, to_date)
+    params = {"start": from_date, "end": to_date}
+
+    # GROUP BY is positional because MariaDB resolves a bare name against the
+    # table's columns before the SELECT aliases, and `traffic_source` is both.
+    signups = frappe.db.sql("""
+        SELECT
+            COALESCE(NULLIF(u.signup_traffic_source, ''), 'not tracked') AS traffic_source,
+            COALESCE(u.signup_traffic_medium, '') AS traffic_medium,
+            COALESCE(u.signup_traffic_campaign, '') AS traffic_campaign,
+            COUNT(*) AS signups
+        FROM `tabUser` u
+        WHERE DATE(u.creation) BETWEEN %(start)s AND %(end)s
+          AND u.name NOT IN ('Administrator', 'Guest')
+        GROUP BY 1, 2, 3
+    """, params, as_dict=True)
+
+    enrollments = frappe.db.sql("""
+        SELECT
+            COALESCE(NULLIF(e.traffic_source, ''), 'not tracked') AS traffic_source,
+            COALESCE(e.traffic_medium, '') AS traffic_medium,
+            COALESCE(e.traffic_campaign, '') AS traffic_campaign,
+            SUM(CASE WHEN c.course_type = 'Resource' THEN 0 ELSE 1 END) AS course_enrollments,
+            SUM(CASE WHEN c.course_type = 'Resource' THEN 1 ELSE 0 END) AS resource_claims
+        FROM `tabLMS Enrollment` e
+        JOIN `tabLMS Course` c ON c.name = e.course
+        WHERE DATE(e.creation) BETWEEN %(start)s AND %(end)s
+        GROUP BY 1, 2, 3
+    """, params, as_dict=True)
+
+    by_course = frappe.db.sql("""
+        SELECT
+            e.course,
+            c.title AS course_title,
+            COALESCE(NULLIF(e.traffic_source, ''), 'not tracked') AS traffic_source,
+            COALESCE(e.traffic_medium, '') AS traffic_medium,
+            COALESCE(e.traffic_campaign, '') AS traffic_campaign,
+            COUNT(*) AS enrollments
+        FROM `tabLMS Enrollment` e
+        JOIN `tabLMS Course` c ON c.name = e.course
+        WHERE DATE(e.creation) BETWEEN %(start)s AND %(end)s
+          AND (c.course_type IS NULL OR c.course_type != 'Resource')
+        GROUP BY 1, 2, 3, 4, 5
+        ORDER BY enrollments DESC, course_title ASC
+    """, params, as_dict=True)
+
+    sources = {}
+    for row in [*signups, *enrollments]:
+        key = (row.traffic_source, row.traffic_medium, row.traffic_campaign)
+        merged = sources.setdefault(key, {
+            "traffic_source": row.traffic_source,
+            "traffic_medium": row.traffic_medium,
+            "traffic_campaign": row.traffic_campaign,
+            "signups": 0,
+            "course_enrollments": 0,
+            "resource_claims": 0,
+        })
+        for metric in ("signups", "course_enrollments", "resource_claims"):
+            merged[metric] += cint(row.get(metric))
+
+    return {
+        "sources": sorted(
+            sources.values(),
+            key=lambda r: (r["course_enrollments"], r["signups"], r["resource_claims"]),
+            reverse=True,
+        ),
+        "by_course": by_course,
+        "from_date": str(from_date),
+        "to_date": str(to_date),
+    }
+
+
+@frappe.whitelist()
 def get_credit_allocation_report(period="monthly"):
     """CEU credit allocations from the ledger, by period.
 
