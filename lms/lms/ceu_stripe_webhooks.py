@@ -2,6 +2,8 @@ import frappe
 from frappe import _
 from frappe.utils import add_years, today, now_datetime
 
+from lms.lms.traffic_source import traffic_fields_from_metadata
+
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 def stripe_webhook():
@@ -82,6 +84,7 @@ def handle_checkout_completed(data):
             stripe_payment_intent_id=data.get("payment_intent"),
             amount_total=data.get("amount_total"),
             currency=data.get("currency"),
+            traffic=traffic_fields_from_metadata(metadata),
         )
     elif checkout_type == "event_one_off":
         _create_event_registration(
@@ -191,10 +194,14 @@ def _create_one_off_enrollment(
     stripe_payment_intent_id=None,
     amount_total=None,
     currency=None,
+    traffic=None,
 ):
     """Create an LMS Enrollment for a one-off purchase with ledger entry + billing receipt.
 
     Idempotent by stripe_session_id — Stripe may deliver the same event more than once.
+
+    `traffic` is the buyer's traffic-source fields, carried through Checkout
+    metadata because this request comes from Stripe, not from their browser.
     """
     if stripe_session_id and frappe.db.exists("LMS Payment", {"stripe_session_id": stripe_session_id}):
         return
@@ -233,6 +240,7 @@ def _create_one_off_enrollment(
         "course": course,
         "credit_source": "One-Off",
         "payment": payment.name,
+        **(traffic or {}),
     }).insert(ignore_permissions=True)
 
     # Best-effort confirmation/receipt email — the helper fails open so a mail
@@ -353,6 +361,9 @@ def _confirm_community_event_registration(
 
     from lms.lms.community_event import _send_confirmation_email
     _send_confirmation_email(registration)
+
+    from lms.lms.signup_webhook import queue_signup_webhook
+    queue_signup_webhook("Community Event Registration", registration)
 
 
 def _activate_subscription(plan, user, stripe_subscription_id, stripe_customer_id, company_name=None):

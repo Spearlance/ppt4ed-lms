@@ -1,0 +1,61 @@
+{#
+	Remembers where a visitor came from so signups and enrollments can be
+	attributed in Admin Reports > Sources. Included by the /c/, /r/ and /e/
+	landing pages and by the Vue app shell (frontend/index.html).
+
+	Read server-side by lms/lms/traffic_source.py. Keep the cookie name and the
+	source/medium/campaign/referrer keys in sync with that module.
+
+	A tagged link (utm_source, gclid, fbclid) always replaces the stored source.
+	A bare referrer only fills an empty slot, so coming back through a search
+	engine does not erase the campaign that first brought the visitor in. No
+	cookie at all means a direct visit.
+#}
+<script>
+(function () {
+	try {
+		var COOKIE = 'lms_traffic_src';
+		var MAX_AGE = 30 * 24 * 60 * 60;
+		// Hosts visitors bounce through mid-session. They are never the source.
+		var IGNORED = /(^|\.)stripe\.com$|^accounts\.google\.com$/;
+		var SEARCH = /^(google|bing|duckduckgo)\.[a-z.]+$|^search\.(yahoo)\.com$/;
+
+		var bare = function (host) { return (host || '').toLowerCase().replace(/^www\./, ''); };
+		var clean = function (value) { return (value || '').trim().toLowerCase().slice(0, 140); };
+
+		var params = new URLSearchParams(window.location.search);
+		var referrer = '';
+		try {
+			referrer = document.referrer ? bare(new URL(document.referrer).hostname) : '';
+		} catch (e) {}
+		if (referrer === bare(window.location.hostname) || IGNORED.test(referrer)) referrer = '';
+
+		var touch = null;
+		if (params.get('utm_source')) {
+			touch = { source: clean(params.get('utm_source')), medium: clean(params.get('utm_medium')) };
+		} else if (params.get('gclid')) {
+			touch = { source: 'google', medium: 'cpc' };
+		} else if (params.get('fbclid')) {
+			touch = { source: 'facebook', medium: 'social' };
+		}
+		var tagged = !!touch;
+
+		if (!touch && referrer) {
+			var engine = referrer.match(SEARCH);
+			touch = engine
+				? { source: engine[1] || engine[2], medium: 'organic' }
+				: { source: referrer, medium: 'referral' };
+		}
+		if (!touch || !touch.source) return;
+
+		var stored = document.cookie.split('; ').some(function (c) { return c.indexOf(COOKIE + '=') === 0; });
+		if (stored && !tagged) return;
+
+		touch.campaign = clean(params.get('utm_campaign'));
+		touch.referrer = referrer;
+		document.cookie = COOKIE + '=' + encodeURIComponent(JSON.stringify(touch)) +
+			'; path=/; max-age=' + MAX_AGE + '; SameSite=Lax' +
+			(window.location.protocol === 'https:' ? '; Secure' : '');
+	} catch (e) {}
+})();
+</script>

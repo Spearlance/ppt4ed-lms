@@ -3,6 +3,8 @@ from frappe import _
 from frappe.utils import getdate, nowdate
 import stripe
 
+from lms.lms.traffic_source import checkout_traffic_metadata
+
 
 def get_stripe():
     """Initialize Stripe with settings."""
@@ -67,7 +69,10 @@ def create_one_off_checkout(course_name):
         metadata={
             "type": "one_off",
             "course": course_name,
-            "user": user_email
+            "user": user_email,
+            # The webhook creates the enrollment and has no browser, so the
+            # buyer's traffic source rides along here.
+            **checkout_traffic_metadata(),
         },
         success_url=frappe.utils.get_url(f"/lms/courses/{course_name}?payment=success"),
         cancel_url=frappe.utils.get_url(f"/lms/courses/{course_name}?payment=cancelled")
