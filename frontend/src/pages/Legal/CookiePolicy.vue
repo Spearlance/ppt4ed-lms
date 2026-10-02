@@ -1,7 +1,7 @@
 <template>
 	<LegalPage
 		:title="__('Cookie Policy')"
-		:lastUpdated="__('May 1, 2026')"
+		:lastUpdated="__('October 2, 2026')"
 		routeName="CookiePolicy"
 	>
 		<p>
@@ -40,6 +40,18 @@
 				your sidebar is collapsed and which onboarding steps you have
 				completed. Stored in browser <code>localStorage</code>, not as a
 				traditional cookie.
+			</li>
+		</ul>
+
+		<h3>Signup source</h3>
+		<ul>
+			<li>
+				<strong>Traffic source</strong> (<code>lms_traffic_src</code>) —
+				remembers how you reached the platform, such as the campaign link
+				or website that referred you, for up to 30 days. We use it only to
+				see which of our own outreach leads to signups and enrollments. It
+				is not shared with third parties or used for advertising, and the
+				platform works normally if you block it.
 			</li>
 		</ul>
 

@@ -6,12 +6,29 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.utils import ceil, flt, nowdate
 
+from lms.lms.traffic_source import get_request_traffic_source, traffic_fields
+
 
 class LMSEnrollment(Document):
 	def before_insert(self):
 		self.validate_duplicate_enrollment()
 		self.validate_course_enrollment_eligibility()
 		self.validate_owner()
+		self.set_traffic_source()
+
+	def set_traffic_source(self):
+		"""Record which channel brought the member here, for Admin Reports > Sources.
+
+		Only when the member is enrolling themselves from their own browser. An
+		admin or a webhook acting on their behalf would stamp the wrong visitor,
+		so the Stripe webhook passes in the source captured at checkout instead.
+		"""
+		if self.get("traffic_source") or frappe.session.user != self.member:
+			return
+
+		traffic = get_request_traffic_source()
+		if traffic:
+			self.update(traffic_fields(traffic))
 
 	def validate_owner(self):
 		"""Makes the member as the owner of the document so that users can update their progress"""
