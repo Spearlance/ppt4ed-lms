@@ -362,6 +362,9 @@ def _confirm_community_event_registration(
     from lms.lms.community_event import _send_confirmation_email
     _send_confirmation_email(registration)
 
+    from lms.lms.signup_webhook import queue_signup_webhook
+    queue_signup_webhook("Community Event Registration", registration)
+
 
 def _activate_subscription(plan, user, stripe_subscription_id, stripe_customer_id, company_name=None):
     """Create or activate a CEU Membership."""
