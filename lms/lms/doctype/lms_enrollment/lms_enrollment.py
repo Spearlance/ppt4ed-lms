@@ -6,6 +6,7 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.utils import ceil, flt, nowdate
 
+from lms.lms.signup_webhook import queue_signup_webhook
 from lms.lms.traffic_source import get_request_traffic_source, traffic_fields
 
 
@@ -29,6 +30,12 @@ class LMSEnrollment(Document):
 		traffic = get_request_traffic_source()
 		if traffic:
 			self.update(traffic_fields(traffic))
+
+	def after_insert(self):
+		# Registering for an event enrolls the member in its courses. The event
+		# registration sends its own webhook, so those enrollments stay quiet.
+		if not self.enrollment_from_event:
+			queue_signup_webhook(self.doctype, self.name)
 
 	def validate_owner(self):
 		"""Makes the member as the owner of the document so that users can update their progress"""

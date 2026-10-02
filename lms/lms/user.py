@@ -4,6 +4,7 @@ from frappe.model.naming import append_number_if_name_exists
 from frappe.utils import escape_html, random_string
 from frappe.website.utils import cleanup_page_name, is_signup_disabled
 
+from lms.lms.signup_webhook import queue_signup_webhook
 from lms.lms.utils import get_country_code, get_lms_route
 
 
@@ -22,6 +23,7 @@ def validate_username_duplicates(doc, method):
 def after_insert(doc, method):
 	doc.add_roles("LMS Student")
 	_maybe_mint_ppt_employee_membership(doc)
+	queue_signup_webhook("User", doc.name)
 
 
 def _maybe_mint_ppt_employee_membership(doc):

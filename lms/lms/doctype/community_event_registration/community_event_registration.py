@@ -3,11 +3,19 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.utils import cint, now_datetime
 
+from lms.lms.signup_webhook import queue_signup_webhook
+
 
 class CommunityEventRegistration(Document):
 	def before_insert(self):
 		if not self.registered_on:
 			self.registered_on = now_datetime()
+
+	def after_insert(self):
+		# A registration that owes a donation is only real once Stripe confirms
+		# it, so the webhook for those is queued from the Stripe handler instead.
+		if self.payment_status == "Free":
+			queue_signup_webhook(self.doctype, self.name)
 
 	def validate(self):
 		self.attendee_count = len(self.attendees or [])

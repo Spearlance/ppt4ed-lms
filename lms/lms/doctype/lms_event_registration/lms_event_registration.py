@@ -8,6 +8,8 @@ from frappe import _
 from frappe.email.doctype.email_template.email_template import get_email_template
 from frappe.model.document import Document
 
+from lms.lms.signup_webhook import queue_signup_webhook
+
 
 def _moderator_roles():
 	"""Lazy import — lms.lms.utils imports from sibling doctype modules
@@ -23,6 +25,7 @@ class LMSEventRegistration(Document):
 	def after_insert(self):
 		send_confirmation_email(self)
 		self.add_member_to_live_class()
+		queue_signup_webhook(self.doctype, self.name)
 
 	def validate(self):
 		self.validate_owner()
