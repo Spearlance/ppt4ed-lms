@@ -199,6 +199,11 @@ const routes = [
 		component: () => import('@/pages/MyCredits.vue'),
 	},
 	{
+		path: '/upsell',
+		name: 'UpsellOffer',
+		component: () => import('@/pages/UpsellOffer.vue'),
+	},
+	{
 		path: '/company-dashboard',
 		name: 'CompanyDashboard',
 		component: () => import('@/pages/CompanyDashboard.vue'),

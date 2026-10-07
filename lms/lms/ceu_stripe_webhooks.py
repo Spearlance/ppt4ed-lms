@@ -1,6 +1,6 @@
 import frappe
 from frappe import _
-from frappe.utils import add_years, today, now_datetime
+from frappe.utils import add_years, cint, today, now_datetime
 
 from lms.lms.traffic_source import traffic_fields_from_metadata
 
@@ -47,6 +47,7 @@ def stripe_webhook():
         "customer.subscription.updated": handle_subscription_updated,
         "customer.subscription.deleted": handle_subscription_deleted,
         "invoice.payment_failed": handle_payment_failed,
+        "payment_intent.succeeded": handle_payment_intent_succeeded,
     }
 
     handler = handlers.get(event_type)
@@ -77,15 +78,7 @@ def handle_checkout_completed(data):
     checkout_type = metadata.get("type")
 
     if checkout_type == "one_off":
-        _create_one_off_enrollment(
-            course=metadata.get("course"),
-            user=metadata.get("user"),
-            stripe_session_id=data.get("id"),
-            stripe_payment_intent_id=data.get("payment_intent"),
-            amount_total=data.get("amount_total"),
-            currency=data.get("currency"),
-            traffic=traffic_fields_from_metadata(metadata),
-        )
+        _handle_one_off_checkout(data, metadata)
     elif checkout_type == "event_one_off":
         _create_event_registration(
             event=metadata.get("event"),
@@ -110,6 +103,109 @@ def handle_checkout_completed(data):
             stripe_subscription_id=data.get("subscription"),
             stripe_customer_id=data.get("customer"),
             company_name=metadata.get("company_name")
+        )
+
+
+def _handle_one_off_checkout(data, metadata):
+    """One-off course purchase, plus the order-bump course when one was added.
+
+    The bump's price rides in metadata (`upsell_cents`) because the server set
+    it, so the split needs no extra Stripe call and is stable across replays.
+    A fallback Checkout for a post-purchase offer (saved card declined) also
+    arrives here, flagged `is_upsell` so the payment reports as an upsell.
+    """
+    from lms.lms import ceu_upsell
+
+    session_id = data.get("id")
+    payment_intent_id = data.get("payment_intent")
+    amount_total = cint(data.get("amount_total"))
+    upsell_course = metadata.get("upsell_course")
+    upsell_cents = cint(metadata.get("upsell_cents")) if upsell_course else 0
+    is_upsell = cint(metadata.get("is_upsell"))
+    parent_session = metadata.get("parent_session")
+
+    common = {
+        "user": metadata.get("user"),
+        "stripe_session_id": session_id,
+        "stripe_payment_intent_id": payment_intent_id,
+        "currency": data.get("currency"),
+        "traffic": traffic_fields_from_metadata(metadata),
+    }
+
+    main_payment = _create_one_off_enrollment(
+        course=metadata.get("course"),
+        amount_total=max(amount_total - upsell_cents, 0),
+        is_upsell=is_upsell,
+        upsell_type=metadata.get("upsell_type") if is_upsell else None,
+        parent_session_id=parent_session if is_upsell else None,
+        **common,
+    )
+    if is_upsell and parent_session:
+        ceu_upsell.mark_offer_paid(
+            parent_session,
+            metadata.get("upsell_type") or ceu_upsell.POST_PURCHASE,
+            payment_name=main_payment,
+            payment_intent_id=payment_intent_id,
+        )
+
+    if upsell_course:
+        bump_payment = _create_one_off_enrollment(
+            course=upsell_course,
+            amount_total=upsell_cents,
+            is_upsell=1,
+            upsell_type=ceu_upsell.ORDER_BUMP,
+            parent_session_id=session_id,
+            **common,
+        )
+        ceu_upsell.mark_offer_paid(
+            session_id,
+            ceu_upsell.ORDER_BUMP,
+            payment_name=bump_payment,
+            payment_intent_id=payment_intent_id,
+        )
+
+
+def handle_payment_intent_succeeded(data):
+    """Backup path for the one-click post-purchase upsell.
+
+    `accept_upsell` enrolls inside the buyer's request; this catches the case
+    where that request died after Stripe had already charged. Every other
+    PaymentIntent (Checkout, subscriptions) is ignored here because those
+    flows have their own events.
+    """
+    metadata = data.get("metadata") or {}
+    if metadata.get("type") != "upsell":
+        return
+
+    from lms.lms import ceu_upsell
+
+    parent_session = metadata.get("parent_session")
+    if parent_session:
+        # Wait for an in-flight accept_upsell (it holds this row FOR UPDATE)
+        # so the enrollment check below sees its result, not a race.
+        frappe.db.get_value(
+            "LMS Upsell Offer",
+            ceu_upsell.offer_key(parent_session, ceu_upsell.POST_PURCHASE),
+            "status",
+            for_update=True,
+        )
+
+    payment_name = _create_one_off_enrollment(
+        course=metadata.get("course"),
+        user=metadata.get("user"),
+        stripe_payment_intent_id=data.get("id"),
+        amount_total=data.get("amount_received") or data.get("amount"),
+        currency=data.get("currency"),
+        is_upsell=1,
+        upsell_type=ceu_upsell.POST_PURCHASE,
+        parent_session_id=parent_session,
+    )
+    if parent_session:
+        ceu_upsell.mark_offer_paid(
+            parent_session,
+            ceu_upsell.POST_PURCHASE,
+            payment_name=payment_name,
+            payment_intent_id=data.get("id"),
         )
 
 
@@ -195,18 +291,32 @@ def _create_one_off_enrollment(
     amount_total=None,
     currency=None,
     traffic=None,
+    is_upsell=0,
+    upsell_type=None,
+    parent_session_id=None,
 ):
     """Create an LMS Enrollment for a one-off purchase with ledger entry + billing receipt.
 
-    Idempotent by stripe_session_id — Stripe may deliver the same event more than once.
+    Idempotent by (checkout session, course), or by (payment intent, course)
+    when there is no session (one-click upsell). Stripe may deliver the same
+    event more than once, and an order bump puts two courses on one session.
 
     `traffic` is the buyer's traffic-source fields, carried through Checkout
     metadata because this request comes from Stripe, not from their browser.
+
+    Returns the LMS Payment name, or None when nothing new was created.
     """
-    if stripe_session_id and frappe.db.exists("LMS Payment", {"stripe_session_id": stripe_session_id}):
-        return
+    if stripe_session_id and frappe.db.exists(
+        "LMS Payment", {"stripe_session_id": stripe_session_id, "payment_for_document": course}
+    ):
+        return None
+    if not stripe_session_id and stripe_payment_intent_id and frappe.db.exists(
+        "LMS Payment",
+        {"stripe_payment_intent_id": stripe_payment_intent_id, "payment_for_document": course},
+    ):
+        return None
     if frappe.db.exists("LMS Enrollment", {"course": course, "member": user}):
-        return
+        return None
 
     frappe.get_doc({
         "doctype": "CEU Credit Ledger",
@@ -232,6 +342,9 @@ def _create_one_off_enrollment(
         "payment_received": 1,
         "stripe_session_id": stripe_session_id,
         "stripe_payment_intent_id": stripe_payment_intent_id,
+        "is_upsell": cint(is_upsell),
+        "upsell_type": upsell_type if is_upsell else None,
+        "parent_session_id": parent_session_id if is_upsell else None,
     }).insert(ignore_permissions=True)
 
     frappe.get_doc({
@@ -254,6 +367,8 @@ def _create_one_off_enrollment(
         currency=(currency or "usd").upper(),
         payment_reference=payment.name,
     )
+
+    return payment.name
 
 
 def _create_event_registration(

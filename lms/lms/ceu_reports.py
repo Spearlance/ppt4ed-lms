@@ -646,3 +646,121 @@ def get_discipline_demand_report():
     """, as_dict=True)
 
     return demand
+
+
+@frappe.whitelist()
+def get_upsell_report(from_date=None, to_date=None):
+    """Order bumps and post-purchase offers: how often shown, taken, and earned.
+
+    Offers come from `LMS Upsell Offer` (one row per offer per purchase). Money
+    comes from `LMS Payment` rows flagged `is_upsell`. Average order value
+    groups one-off course payments by the Checkout Session they started from,
+    so an add-on counts toward the same order as the course it rode on.
+    "Offered" for an order bump means the buyer clicked Buy with the add-on
+    visible; for a post-purchase offer it means the offer page loaded.
+    """
+    _require_admin()
+    from_date, to_date = _date_window(from_date, to_date)
+    params = {"start": from_date, "end": to_date}
+
+    by_type = frappe.db.sql("""
+        SELECT
+            upsell_type,
+            COUNT(*) AS offered,
+            SUM(status = 'Paid') AS paid,
+            SUM(status = 'Declined') AS declined,
+            SUM(status IN ('Checkout', 'Failed')) AS fell_back,
+            COALESCE(SUM(CASE WHEN status = 'Paid' THEN offer_price ELSE 0 END), 0) AS revenue
+        FROM `tabLMS Upsell Offer`
+        WHERE DATE(creation) BETWEEN %(start)s AND %(end)s
+        GROUP BY upsell_type
+        ORDER BY upsell_type
+    """, params, as_dict=True)
+    for row in by_type:
+        row["conversion_pct"] = round(flt(row.paid) * 100 / row.offered, 1) if row.offered else 0
+
+    by_course = frappe.db.sql("""
+        SELECT
+            o.upsell_course,
+            c.title AS upsell_title,
+            o.original_course,
+            oc.title AS original_title,
+            COUNT(*) AS offered,
+            SUM(o.status = 'Paid') AS paid,
+            COALESCE(SUM(CASE WHEN o.status = 'Paid' THEN o.offer_price ELSE 0 END), 0) AS revenue
+        FROM `tabLMS Upsell Offer` o
+        LEFT JOIN `tabLMS Course` c ON c.name = o.upsell_course
+        LEFT JOIN `tabLMS Course` oc ON oc.name = o.original_course
+        WHERE DATE(o.creation) BETWEEN %(start)s AND %(end)s
+        GROUP BY 1, 2, 3, 4
+        ORDER BY revenue DESC, offered DESC
+    """, params, as_dict=True)
+    for row in by_course:
+        row["conversion_pct"] = round(flt(row.paid) * 100 / row.offered, 1) if row.offered else 0
+
+    # One order = one Checkout Session. Bumps share the session; post-purchase
+    # add-ons point back at it through parent_session_id.
+    orders = frappe.db.sql("""
+        SELECT
+            COUNT(DISTINCT COALESCE(
+                NULLIF(parent_session_id, ''),
+                NULLIF(stripe_session_id, ''),
+                NULLIF(stripe_payment_intent_id, ''),
+                name
+            )) AS orders,
+            COALESCE(SUM(amount), 0) AS revenue,
+            COALESCE(SUM(CASE WHEN is_upsell = 1 THEN amount ELSE 0 END), 0) AS upsell_revenue,
+            SUM(is_upsell = 1) AS upsell_payments
+        FROM `tabLMS Payment`
+        WHERE payment_for_document_type = 'LMS Course'
+          AND payment_received = 1
+          AND (
+            COALESCE(stripe_session_id, '') != ''
+            OR COALESCE(stripe_payment_intent_id, '') != ''
+          )
+          AND DATE(creation) BETWEEN %(start)s AND %(end)s
+    """, params, as_dict=True)[0]
+
+    order_count = cint(orders.orders)
+    revenue = flt(orders.revenue)
+    summary = {
+        "orders": order_count,
+        "revenue": revenue,
+        "upsell_revenue": flt(orders.upsell_revenue),
+        "upsell_payments": cint(orders.upsell_payments),
+        "average_order_value": round(revenue / order_count, 2) if order_count else 0,
+        "upsell_share_pct": round(flt(orders.upsell_revenue) * 100 / revenue, 1) if revenue else 0,
+    }
+
+    recent = frappe.db.sql("""
+        SELECT
+            o.name,
+            o.creation,
+            o.upsell_type,
+            o.status,
+            o.member,
+            u.full_name AS member_name,
+            o.original_course,
+            oc.title AS original_title,
+            o.upsell_course,
+            c.title AS upsell_title,
+            o.list_price,
+            o.offer_price,
+            o.error
+        FROM `tabLMS Upsell Offer` o
+        LEFT JOIN `tabUser` u ON u.name = o.member
+        LEFT JOIN `tabLMS Course` c ON c.name = o.upsell_course
+        LEFT JOIN `tabLMS Course` oc ON oc.name = o.original_course
+        WHERE DATE(o.creation) BETWEEN %(start)s AND %(end)s
+        ORDER BY o.creation DESC
+        LIMIT 200
+    """, params, as_dict=True)
+
+    return {
+        "from_date": from_date,
+        "to_date": to_date,
+        "summary": summary,
+        "by_type": by_type,
+        "by_course": by_course,
+        "recent": recent,
+    }

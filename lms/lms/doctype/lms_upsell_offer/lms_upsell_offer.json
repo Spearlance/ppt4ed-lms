@@ -1,0 +1,187 @@
+{
+ "actions": [],
+ "autoname": "field:offer_key",
+ "creation": "2026-10-07 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "offer_key",
+  "upsell_type",
+  "status",
+  "member",
+  "column_break_main",
+  "original_course",
+  "upsell_course",
+  "parent_session_id",
+  "pricing_section",
+  "list_price",
+  "offer_price",
+  "discount_pct",
+  "column_break_pricing",
+  "currency",
+  "stripe_section",
+  "stripe_payment_intent_id",
+  "fallback_session_id",
+  "payment",
+  "error"
+ ],
+ "fields": [
+  {
+   "fieldname": "offer_key",
+   "fieldtype": "Data",
+   "label": "Offer Key",
+   "read_only": 1,
+   "reqd": 1,
+   "unique": 1,
+   "description": "Checkout session id plus the offer type. One row per offer per purchase; the primary key is the double-charge lock."
+  },
+  {
+   "fieldname": "upsell_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Upsell Type",
+   "options": "Order Bump\nPost Purchase",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "default": "Offered",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Offered\nDeclined\nAccepted\nCharging\nPaid\nCheckout\nFailed"
+  },
+  {
+   "fieldname": "member",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Member",
+   "options": "User",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_main",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "original_course",
+   "fieldtype": "Link",
+   "label": "Original Course",
+   "options": "LMS Course",
+   "read_only": 1
+  },
+  {
+   "fieldname": "upsell_course",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Upsell Course",
+   "options": "LMS Course",
+   "read_only": 1
+  },
+  {
+   "fieldname": "parent_session_id",
+   "fieldtype": "Data",
+   "label": "Parent Checkout Session ID",
+   "read_only": 1
+  },
+  {
+   "fieldname": "pricing_section",
+   "fieldtype": "Section Break",
+   "label": "Pricing"
+  },
+  {
+   "fieldname": "list_price",
+   "fieldtype": "Currency",
+   "label": "List Price",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "offer_price",
+   "fieldtype": "Currency",
+   "label": "Offer Price",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "discount_pct",
+   "fieldtype": "Int",
+   "label": "Discount %",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_pricing",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "USD",
+   "fieldname": "currency",
+   "fieldtype": "Link",
+   "label": "Currency",
+   "options": "Currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "stripe_section",
+   "fieldtype": "Section Break",
+   "label": "Stripe"
+  },
+  {
+   "fieldname": "stripe_payment_intent_id",
+   "fieldtype": "Data",
+   "label": "Stripe Payment Intent ID",
+   "read_only": 1
+  },
+  {
+   "fieldname": "fallback_session_id",
+   "fieldtype": "Data",
+   "label": "Fallback Checkout Session ID",
+   "read_only": 1,
+   "description": "Set when the saved card could not be charged off-session and the buyer was sent to a normal Checkout instead."
+  },
+  {
+   "fieldname": "payment",
+   "fieldtype": "Link",
+   "label": "Payment",
+   "options": "LMS Payment",
+   "read_only": 1
+  },
+  {
+   "fieldname": "error",
+   "fieldtype": "Small Text",
+   "label": "Error",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-10-07 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "LMS",
+ "name": "LMS Upsell Offer",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "export": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager"
+  },
+  {
+   "export": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Global Admin"
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
