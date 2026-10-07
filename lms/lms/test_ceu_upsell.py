@@ -57,8 +57,11 @@ class TestUpsellSelection(UnitTestCase):
 	def test_price_is_rounded_to_cents_and_never_negative(self):
 		self.assertEqual(ceu_upsell.upsell_price_cents(49.0, 50), 2450)
 		self.assertEqual(ceu_upsell.upsell_price_cents(19.99, 50), 1000)
+		self.assertEqual(ceu_upsell.upsell_price_cents(29.99, 50), 1500)
 		self.assertEqual(ceu_upsell.upsell_price_cents(10, 0), 1000)
 		self.assertEqual(ceu_upsell.upsell_price_cents(10, 100), 0)
+		self.assertEqual(ceu_upsell.upsell_price_cents(10, 150), 0)
+		self.assertEqual(ceu_upsell.upsell_price_cents(None, 50), 0)
 
 	def test_get_upsell_course_returns_none_for_staff(self):
 		with patch("lms.lms.api._is_ppt_employee_email", return_value=True), \
@@ -266,8 +269,11 @@ class TestWebhookUpsells(UnitTestCase):
 			# Course "a" was already paid for on this session; "b" was not.
 			return doctype == "LMS Payment" and filters.get("payment_for_document") == "a"
 
+		# now_datetime() reads System Settings through frappe.get_doc, which is
+		# mocked here, so stub it too or the mock gets pickled into the cache.
 		with patch("lms.lms.ceu_stripe_webhooks.frappe.db.exists", side_effect=exists), \
 			patch("lms.lms.ceu_stripe_webhooks.frappe.get_doc") as get_doc, \
+			patch("lms.lms.ceu_stripe_webhooks.now_datetime", return_value="2026-10-07 00:00:00"), \
 			patch("lms.lms.ceu_stripe_webhooks.frappe.db.get_value", return_value="Test User"), \
 			patch("lms.lms.ceu_enrollment.send_enrollment_confirmation_email"):
 			get_doc.return_value.insert.return_value = get_doc.return_value
