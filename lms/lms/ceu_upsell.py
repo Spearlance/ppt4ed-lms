@@ -18,6 +18,8 @@ price. Every offer is recorded as an `LMS Upsell Offer` row, which doubles as
 the lock that prevents a double charge on the post-purchase offer.
 """
 
+from decimal import ROUND_HALF_UP, Decimal
+
 import frappe
 import stripe
 from frappe import _
@@ -55,9 +57,15 @@ def get_upsell_settings() -> dict:
 
 
 def upsell_price_cents(amount_usd, discount_pct) -> int:
-	"""Discounted price in cents. Rounded to the cent, never negative."""
-	cents = flt(amount_usd) * 100 * (1 - cint(discount_pct) / 100)
-	return max(0, int(round(cents)))
+	"""Discounted price in cents, rounded half-up to the cent, never negative.
+
+	Decimal, not float: 19.99 * 100 * 0.5 is 999.49999... in binary floating
+	point and would round to 999 instead of 1000.
+	"""
+	list_cents = (Decimal(str(flt(amount_usd))) * 100).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+	pct = max(0, min(100, cint(discount_pct)))
+	cents = (list_cents * (100 - pct) / 100).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+	return max(0, int(cents))
 
 
 def get_upsell_course(course_name, user, discount_pct=None, exclude=None):
