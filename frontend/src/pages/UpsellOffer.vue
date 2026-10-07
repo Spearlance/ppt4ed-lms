@@ -90,7 +90,11 @@
 							{{ __('Add to my courses') }}
 						</Button>
 						<Button variant="subtle" size="md" :disabled="accepting" @click="decline">
-							{{ __('No thanks, take me to my course') }}
+							{{
+								isEvent
+									? __('No thanks, take me to my event')
+									: __('No thanks, take me to my course')
+							}}
 						</Button>
 					</div>
 					<p class="mt-3 text-xs text-ink-gray-5">
@@ -100,7 +104,7 @@
 
 				<div v-else class="mt-8 text-center">
 					<Button variant="solid" size="md" @click="goToOriginal">
-						{{ __('Go to my course') }}
+						{{ isEvent ? __('Go to my event') : __('Go to my course') }}
 					</Button>
 				</div>
 			</template>
@@ -109,7 +113,7 @@
 </template>
 
 <script setup>
-import { onBeforeUnmount, ref } from 'vue'
+import { computed, onBeforeUnmount, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Breadcrumbs, Button, call, createResource, toast, usePageMeta } from 'frappe-ui'
 import { CircleCheck } from 'lucide-vue-next'
@@ -172,7 +176,19 @@ function goToCourse(course) {
 	})
 }
 
+// Event purchases put the event name in original_course; original_type says which.
+const isEvent = computed(() => offer.data?.original_type === 'event')
+
 function goToOriginal() {
+	if (isEvent.value) {
+		stopPolling()
+		router.push({
+			name: 'EventDetail',
+			params: { eventName: offer.data.original_course },
+			query: { payment: 'success' },
+		})
+		return
+	}
 	goToCourse(offer.data.original_course)
 }
 

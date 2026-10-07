@@ -162,11 +162,15 @@ def create_one_off_checkout(course_name, add_upsell=0):
 
 
 @frappe.whitelist()
-def create_event_checkout(event_name):
+def create_event_checkout(event_name, add_upsell=0):
     """Create a Stripe Checkout session for a paid event registration.
 
     Price and buyer identity are derived server-side. Never trust client input
     for either — that would let anyone pay $0.01 for any event.
+
+    Upsells work as they do for courses (see lms/lms/ceu_upsell.py): the
+    event's Related Courses supply the add-on course, `add_upsell` is only the
+    order-bump checkbox, and with both upsell flags off nothing changes.
     """
     if frappe.session.user == "Guest":
         frappe.throw(_("You must be logged in to register for an event"), frappe.AuthenticationError)
@@ -226,27 +230,98 @@ def create_event_checkout(event_name):
             else "Early Bird"
         )
 
-    s = get_stripe()
-    session = s.checkout.Session.create(
-        mode="payment",
-        customer_email=user_email,
-        line_items=[{
-            "price_data": {
-                "currency": "usd",
-                "unit_amount": unit_amount_cents,
-                "product_data": product_data,
-            },
-            "quantity": 1
-        }],
-        metadata={
-            "type": "event_one_off",
-            "event": event_name,
-            "user": user_email,
-            "early_bird": "1" if is_early_bird else "0",
+    line_items = [{
+        "price_data": {
+            "currency": "usd",
+            "unit_amount": unit_amount_cents,
+            "product_data": product_data,
         },
-        success_url=frappe.utils.get_url(f"/lms/events/{event_name}?payment=success"),
-        cancel_url=frappe.utils.get_url(f"/lms/events/{event_name}?payment=cancelled")
-    )
+        "quantity": 1
+    }]
+    metadata = {
+        "type": "event_one_off",
+        "event": event_name,
+        "user": user_email,
+        "early_bird": "1" if is_early_bird else "0",
+    }
+    success_url = frappe.utils.get_url(f"/lms/events/{event_name}?payment=success")
+    buyer = {"customer_email": user_email}
+
+    from lms.lms import ceu_upsell
+    settings = ceu_upsell.get_upsell_settings()
+    upsell_course = None
+    if settings["order_bump"] or settings["post_purchase"]:
+        upsell_course = ceu_upsell.get_upsell_course(
+            event_name, user_email, settings["discount_pct"], parenttype="LMS Event"
+        )
+
+    s = get_stripe()
+
+    # Order bump: the add-on course rides on the same Checkout. The webhook
+    # splits the total with the server-set `upsell_cents`.
+    bump_offer = None
+    bump_taken = False
+    if upsell_course and settings["order_bump"]:
+        bump_offer = ceu_upsell.describe_offer(upsell_course, settings["discount_pct"])
+        if cint(add_upsell):
+            bump_taken = True
+            bump_product = {
+                "name": f"{bump_offer['title']} (add-on, {bump_offer['discount_pct']}% off)",
+                "metadata": {"course": upsell_course},
+            }
+            if bump_offer.get("ceu_hours"):
+                bump_product["description"] = f"{bump_offer['ceu_hours']} CEU Hours"
+            line_items.append({
+                "price_data": {
+                    "currency": "usd",
+                    "unit_amount": bump_offer["offer_price_cents"],
+                    "product_data": bump_product,
+                },
+                "quantity": 1
+            })
+            metadata["upsell_course"] = upsell_course
+            metadata["upsell_cents"] = str(bump_offer["offer_price_cents"])
+
+    # Post-purchase: save the card so /lms/upsell can add the course in one click.
+    save_card = bool(upsell_course and settings["post_purchase"] and not bump_taken)
+    if save_card:
+        buyer = {
+            "customer": ceu_upsell.find_or_create_customer(s, user_email),
+            "payment_intent_data": {"setup_future_usage": "off_session"},
+            "custom_text": {"submit": {"message": ceu_upsell.SAVE_CARD_CONSENT}},
+        }
+        success_url = frappe.utils.get_url("/lms/upsell?session_id={CHECKOUT_SESSION_ID}")
+
+    def _create_session():
+        return s.checkout.Session.create(
+            mode="payment",
+            line_items=line_items,
+            metadata=metadata,
+            success_url=success_url,
+            cancel_url=frappe.utils.get_url(f"/lms/events/{event_name}?payment=cancelled"),
+            **buyer,
+        )
+
+    try:
+        session = _create_session()
+    except stripe.error.InvalidRequestError as e:
+        if not (save_card and ceu_upsell.is_missing_customer_error(e)):
+            raise
+        # Stored customer is from the other Stripe mode or was deleted.
+        ceu_upsell.reset_customer(user_email)
+        buyer["customer"] = ceu_upsell.find_or_create_customer(s, user_email)
+        session = _create_session()
+
+    if bump_offer:
+        ceu_upsell.record_offer(
+            session.id,
+            ceu_upsell.ORDER_BUMP,
+            user_email,
+            None,
+            bump_offer,
+            status="Accepted" if bump_taken else "Declined",
+            original_event=event_name,
+        )
 
     return {"url": session.url, "session_id": session.id}
 

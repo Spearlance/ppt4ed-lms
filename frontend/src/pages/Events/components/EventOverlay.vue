@@ -120,6 +120,39 @@
 			</div>
 
 			<div v-if="!readOnlyMode && !isStudent && !isInstructorOfThisEvent">
+				<div
+					v-if="
+						orderBump.data &&
+						!isPptEmployee &&
+						batch.data.paid_event &&
+						batch.data.seats_left > 0 &&
+						batch.data.accept_enrollments
+					"
+					class="mt-4 rounded-md border border-dashed border-outline-gray-3 bg-surface-gray-1 p-3"
+					data-testid="event-order-bump"
+				>
+					<FormControl
+						type="checkbox"
+						v-model="addUpsell"
+						:label="
+							__('Add {0} for {1}').format(
+								orderBump.data.title,
+								formatUsd(orderBump.data.offer_price_usd)
+							)
+						"
+					/>
+					<div class="mt-1 pl-6 text-xs text-ink-gray-5">
+						{{
+							__('{0}% off the regular {1}').format(
+								orderBump.data.discount_pct,
+								formatUsd(orderBump.data.list_price_usd)
+							)
+						}}
+						<template v-if="orderBump.data.ceu_hours">
+							· {{ orderBump.data.ceu_hours }} {{ __('CEU Hours') }}
+						</template>
+					</div>
+				</div>
 				<Button
 					v-if="
 						batch.data.paid_event &&
@@ -216,8 +249,8 @@
 	</div>
 </template>
 <script setup>
-import { inject, computed, ref } from 'vue'
-import { Badge, Button, call, createResource, toast } from 'frappe-ui'
+import { inject, computed, onMounted, ref } from 'vue'
+import { Badge, Button, FormControl, call, createResource, toast } from 'frappe-ui'
 import { useTelemetry } from 'frappe-ui/frappe'
 import {
 	Award,
@@ -269,6 +302,27 @@ const enroll = createResource({
 	},
 })
 
+// Order bump: the server picks the add-on course (the event's first eligible
+// Related Course) and its price. The checkbox only sends "yes, add it".
+const addUpsell = ref(false)
+const orderBump = createResource({
+	url: 'lms.lms.ceu_upsell.get_event_order_bump',
+	makeParams: () => ({ event_name: props.batch.data.name }),
+})
+
+onMounted(() => {
+	if (
+		user.data &&
+		props.batch?.data?.paid_event &&
+		!user.data.is_moderator &&
+		user.data.membership_type !== 'ppt_employee'
+	) {
+		orderBump.fetch()
+	}
+})
+
+const formatUsd = (value) => `$${Number(value || 0).toFixed(2)}`
+
 async function purchaseEvent() {
 	if (!user.data) {
 		openRegisterFor('paid')
@@ -278,9 +332,15 @@ async function purchaseEvent() {
 	try {
 		const result = await call(
 			'lms.lms.ceu_stripe.create_event_checkout',
-			{ event_name: props.batch.data.name }
+			{
+				event_name: props.batch.data.name,
+				add_upsell: addUpsell.value ? 1 : 0,
+			}
 		)
-		capture('stripe_event_checkout_started', { event: props.batch.data.name })
+		capture('stripe_event_checkout_started', {
+			event: props.batch.data.name,
+			order_bump: addUpsell.value,
+		})
 		window.location.href = result.url
 	} catch (err) {
 		purchasing.value = false

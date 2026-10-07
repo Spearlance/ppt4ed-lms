@@ -11,6 +11,7 @@
   "member",
   "column_break_main",
   "original_course",
+  "original_event",
   "upsell_course",
   "parent_session_id",
   "pricing_section",
@@ -74,6 +75,12 @@
    "label": "Original Course",
    "options": "LMS Course",
    "read_only": 1
+  },
+  {
+   "fieldname": "original_event",
+   "fieldtype": "Link",
+   "label": "Original Event",
+   "options": "LMS Event"
   },
   {
    "fieldname": "upsell_course",
@@ -160,7 +167,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-10-07 00:00:00.000000",
+ "modified": "2026-10-07 20:00:00.000000",
  "modified_by": "Administrator",
  "module": "LMS",
  "name": "LMS Upsell Offer",

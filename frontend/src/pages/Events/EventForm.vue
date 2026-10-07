@@ -332,6 +332,28 @@
 							/>
 						</div>
 					</div>
+					<div
+						v-if="batchDetail.doc.paid_event"
+						class="border-t pt-4 mt-2"
+					>
+						<div class="text-sm font-semibold text-ink-gray-9 mb-1">
+							{{ __('Upsell Course') }}
+						</div>
+						<div class="text-xs text-ink-gray-6 mb-3">
+							{{
+								__(
+									'Offered to people registering for this event at the upsell discount. If you add more than one, the first course they do not already own is offered.'
+								)
+							}}
+						</div>
+						<div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+							<MultiSelect
+								v-model="relatedCourses"
+								doctype="LMS Course"
+								:label="__('Related Courses')"
+							/>
+						</div>
+					</div>
 				</div>
 
 				<div class="px-5 pb-5 space-y-5">
@@ -417,6 +439,7 @@ const router = useRouter()
 const user = inject('$user')
 const instructors = ref([])
 const categories = ref([])
+const relatedCourses = ref([])
 const eventDays = ref([])
 const app = getCurrentInstance()
 
@@ -531,6 +554,10 @@ const updateBatchData = () => {
 			batchDetail.doc.instructors.forEach((instructor) => {
 				instructors.value.push(instructor.instructor)
 			})
+		} else if (key == 'related_courses') {
+			relatedCourses.value = (batchDetail.doc.related_courses || []).map(
+				(row) => row.course
+			)
 		} else if (key == 'categories') {
 			categories.value = (batchDetail.doc.categories || []).map(
 				(row) => row.category
@@ -595,6 +622,7 @@ const updateEvent = () => {
 			instructor: instructor,
 		})),
 		categories: categories.value.map((category) => ({ category })),
+		related_courses: relatedCourses.value.map((course) => ({ course })),
 		event_days: eventDays.value.map((day) => ({
 			date: day.date,
 			start_time: day.start_time,

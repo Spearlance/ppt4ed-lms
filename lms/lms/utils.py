@@ -2601,7 +2601,7 @@ def get_related_courses(course: str) -> list:
 		return []
 
 	related_course_details = []
-	related_courses = frappe.get_all("Related Courses", {"parent": course}, order_by="idx", pluck="course")
+	related_courses = frappe.get_all("Related Courses", {"parent": course, "parenttype": "LMS Course"}, order_by="idx", pluck="course")
 
 	for related_course in related_courses:
 		related_course_details.append(get_course_details(related_course))

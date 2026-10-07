@@ -683,14 +683,15 @@ def get_upsell_report(from_date=None, to_date=None):
         SELECT
             o.upsell_course,
             c.title AS upsell_title,
-            o.original_course,
-            oc.title AS original_title,
+            COALESCE(o.original_course, o.original_event) AS original_course,
+            COALESCE(oc.title, oe.title) AS original_title,
             COUNT(*) AS offered,
             SUM(o.status = 'Paid') AS paid,
             COALESCE(SUM(CASE WHEN o.status = 'Paid' THEN o.offer_price ELSE 0 END), 0) AS revenue
         FROM `tabLMS Upsell Offer` o
         LEFT JOIN `tabLMS Course` c ON c.name = o.upsell_course
         LEFT JOIN `tabLMS Course` oc ON oc.name = o.original_course
+        LEFT JOIN `tabLMS Event` oe ON oe.name = o.original_event
         WHERE DATE(o.creation) BETWEEN %(start)s AND %(end)s
         GROUP BY 1, 2, 3, 4
         ORDER BY revenue DESC, offered DESC
@@ -740,8 +741,8 @@ def get_upsell_report(from_date=None, to_date=None):
             o.status,
             o.member,
             u.full_name AS member_name,
-            o.original_course,
-            oc.title AS original_title,
+            COALESCE(o.original_course, o.original_event) AS original_course,
+            COALESCE(oc.title, oe.title) AS original_title,
             o.upsell_course,
             c.title AS upsell_title,
             o.list_price,
@@ -751,6 +752,7 @@ def get_upsell_report(from_date=None, to_date=None):
         LEFT JOIN `tabUser` u ON u.name = o.member
         LEFT JOIN `tabLMS Course` c ON c.name = o.upsell_course
         LEFT JOIN `tabLMS Course` oc ON oc.name = o.original_course
+        LEFT JOIN `tabLMS Event` oe ON oe.name = o.original_event
         WHERE DATE(o.creation) BETWEEN %(start)s AND %(end)s
         ORDER BY o.creation DESC
         LIMIT 200
