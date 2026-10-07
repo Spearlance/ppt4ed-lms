@@ -98,12 +98,21 @@ async function expectEnrolled(page: Page, course: string) {
 		.poll(
 			async () => {
 				await page.goto(`/lms/courses/${course}`)
+				// The SPA fetches course data after load; wait for either CTA
+				// before deciding, or an unlucky early check reads false forever.
+				const anyCta = page
+					.getByRole('button', { name: /Continue Learning|Buy this course/ })
+					.filter({ visible: true })
+					.first()
+				await anyCta.waitFor({ state: 'visible', timeout: 10000 }).catch(() => {})
 				return page
 					.getByRole('button', { name: 'Continue Learning' })
+					.filter({ visible: true })
+					.first()
 					.isVisible()
 					.catch(() => false)
 			},
-			{ timeout: 45000, intervals: [2000] }
+			{ timeout: 60000, intervals: [2000] }
 		)
 		.toBe(true)
 }
@@ -121,6 +130,7 @@ test('order bump: ticking the add-on buys both courses in one checkout', async (
 	await expect(bump).toContainText(RELATED_TITLE)
 	await expect(bump).toContainText('$15.00')
 	await expect(bump).toContainText('50% off the regular $30.00')
+	await bump.screenshot({ path: 'test-results/order-bump.png' })
 
 	await bump.locator('input[type="checkbox"]').check()
 	await page.getByRole('button', { name: 'Buy this course' }).filter({ visible: true }).click()
