@@ -91,38 +91,33 @@
 					v-else-if="course.data.paid_course && !isAdmin"
 					class="mb-8 space-y-3"
 				>
-					<label
+					<div
 						v-if="orderBump.data"
-						class="flex cursor-pointer gap-3 rounded-md border border-dashed border-outline-gray-3 bg-surface-gray-1 p-3"
+						class="rounded-md border border-dashed border-outline-gray-3 bg-surface-gray-1 p-3"
 						data-testid="order-bump"
 					>
-						<input
+						<FormControl
 							type="checkbox"
 							v-model="addUpsell"
-							class="mt-0.5 size-4 shrink-0 rounded border-outline-gray-3 text-ink-gray-9 focus:ring-0"
+							:label="
+								__('Add {0} for {1}').format(
+									orderBump.data.title,
+									formatUsd(orderBump.data.offer_price_usd)
+								)
+							"
 						/>
-						<span class="text-sm">
-							<span class="block font-medium text-ink-gray-9">
-								{{
-									__('Add {0} for {1}').format(
-										orderBump.data.title,
-										formatUsd(orderBump.data.offer_price_usd)
-									)
-								}}
-							</span>
-							<span class="block text-xs text-ink-gray-5">
-								{{
-									__('{0}% off the regular {1}').format(
-										orderBump.data.discount_pct,
-										formatUsd(orderBump.data.list_price_usd)
-									)
-								}}
-								<template v-if="orderBump.data.ceu_hours">
-									· {{ orderBump.data.ceu_hours }} {{ __('CEU Hours') }}
-								</template>
-							</span>
-						</span>
-					</label>
+						<div class="mt-1 pl-6 text-xs text-ink-gray-5">
+							{{
+								__('{0}% off the regular {1}').format(
+									orderBump.data.discount_pct,
+									formatUsd(orderBump.data.list_price_usd)
+								)
+							}}
+							<template v-if="orderBump.data.ceu_hours">
+								· {{ orderBump.data.ceu_hours }} {{ __('CEU Hours') }}
+							</template>
+						</div>
+					</div>
 					<Button
 						@click="purchaseCourse()"
 						variant="solid"
@@ -266,7 +261,15 @@ import {
 	Users,
 } from 'lucide-vue-next'
 import { computed, inject, onMounted, ref, watch } from 'vue'
-import { Badge, Button, call, createResource, Dialog, toast } from 'frappe-ui'
+import {
+	Badge,
+	Button,
+	call,
+	createResource,
+	Dialog,
+	FormControl,
+	toast,
+} from 'frappe-ui'
 import { enablePlyr, formatAmount } from '@/utils/'
 import { useRouter } from 'vue-router'
 import CertificationLinks from '@/components/CertificationLinks.vue'

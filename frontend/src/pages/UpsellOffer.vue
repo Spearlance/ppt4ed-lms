@@ -75,12 +75,8 @@
 									· {{ offer.data.offer.ceu_hours }} {{ __('CEU Hours') }}
 								</template>
 							</div>
-							<p
-								v-if="offer.data.offer.short_introduction"
-								class="mt-2 text-sm text-ink-gray-7"
-							>
-								{{ offer.data.offer.short_introduction }}
-							</p>
+							<!-- short_introduction is deliberately not shown: course intros
+							     carry the full price ("$30 | 2 CE Hours") next to a $15 offer. -->
 						</div>
 					</div>
 					<div class="mt-5 flex flex-col gap-2 sm:flex-row">
