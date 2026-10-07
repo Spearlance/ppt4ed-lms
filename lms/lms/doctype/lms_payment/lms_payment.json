@@ -34,7 +34,11 @@
   "pan",
   "stripe_section",
   "stripe_session_id",
-  "stripe_payment_intent_id"
+  "stripe_payment_intent_id",
+  "upsell_section",
+  "is_upsell",
+  "upsell_type",
+  "parent_session_id"
  ],
  "fields": [
   {
@@ -193,13 +197,41 @@
    "fieldname": "stripe_session_id",
    "fieldtype": "Data",
    "label": "Stripe Checkout Session ID",
-   "read_only": 1,
-   "unique": 1
+   "read_only": 1
   },
   {
    "fieldname": "stripe_payment_intent_id",
    "fieldtype": "Data",
    "label": "Stripe Payment Intent ID",
+   "read_only": 1
+  },
+  {
+   "fieldname": "upsell_section",
+   "fieldtype": "Section Break",
+   "label": "Upsell"
+  },
+  {
+   "default": "0",
+   "description": "This payment was an add-on sold alongside or right after another course purchase.",
+   "fieldname": "is_upsell",
+   "fieldtype": "Check",
+   "label": "Is Upsell",
+   "read_only": 1
+  },
+  {
+   "depends_on": "is_upsell",
+   "fieldname": "upsell_type",
+   "fieldtype": "Select",
+   "label": "Upsell Type",
+   "options": "\nOrder Bump\nPost Purchase",
+   "read_only": 1
+  },
+  {
+   "depends_on": "is_upsell",
+   "description": "The Checkout Session of the purchase this upsell was attached to. Group by it for average order value.",
+   "fieldname": "parent_session_id",
+   "fieldtype": "Data",
+   "label": "Parent Checkout Session ID",
    "read_only": 1
   }
  ],
@@ -214,7 +246,7 @@
    "link_fieldname": "payment"
   }
  ],
- "modified": "2026-04-17 12:00:00.000000",
+ "modified": "2026-10-07 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "LMS",
  "name": "LMS Payment",
