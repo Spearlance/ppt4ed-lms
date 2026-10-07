@@ -46,9 +46,10 @@ def get_upsell_settings() -> dict:
 	"""Feature flags and discount from CEU Stripe Settings. Both flags off means
 	the checkout flow is exactly what it was before upsells existed."""
 	settings = frappe.get_single("CEU Stripe Settings")
-	pct = settings.get("upsell_discount_pct")
-	pct = DEFAULT_DISCOUNT_PCT if pct is None else cint(pct)
-	pct = max(0, min(100, pct))
+	# A fresh Singles row reads 0, not the field default, so treat unset/0 as
+	# the default. A 0% "discount" would not be an upsell anyway.
+	pct = cint(settings.get("upsell_discount_pct")) or DEFAULT_DISCOUNT_PCT
+	pct = max(1, min(100, pct))
 	return {
 		"order_bump": bool(cint(settings.get("enable_order_bump"))),
 		"post_purchase": bool(cint(settings.get("enable_post_purchase_upsell"))),

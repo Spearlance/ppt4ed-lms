@@ -54,6 +54,23 @@ def _mock_intent(status="succeeded", intent_id="pi_upsell"):
 
 
 class TestUpsellSelection(UnitTestCase):
+	def test_settings_default_discount_when_unset(self):
+		for stored in (None, 0, "0"):
+			single = MagicMock()
+			single.get.side_effect = lambda key, _s=stored: {"upsell_discount_pct": _s}.get(key, 0)
+			with patch("lms.lms.ceu_upsell.frappe.get_single", return_value=single):
+				settings = ceu_upsell.get_upsell_settings()
+			self.assertEqual(settings["discount_pct"], 50)
+			self.assertFalse(settings["order_bump"])
+			self.assertFalse(settings["post_purchase"])
+
+		single = MagicMock()
+		single.get.side_effect = lambda key: {"upsell_discount_pct": 30, "enable_order_bump": 1}.get(key, 0)
+		with patch("lms.lms.ceu_upsell.frappe.get_single", return_value=single):
+			settings = ceu_upsell.get_upsell_settings()
+		self.assertEqual(settings["discount_pct"], 30)
+		self.assertTrue(settings["order_bump"])
+
 	def test_price_is_rounded_to_cents_and_never_negative(self):
 		self.assertEqual(ceu_upsell.upsell_price_cents(49.0, 50), 2450)
 		self.assertEqual(ceu_upsell.upsell_price_cents(19.99, 50), 1000)
