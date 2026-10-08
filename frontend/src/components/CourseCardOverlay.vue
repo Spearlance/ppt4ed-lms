@@ -87,21 +87,52 @@
 						{{ __('Included with your PPT employee account') }}
 					</div>
 				</div>
-				<Button
+				<div
 					v-else-if="course.data.paid_course && !isAdmin"
-					@click="purchaseCourse()"
-					variant="solid"
-					size="md"
-					class="w-full mb-8"
-					:loading="purchasing"
+					class="mb-8 space-y-3"
 				>
-					<template #prefix>
-						<CreditCard class="size-4 stroke-1.5" />
-					</template>
-					<span>
-						{{ __('Buy this course') }}
-					</span>
-				</Button>
+					<div
+						v-if="orderBump.data"
+						class="rounded-md border border-dashed border-outline-gray-3 bg-surface-gray-1 p-3"
+						data-testid="order-bump"
+					>
+						<FormControl
+							type="checkbox"
+							v-model="addUpsell"
+							:label="
+								__('Add {0} for {1}').format(
+									orderBump.data.title,
+									formatUsd(orderBump.data.offer_price_usd)
+								)
+							"
+						/>
+						<div class="mt-1 pl-6 text-xs text-ink-gray-5">
+							{{
+								__('{0}% off the regular {1}').format(
+									orderBump.data.discount_pct,
+									formatUsd(orderBump.data.list_price_usd)
+								)
+							}}
+							<template v-if="orderBump.data.ceu_hours">
+								· {{ orderBump.data.ceu_hours }} {{ __('CEU Hours') }}
+							</template>
+						</div>
+					</div>
+					<Button
+						@click="purchaseCourse()"
+						variant="solid"
+						size="md"
+						class="w-full"
+						:loading="purchasing"
+					>
+						<template #prefix>
+							<CreditCard class="size-4 stroke-1.5" />
+						</template>
+						<span>
+							{{ __('Buy this course') }}
+						</span>
+					</Button>
+				</div>
 				<Badge
 					v-else-if="course.data.disable_self_learning && !isAdmin"
 					theme="blue"
@@ -230,7 +261,15 @@ import {
 	Users,
 } from 'lucide-vue-next'
 import { computed, inject, onMounted, ref, watch } from 'vue'
-import { Badge, Button, call, Dialog, toast } from 'frappe-ui'
+import {
+	Badge,
+	Button,
+	call,
+	createResource,
+	Dialog,
+	FormControl,
+	toast,
+} from 'frappe-ui'
 import { enablePlyr, formatAmount } from '@/utils/'
 import { useRouter } from 'vue-router'
 import CertificationLinks from '@/components/CertificationLinks.vue'
@@ -374,6 +413,27 @@ const purchasing = ref(false)
 const showRegister = ref(false)
 const registerIntent = ref('free')
 
+// Order bump: the server decides which related course (if any) to offer and
+// at what price. The checkbox only sends "yes, add it".
+const addUpsell = ref(false)
+const orderBump = createResource({
+	url: 'lms.lms.ceu_upsell.get_order_bump',
+	makeParams: () => ({ course_name: props.course.data.name }),
+})
+
+onMounted(() => {
+	if (
+		user.data &&
+		props.course.data?.paid_course &&
+		!props.course.data?.membership &&
+		!isAdmin.value
+	) {
+		orderBump.fetch()
+	}
+})
+
+const formatUsd = (value) => `$${Number(value || 0).toFixed(2)}`
+
 function openRegisterFor(intent) {
 	registerIntent.value = intent
 	showRegister.value = true
@@ -388,9 +448,15 @@ async function purchaseCourse() {
 	try {
 		const result = await call(
 			'lms.lms.ceu_stripe.create_one_off_checkout',
-			{ course_name: props.course.data.name }
+			{
+				course_name: props.course.data.name,
+				add_upsell: addUpsell.value ? 1 : 0,
+			}
 		)
-		capture('stripe_checkout_started', { course: props.course.data.name })
+		capture('stripe_checkout_started', {
+			course: props.course.data.name,
+			order_bump: addUpsell.value,
+		})
 		window.location.href = result.url
 	} catch (err) {
 		purchasing.value = false

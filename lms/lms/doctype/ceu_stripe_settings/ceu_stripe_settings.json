@@ -6,7 +6,9 @@
     "issingle": 1,
     "field_order": [
         "stripe_secret_key", "stripe_publishable_key",
-        "webhook_secret", "test_mode"
+        "webhook_secret", "test_mode",
+        "upsell_section", "enable_order_bump", "enable_post_purchase_upsell",
+        "column_break_upsell", "upsell_discount_pct"
     ],
     "fields": [
         {
@@ -31,10 +33,41 @@
             "fieldname": "test_mode",
             "fieldtype": "Check",
             "label": "Test Mode"
+        },
+        {
+            "fieldname": "upsell_section",
+            "fieldtype": "Section Break",
+            "label": "Course Upsells",
+            "description": "The upsell for a course is its first Related Course that the buyer can still buy. Both flags off = no change to checkout."
+        },
+        {
+            "default": "0",
+            "fieldname": "enable_order_bump",
+            "fieldtype": "Check",
+            "label": "Enable Order Bump",
+            "description": "Offer the related course as a discounted add-on next to Buy this course."
+        },
+        {
+            "default": "0",
+            "fieldname": "enable_post_purchase_upsell",
+            "fieldtype": "Check",
+            "label": "Enable Post-Purchase Upsell",
+            "description": "After paying, offer the related course with one click using the card saved at checkout. Requires the payment_intent.succeeded event on the Stripe webhook."
+        },
+        {
+            "fieldname": "column_break_upsell",
+            "fieldtype": "Column Break"
+        },
+        {
+            "default": "50",
+            "fieldname": "upsell_discount_pct",
+            "fieldtype": "Int",
+            "label": "Upsell Discount %",
+            "description": "Percent off the related course's USD price for both offers."
         }
     ],
     "links": [],
-    "modified": "2026-04-08 00:00:00.000000",
+    "modified": "2026-10-07 00:00:00.000000",
     "modified_by": "Administrator",
     "module": "LMS",
     "name": "CEU Stripe Settings",
