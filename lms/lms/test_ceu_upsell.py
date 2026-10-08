@@ -533,3 +533,161 @@ class TestCustomer(UnitTestCase):
 		self.assertFalse(ceu_upsell.is_missing_customer_error(ValueError("nope")))
 		other = stripe.error.InvalidRequestError("Invalid currency", "currency")
 		self.assertFalse(ceu_upsell.is_missing_customer_error(other))
+
+
+# ---------------------------------------------------------------------------
+# Event purchases: an event's Related Courses are upsold to its buyers.
+# ---------------------------------------------------------------------------
+
+
+def _mock_event(title="Test Event", amount=99.0):
+	event = MagicMock()
+	event.title = title
+	event.paid_event = 1
+	event.currency = "USD"
+	event.amount = amount
+	event.amount_usd = amount
+	event.early_bird_deadline = None
+	event.credit_hours = 3
+	event.seat_count = 0
+	return event
+
+
+class TestEventUpsells(UnitTestCase):
+	def test_selection_reads_the_events_related_courses(self):
+		with patch("lms.lms.api._is_ppt_employee_email", return_value=False), \
+			patch("lms.lms.ceu_upsell.frappe.get_all", return_value=[]) as get_all:
+			ceu_upsell.get_upsell_course("main-event", "test@test.com", 50, parenttype="LMS Event")
+		self.assertEqual(get_all.call_args.kwargs["filters"]["parenttype"], "LMS Event")
+		self.assertEqual(get_all.call_args.kwargs["filters"]["parent"], "main-event")
+
+	def _checkout(self, settings, add_upsell=0, upsell_course="related-course"):
+		from lms.lms.ceu_stripe import create_event_checkout
+
+		mock_session = MagicMock()
+		mock_session.url = "https://checkout.stripe.com/test"
+		mock_session.id = "cs_test_event"
+
+		frappe.set_user("test@test.com")
+		try:
+			with patch("lms.lms.ceu_stripe.stripe") as mock_stripe, \
+				patch("lms.lms.api._is_ppt_employee_email", return_value=False), \
+				patch("lms.lms.ceu_stripe.frappe.get_doc", return_value=_mock_event()), \
+				patch("lms.lms.ceu_stripe.frappe.db.exists", return_value=False), \
+				patch("lms.lms.ceu_upsell.get_upsell_settings", return_value=settings), \
+				patch("lms.lms.ceu_upsell.get_upsell_course", return_value=upsell_course) as select, \
+				patch("lms.lms.ceu_upsell.describe_offer", return_value=dict(OFFER)), \
+				patch("lms.lms.ceu_upsell.find_or_create_customer", return_value="cus_123"), \
+				patch("lms.lms.ceu_upsell.record_offer") as record_offer:
+				mock_stripe.checkout.Session.create.return_value = mock_session
+				create_event_checkout(event_name="main-event", add_upsell=add_upsell)
+				kwargs = mock_stripe.checkout.Session.create.call_args.kwargs
+				return kwargs, record_offer, select
+		finally:
+			frappe.set_user("Administrator")
+
+	def test_flags_off_keeps_legacy_event_checkout(self):
+		kwargs, record_offer, _ = self._checkout(SETTINGS_OFF, add_upsell=1)
+		self.assertEqual(len(kwargs["line_items"]), 1)
+		self.assertEqual(kwargs["customer_email"], "test@test.com")
+		self.assertNotIn("upsell_course", kwargs["metadata"])
+		self.assertIn("/lms/events/main-event?payment=success", kwargs["success_url"])
+		record_offer.assert_not_called()
+
+	def test_event_order_bump_adds_course_line_item(self):
+		kwargs, record_offer, select = self._checkout(SETTINGS_BUMP, add_upsell=1)
+		self.assertEqual(select.call_args.kwargs["parenttype"], "LMS Event")
+		self.assertEqual(len(kwargs["line_items"]), 2)
+		self.assertEqual(kwargs["line_items"][0]["price_data"]["unit_amount"], 9900)
+		self.assertEqual(kwargs["line_items"][1]["price_data"]["unit_amount"], 2450)
+		self.assertEqual(kwargs["metadata"]["type"], "event_one_off")
+		self.assertEqual(kwargs["metadata"]["upsell_course"], "related-course")
+		self.assertEqual(kwargs["metadata"]["upsell_cents"], "2450")
+		self.assertEqual(record_offer.call_args.kwargs["status"], "Accepted")
+		self.assertEqual(record_offer.call_args.kwargs["original_event"], "main-event")
+
+	def test_event_post_purchase_saves_card_and_routes_to_offer_page(self):
+		kwargs, _, _ = self._checkout(SETTINGS_POST)
+		self.assertEqual(kwargs["customer"], "cus_123")
+		self.assertNotIn("customer_email", kwargs)
+		self.assertEqual(kwargs["payment_intent_data"], {"setup_future_usage": "off_session"})
+		self.assertIn("/lms/upsell?session_id=", kwargs["success_url"])
+
+	def test_webhook_registers_event_and_enrolls_bump_with_split(self):
+		from lms.lms.ceu_stripe_webhooks import handle_checkout_completed
+
+		data = {
+			"id": "cs_test_event",
+			"payment_intent": "pi_event",
+			"amount_total": 12350,
+			"currency": "usd",
+			"metadata": {
+				"type": "event_one_off",
+				"event": "main-event",
+				"user": "test@test.com",
+				"upsell_course": "related-course",
+				"upsell_cents": "2450",
+			},
+		}
+		with patch("lms.lms.ceu_stripe_webhooks._create_event_registration") as register, \
+			patch("lms.lms.ceu_stripe_webhooks._create_one_off_enrollment", return_value="PAY-B") as enroll, \
+			patch("lms.lms.ceu_upsell.mark_offer_paid") as mark_paid:
+			handle_checkout_completed(data)
+
+		self.assertEqual(register.call_args.kwargs["event"], "main-event")
+		self.assertEqual(register.call_args.kwargs["amount_total"], 9900)
+		enroll.assert_called_once()
+		self.assertEqual(enroll.call_args.kwargs["course"], "related-course")
+		self.assertEqual(enroll.call_args.kwargs["amount_total"], 2450)
+		self.assertEqual(enroll.call_args.kwargs["upsell_type"], ceu_upsell.ORDER_BUMP)
+		mark_paid.assert_called_once()
+
+	def test_plain_event_webhook_has_no_course_enrollment(self):
+		from lms.lms.ceu_stripe_webhooks import handle_checkout_completed
+
+		data = {
+			"id": "cs_test_event",
+			"payment_intent": "pi_event",
+			"amount_total": 9900,
+			"currency": "usd",
+			"metadata": {"type": "event_one_off", "event": "main-event", "user": "test@test.com"},
+		}
+		with patch("lms.lms.ceu_stripe_webhooks._create_event_registration") as register, \
+			patch("lms.lms.ceu_stripe_webhooks._create_one_off_enrollment") as enroll:
+			handle_checkout_completed(data)
+		self.assertEqual(register.call_args.kwargs["amount_total"], 9900)
+		enroll.assert_not_called()
+
+	def test_offer_page_works_for_an_event_session(self):
+		s = MagicMock()
+		s.checkout.Session.retrieve.return_value = _mock_session(
+			metadata={"type": "event_one_off", "event": "main-event", "user": "test@test.com"}
+		)
+
+		def get_value(doctype, name, fields=None, as_dict=False, **kwargs):
+			if doctype == "LMS Upsell Offer":
+				return None
+			return "Main Event"
+
+		frappe.set_user("test@test.com")
+		try:
+			with patch("lms.lms.ceu_upsell._stripe", return_value=s), \
+				patch("lms.lms.ceu_upsell.get_upsell_settings", return_value=SETTINGS_POST), \
+				patch("lms.lms.ceu_upsell.frappe.db.get_value", side_effect=get_value), \
+				patch("lms.lms.ceu_upsell.frappe.db.exists", return_value=True) as exists, \
+				patch("lms.lms.ceu_upsell.get_upsell_course", return_value="related-course") as select, \
+				patch("lms.lms.ceu_upsell.describe_offer", return_value=dict(OFFER)), \
+				patch("lms.lms.ceu_upsell.record_offer") as record_offer:
+				result = ceu_upsell.get_upsell_offer("cs_test_parent")
+		finally:
+			frappe.set_user("Administrator")
+
+		self.assertEqual(result["original_type"], "event")
+		self.assertEqual(result["original_course"], "main-event")
+		self.assertEqual(result["original_title"], "Main Event")
+		self.assertTrue(result["original_enrolled"])
+		self.assertEqual(exists.call_args.args[0], "LMS Event Registration")
+		self.assertEqual(select.call_args.kwargs["parenttype"], "LMS Event")
+		self.assertEqual(record_offer.call_args.kwargs["original_event"], "main-event")
+		self.assertIsNone(record_offer.call_args.kwargs["original_course"])
+		self.assertEqual(result["status"], "offered")

@@ -13,6 +13,10 @@ The upsell course is always the first Related Course the buyer can actually
 buy (published, paid, priced, not already enrolled). Admins pick upsells by
 ordering Related Courses on the course; there is no separate config.
 
+Paid events use the same machinery: an event's Related Courses are offered to
+its buyers (order bump on the event page, one-click offer after paying). The
+event itself is never the add-on; only courses are sold as upsells.
+
 Prices are computed here, server-side, every time. The client never sends a
 price. Every offer is recorded as an `LMS Upsell Offer` row, which doubles as
 the lock that prevents a double charge on the post-purchase offer.
@@ -69,8 +73,11 @@ def upsell_price_cents(amount_usd, discount_pct) -> int:
 	return max(0, int(cents))
 
 
-def get_upsell_course(course_name, user, discount_pct=None, exclude=None):
+def get_upsell_course(course_name, user, discount_pct=None, exclude=None, parenttype="LMS Course"):
 	"""The first Related Course `user` could buy right now, or None.
+
+	`course_name` is the document being bought: an LMS Course, or an LMS Event
+	when `parenttype` is "LMS Event".
 
 	Skips unpublished, free, unpriced and self-learning-disabled courses, any
 	course the user is already enrolled in, anything in `exclude`, and courses
@@ -91,7 +98,7 @@ def get_upsell_course(course_name, user, discount_pct=None, exclude=None):
 
 	related = frappe.get_all(
 		"Related Courses",
-		filters={"parent": course_name, "parenttype": "LMS Course"},
+		filters={"parent": course_name, "parenttype": parenttype},
 		order_by="idx",
 		pluck="course",
 	)
@@ -148,13 +155,16 @@ def offer_key(session_id, upsell_type) -> str:
 # ---------------------------------------------------------------------------
 
 
-def record_offer(session_id, upsell_type, user, original_course, offer, status):
-	"""Insert or update the LMS Upsell Offer row for this purchase + type."""
+def record_offer(session_id, upsell_type, user, original_course, offer, status, original_event=None):
+	"""Insert or update the LMS Upsell Offer row for this purchase + type.
+
+	Event purchases pass `original_event` and no `original_course`."""
 	key = offer_key(session_id, upsell_type)
 	values = {
 		"status": status,
 		"member": user,
 		"original_course": original_course,
+		"original_event": original_event,
 		"upsell_course": offer["course"],
 		"parent_session_id": session_id,
 		"list_price": offer["list_price_usd"],
@@ -257,6 +267,22 @@ def get_order_bump(course_name):
 	return describe_offer(upsell, settings["discount_pct"])
 
 
+@frappe.whitelist()
+def get_event_order_bump(event_name):
+	"""The add-on course offered next to an event's "Register Now", or None."""
+	if frappe.session.user == "Guest":
+		return None
+	settings = get_upsell_settings()
+	if not settings["order_bump"]:
+		return None
+	upsell = get_upsell_course(
+		event_name, frappe.session.user, settings["discount_pct"], parenttype="LMS Event"
+	)
+	if not upsell:
+		return None
+	return describe_offer(upsell, settings["discount_pct"])
+
+
 # ---------------------------------------------------------------------------
 # whitelisted: post-purchase offer page
 # ---------------------------------------------------------------------------
@@ -269,7 +295,8 @@ def _stripe():
 
 
 def _load_paid_session(s, session_id, user):
-	"""Retrieve the Checkout Session and prove it is this user's paid one-off purchase."""
+	"""Retrieve the Checkout Session and prove it is this user's paid one-off
+	course or event purchase."""
 	if not session_id or not str(session_id).startswith("cs_"):
 		frappe.throw(_("Invalid checkout session"), frappe.ValidationError)
 	try:
@@ -278,7 +305,7 @@ def _load_paid_session(s, session_id, user):
 		frappe.throw(_("Invalid checkout session"), frappe.ValidationError)
 
 	metadata = session.get("metadata") or {}
-	if metadata.get("type") != "one_off" or metadata.get("user") != user:
+	if metadata.get("type") not in ("one_off", "event_one_off") or metadata.get("user") != user:
 		frappe.throw(_("This checkout session does not belong to you"), frappe.PermissionError)
 	if session.get("payment_status") != "paid":
 		frappe.throw(_("This purchase has not been paid"), frappe.ValidationError)
@@ -291,6 +318,39 @@ def _session_exclusions(session) -> set:
 	return {c for c in (metadata.get("course"), metadata.get("upsell_course")) if c}
 
 
+def _session_source(session) -> dict:
+	"""What the parent Checkout sold: a course, or an event."""
+	metadata = session.get("metadata") or {}
+	if metadata.get("type") == "event_one_off":
+		event = metadata.get("event")
+		return {
+			"kind": "event",
+			"name": event,
+			"parenttype": "LMS Event",
+			"record": {"original_course": None, "original_event": event},
+		}
+	course = metadata.get("course")
+	return {
+		"kind": "course",
+		"name": course,
+		"parenttype": "LMS Course",
+		"record": {"original_course": course},
+	}
+
+
+def _source_status(source, user) -> tuple:
+	"""(title, already registered/enrolled) for the thing the buyer just paid for."""
+	if source["kind"] == "event":
+		return (
+			frappe.db.get_value("LMS Event", source["name"], "title"),
+			bool(frappe.db.exists("LMS Event Registration", {"event": source["name"], "member": user})),
+		)
+	return (
+		frappe.db.get_value("LMS Course", source["name"], "title"),
+		bool(frappe.db.exists("LMS Enrollment", {"course": source["name"], "member": user})),
+	)
+
+
 @frappe.whitelist()
 def get_upsell_offer(session_id):
 	"""Everything /lms/upsell needs. `offer` is None when there is nothing to sell."""
@@ -300,15 +360,17 @@ def get_upsell_offer(session_id):
 
 	s = _stripe()
 	session = _load_paid_session(s, session_id, user)
-	metadata = session.get("metadata") or {}
-	original = metadata.get("course")
+	source = _session_source(session)
+	original = source["name"]
+	original_title, original_enrolled = _source_status(source, user)
 
+	# `original_course` keeps its name for the existing page; for an event
+	# purchase it holds the event name and `original_type` says so.
 	result = {
+		"original_type": source["kind"],
 		"original_course": original,
-		"original_title": frappe.db.get_value("LMS Course", original, "title"),
-		"original_enrolled": bool(
-			frappe.db.exists("LMS Enrollment", {"course": original, "member": user})
-		),
+		"original_title": original_title,
+		"original_enrolled": original_enrolled,
 		"offer": None,
 		"status": "none",
 	}
@@ -326,14 +388,20 @@ def get_upsell_offer(session_id):
 		return result
 
 	upsell = get_upsell_course(
-		original, user, settings["discount_pct"], exclude=_session_exclusions(session)
+		original,
+		user,
+		settings["discount_pct"],
+		exclude=_session_exclusions(session),
+		parenttype=source["parenttype"],
 	)
 	if not upsell:
 		return result
 
 	offer = describe_offer(upsell, settings["discount_pct"])
 	if not existing:
-		record_offer(session_id, POST_PURCHASE, user, original, offer, status="Offered")
+		record_offer(
+			session_id, POST_PURCHASE, user, offer=offer, status="Offered", **source["record"]
+		)
 	result.update({"offer": offer, "status": "offered"})
 	return result
 
@@ -378,7 +446,8 @@ def accept_upsell(session_id):
 	s = _stripe()
 	session = _load_paid_session(s, session_id, user)
 	metadata = session.get("metadata") or {}
-	original = metadata.get("course")
+	source = _session_source(session)
+	original = source["name"]
 	key = offer_key(session_id, POST_PURCHASE)
 
 	# Lock the offer row for the rest of this request. A concurrent click
@@ -392,13 +461,17 @@ def accept_upsell(session_id):
 		return {"status": "enrolled", "course": locked.upsell_course}
 
 	upsell = get_upsell_course(
-		original, user, settings["discount_pct"], exclude=_session_exclusions(session)
+		original,
+		user,
+		settings["discount_pct"],
+		exclude=_session_exclusions(session),
+		parenttype=source["parenttype"],
 	)
 	if not upsell:
 		return {"status": "already_enrolled"}
 
 	offer = describe_offer(upsell, settings["discount_pct"])
-	record_offer(session_id, POST_PURCHASE, user, original, offer, status="Charging")
+	record_offer(session_id, POST_PURCHASE, user, offer=offer, status="Charging", **source["record"])
 
 	payment_intent = session.get("payment_intent")
 	payment_method = None
@@ -406,7 +479,7 @@ def accept_upsell(session_id):
 		payment_method = payment_intent.get("payment_method")
 	customer = session.get("customer")
 	if not payment_method or not customer:
-		return _fallback_checkout(s, session_id, user, original, offer, reason="no saved card")
+		return _fallback_checkout(s, session_id, user, source, offer, reason="no saved card")
 
 	try:
 		intent = s.PaymentIntent.create(
@@ -430,7 +503,7 @@ def accept_upsell(session_id):
 		# authentication_required, card_declined, insufficient_funds, ...
 		# Never retry off-session; hand the buyer a normal Checkout instead.
 		reason = getattr(e, "code", None) or str(e)
-		return _fallback_checkout(s, session_id, user, original, offer, reason=reason)
+		return _fallback_checkout(s, session_id, user, source, offer, reason=reason)
 
 	if intent.get("status") == "succeeded":
 		from lms.lms.ceu_stripe_webhooks import _create_one_off_enrollment
@@ -465,11 +538,11 @@ def accept_upsell(session_id):
 	except stripe.error.StripeError:
 		pass
 	return _fallback_checkout(
-		s, session_id, user, original, offer, reason=f"intent {intent.get('status')}"
+		s, session_id, user, source, offer, reason=f"intent {intent.get('status')}"
 	)
 
 
-def _fallback_checkout(s, parent_session_id, user, original_course, offer, reason=None):
+def _fallback_checkout(s, parent_session_id, user, source, offer, reason=None):
 	"""Normal Checkout for the discounted upsell course. Same webhook path as any
 	one-off purchase; metadata marks it as an upsell for reporting."""
 	course = offer["course"]
@@ -502,7 +575,11 @@ def _fallback_checkout(s, parent_session_id, user, original_course, offer, reaso
 			"parent_session": parent_session_id,
 		},
 		success_url=frappe.utils.get_url(f"/lms/courses/{course}?payment=success"),
-		cancel_url=frappe.utils.get_url(f"/lms/courses/{original_course}?payment=success"),
+		cancel_url=frappe.utils.get_url(
+			f"/lms/events/{source['name']}?payment=success"
+			if source["kind"] == "event"
+			else f"/lms/courses/{source['name']}?payment=success"
+		),
 	)
 
 	frappe.db.set_value(

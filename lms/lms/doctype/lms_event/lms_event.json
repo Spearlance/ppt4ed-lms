@@ -81,6 +81,8 @@
   "column_break_early_bird",
   "early_bird_amount_usd",
   "early_bird_deadline",
+  "section_break_upsell",
+  "related_courses",
   "customisations_tab",
   "section_break_ubxi",
   "custom_component",
@@ -253,6 +255,18 @@
    "fieldname": "early_bird_deadline",
    "fieldtype": "Date",
    "label": "Early Bird Deadline"
+  },
+  {
+   "fieldname": "section_break_upsell",
+   "fieldtype": "Section Break",
+   "label": "Upsell"
+  },
+  {
+   "description": "Courses offered to event buyers at the CEU Stripe Settings upsell discount. The first one the buyer can still buy is offered.",
+   "fieldname": "related_courses",
+   "fieldtype": "Table",
+   "label": "Related Courses",
+   "options": "Related Courses"
   },
   {
    "description": "Primary audience for this event. When set, only users whose notification audience matches (or is unset) receive the new-event notification.",
@@ -560,7 +574,7 @@
    "link_fieldname": "payment_for_document"
   }
  ],
- "modified": "2026-04-30 00:00:00.000000",
+ "modified": "2026-10-07 20:00:00.000000",
  "modified_by": "Administrator",
  "module": "LMS",
  "name": "LMS Event",

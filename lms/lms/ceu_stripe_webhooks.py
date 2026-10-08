@@ -80,14 +80,7 @@ def handle_checkout_completed(data):
     if checkout_type == "one_off":
         _handle_one_off_checkout(data, metadata)
     elif checkout_type == "event_one_off":
-        _create_event_registration(
-            event=metadata.get("event"),
-            user=metadata.get("user"),
-            stripe_session_id=data.get("id"),
-            stripe_payment_intent_id=data.get("payment_intent"),
-            amount_total=data.get("amount_total"),
-            currency=data.get("currency"),
-        )
+        _handle_event_checkout(data, metadata)
     elif checkout_type == "community_event_donation":
         _confirm_community_event_registration(
             registration=metadata.get("registration"),
@@ -156,6 +149,48 @@ def _handle_one_off_checkout(data, metadata):
             upsell_type=ceu_upsell.ORDER_BUMP,
             parent_session_id=session_id,
             **common,
+        )
+        ceu_upsell.mark_offer_paid(
+            session_id,
+            ceu_upsell.ORDER_BUMP,
+            payment_name=bump_payment,
+            payment_intent_id=payment_intent_id,
+        )
+
+
+def _handle_event_checkout(data, metadata):
+    """Paid event registration, plus the order-bump course when one was added.
+
+    Same split as course purchases: the event gets the total minus the
+    server-set `upsell_cents`, the bump course gets `upsell_cents`.
+    """
+    session_id = data.get("id")
+    payment_intent_id = data.get("payment_intent")
+    upsell_course = metadata.get("upsell_course")
+    upsell_cents = cint(metadata.get("upsell_cents")) if upsell_course else 0
+
+    _create_event_registration(
+        event=metadata.get("event"),
+        user=metadata.get("user"),
+        stripe_session_id=session_id,
+        stripe_payment_intent_id=payment_intent_id,
+        amount_total=max(cint(data.get("amount_total")) - upsell_cents, 0),
+        currency=data.get("currency"),
+    )
+
+    if upsell_course:
+        from lms.lms import ceu_upsell
+
+        bump_payment = _create_one_off_enrollment(
+            course=upsell_course,
+            user=metadata.get("user"),
+            stripe_session_id=session_id,
+            stripe_payment_intent_id=payment_intent_id,
+            amount_total=upsell_cents,
+            currency=data.get("currency"),
+            is_upsell=1,
+            upsell_type=ceu_upsell.ORDER_BUMP,
+            parent_session_id=session_id,
         )
         ceu_upsell.mark_offer_paid(
             session_id,
@@ -383,7 +418,10 @@ def _create_event_registration(
 
     Idempotent by stripe_session_id — Stripe may deliver the same event more than once.
     """
-    if stripe_session_id and frappe.db.exists("LMS Payment", {"stripe_session_id": stripe_session_id}):
+    # Scoped to the event: an order-bump course shares this Checkout Session.
+    if stripe_session_id and frappe.db.exists(
+        "LMS Payment", {"stripe_session_id": stripe_session_id, "payment_for_document": event}
+    ):
         return
     if frappe.db.exists("LMS Event Registration", {"event": event, "member": user}):
         return
