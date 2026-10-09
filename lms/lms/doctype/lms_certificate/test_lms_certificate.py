@@ -338,6 +338,22 @@ class TestCertificatePrintFormat(BaseTestUtils):
 		html = self._render(self.cert_name)
 		self.assertIn('<div class="cert-format">On-Demand Course</div>', html)
 
+	def test_long_title_shrinks_only_in_compact_mode(self):
+		# 4 instructors => presenters line => compact mode. Titles over 95
+		# characters get the --long class so a 3-line title can't push the
+		# CE-hours footer off the page.
+		self.assertNotIn("cert-course-title--long", self._render(self.cert_name))
+		frappe.db.set_value(
+			"LMS Course",
+			self.course.name,
+			"title",
+			"Sensory Processing in Early Intervention: A Multidisciplinary Approach "
+			"for PTs, OTs and SLPs (Long Title)",
+		)
+		html = self._render(self.cert_name)
+		self.assertIn("cert-page--compact", html)
+		self.assertIn("cert-course-title cert-course-title--long", html)
+
 	def test_additional_presenters_hidden_when_everyone_signs(self):
 		# Two instructors, no explicit signers: identical to the pre-change
 		# certificate, so no presenters line and no compact-spacing class.
