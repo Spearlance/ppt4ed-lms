@@ -83,3 +83,40 @@ class TestLMSAPI(BaseTestUtils):
 			)
 			self.assertEqual(result.is_correct, 1 if index % 2 == 0 else 0)
 			self.assertEqual(result.marks, 5 if index % 2 == 0 else 0)
+
+
+class TestPaidSignupLanding(BaseTestUtils):
+	"""Paid signups land on the course/event page; checkout starts there."""
+
+	def _finalize(self, target_type, paid):
+		from unittest.mock import patch
+
+		from lms.lms.api import _finalize_signup_enrollment
+
+		with patch("lms.lms.api._is_ppt_employee_email", return_value=False), \
+			patch("lms.lms.api.frappe.db.get_value", return_value=1 if paid else 0), \
+			patch("lms.lms.api.frappe.db.exists", return_value=True), \
+			patch("lms.lms.ceu_stripe.create_one_off_checkout") as course_checkout, \
+			patch("lms.lms.ceu_stripe.create_event_checkout") as event_checkout:
+			result = _finalize_signup_enrollment(
+				email="buyer@example.com",
+				full_name="Buyer",
+				target_type=target_type,
+				target_slug="some-item",
+				intent="paid",
+				plan_name=None,
+				plan_price_id=None,
+			)
+		return result, course_checkout, event_checkout
+
+	def test_paid_course_signup_lands_on_course_page(self):
+		result, course_checkout, _ = self._finalize("course", paid=True)
+		self.assertEqual(result["status"], "logged_in")
+		self.assertEqual(result["redirect_to"], "/lms/courses/some-item?signup=complete")
+		course_checkout.assert_not_called()
+
+	def test_paid_event_signup_lands_on_event_page(self):
+		result, _, event_checkout = self._finalize("event", paid=True)
+		self.assertEqual(result["status"], "logged_in")
+		self.assertEqual(result["redirect_to"], "/lms/events/some-item?signup=complete")
+		event_checkout.assert_not_called()

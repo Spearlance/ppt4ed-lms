@@ -3248,10 +3248,13 @@ def _create_signup_user(email, full_name, password, target_type, target_slug):
 
 
 def _finalize_signup_enrollment(email, full_name, target_type, target_slug, intent, plan_name, plan_price_id):
-	"""Post-login branch: turn an intent + target into either a free enrollment
-	(returns {status:'logged_in', redirect_to}) or a Stripe checkout
-	(returns {status:'checkout_required', checkout_url}). Caller has already
-	called login_as(email)."""
+	"""Post-login branch: turn an intent + target into a free enrollment or a
+	landing page (returns {status:'logged_in', redirect_to}), or, for
+	membership intents only, a Stripe checkout (returns
+	{status:'checkout_required', checkout_url}). Paid courses and events do not
+	go to Stripe from here: the buyer lands on the course/event page and starts
+	checkout there, where coupons and the order bump are offered. Caller has
+	already called login_as(email)."""
 	# PPT staff bypass every paywall via credit_source. Membership was minted
 	# by User.after_insert; _mint_ppt_employee_membership is idempotent so the
 	# second call here just returns the existing name.
@@ -3270,9 +3273,10 @@ def _finalize_signup_enrollment(email, full_name, target_type, target_slug, inte
 			enroll_ppt_employee(target_slug, ppt_membership_name)
 			return {"status": "logged_in", "redirect_to": f"/lms/courses/{target_slug}"}
 		if is_paid:
-			from lms.lms.ceu_stripe import create_one_off_checkout
-			result = create_one_off_checkout(target_slug)
-			return {"status": "checkout_required", "checkout_url": result["url"]}
+			# Paid signups no longer jump straight into Stripe. The new account
+			# lands on the course page, where the coupon box and order bump
+			# live, and starts checkout from there.
+			return {"status": "logged_in", "redirect_to": f"/lms/courses/{target_slug}?signup=complete"}
 		if not frappe.db.exists("LMS Enrollment", {"course": target_slug, "member": email}):
 			frappe.get_doc({
 				"doctype": "LMS Enrollment",
@@ -3288,9 +3292,8 @@ def _finalize_signup_enrollment(email, full_name, target_type, target_slug, inte
 			register_ppt_employee_for_event(target_slug, ppt_membership_name)
 			return {"status": "logged_in", "redirect_to": f"/lms/events/{target_slug}"}
 		if is_paid:
-			from lms.lms.ceu_stripe import create_event_checkout
-			result = create_event_checkout(target_slug)
-			return {"status": "checkout_required", "checkout_url": result["url"]}
+			# Same as paid courses: land on the event page, checkout from there.
+			return {"status": "logged_in", "redirect_to": f"/lms/events/{target_slug}?signup=complete"}
 		if not frappe.db.exists("LMS Event Registration", {"event": target_slug, "member": email}):
 			frappe.get_doc({
 				"doctype": "LMS Event Registration",

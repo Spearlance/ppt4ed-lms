@@ -88,7 +88,9 @@ test.describe('Public signup flow', () => {
 		await page.waitForURL(`**/lms/courses/${FREE_COURSE_SLUG}**`, { timeout: 20000 })
 	})
 
-	test('3. Event landing → register modal → paid checkout redirects to Stripe', async ({ page }) => {
+	test('3. Event landing → register modal → paid signup lands on the event page, not Stripe', async ({
+		page,
+	}) => {
 		const email = uniqueEmail()
 
 		await page.goto(`/e/${PAID_EVENT_SLUG}`)
@@ -96,13 +98,20 @@ test.describe('Public signup flow', () => {
 
 		await fillSignupModal(page, email, 'Signup Test Three')
 
-		// Submit, then wait for navigation to Stripe Checkout
+		// Submit, then wait for the in-app event page. Checkout starts there,
+		// after the buyer has had the chance to apply a coupon / add-on.
 		await Promise.all([
-			page.waitForURL(/checkout\.stripe\.com/, { timeout: 25000 }),
-			page.getByRole('button', { name: /Continue to checkout|Create account/ }).click(),
+			page.waitForURL(`**/lms/events/${PAID_EVENT_SLUG}**`, { timeout: 25000 }),
+			page.getByRole('button', { name: 'Create account' }).click(),
 		])
 
-		expect(page.url()).toContain('checkout.stripe.com')
+		expect(page.url()).not.toContain('checkout.stripe.com')
+		await expect(page.getByTestId('coupon-box').filter({ visible: true }).first()).toBeVisible({
+			timeout: 20000,
+		})
+		await expect(
+			page.getByRole('button', { name: 'Register Now' }).filter({ visible: true }).first()
+		).toBeVisible()
 	})
 
 	test('4. MembershipPlans (logged out) → Stripe via subscription intent', async ({ page }) => {

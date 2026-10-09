@@ -81,14 +81,22 @@ onMounted(() => {
 
 function handlePaymentReturn() {
 	const status = route.query.payment
-	if (!status) return
+	const signup = route.query.signup
+	if (!status && !signup) return
 	if (status === 'success') {
 		toast.success(__('Payment received — enrolling you now'))
 		setTimeout(() => course.reload(), 2000)
 	} else if (status === 'cancelled') {
 		toast.info(__('Payment cancelled'))
 	}
-	router.replace({ query: { ...route.query, payment: undefined } })
+	if (signup === 'complete') {
+		// Paid signup lands here instead of Stripe so coupons and add-ons can
+		// be chosen before paying.
+		toast.success(
+			__('Your account is ready. Apply a coupon or add-on below, then buy the course.')
+		)
+	}
+	router.replace({ query: { ...route.query, payment: undefined, signup: undefined } })
 }
 
 const updateTabIndex = () => {
