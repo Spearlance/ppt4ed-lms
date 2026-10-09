@@ -35,6 +35,7 @@ import ReportCreditHealth from '@/pages/AdminReports/ReportCreditHealth.vue'
 import ReportCoursePerformance from '@/pages/AdminReports/ReportCoursePerformance.vue'
 import ReportDisciplineDemand from '@/pages/AdminReports/ReportDisciplineDemand.vue'
 import ReportUpsells from '@/pages/AdminReports/ReportUpsells.vue'
+import ReportCoupons from '@/pages/AdminReports/ReportCoupons.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -47,6 +48,7 @@ const tabs = ref([
 	{ label: 'Monthly', component: markRaw(ReportMonthlyCourses) },
 	{ label: 'Sources', component: markRaw(ReportSources) },
 	{ label: 'Upsells', component: markRaw(ReportUpsells) },
+	{ label: 'Coupons', component: markRaw(ReportCoupons) },
 	{ label: 'Courses', component: markRaw(ReportCoursesTaken) },
 	{ label: 'Resources', component: markRaw(ReportResources) },
 	{ label: 'Members', component: markRaw(ReportMembers) },
