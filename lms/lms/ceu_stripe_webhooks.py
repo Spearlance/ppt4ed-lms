@@ -473,20 +473,27 @@ def _create_event_registration(
         ceu_coupon.record_redemption(coupon.get("coupon"))
 
     # Impersonate the buyer so LMS Event Registration.validate_owner sees owner == member.
+    # Only when this is not already the buyer's own request: frappe.set_user()
+    # rewrites session.sid, which inside a logged-in web request (the 100%-coupon
+    # path) corrupts the caller's session cookie and logs them out.
     # The registration's legacy validations (validate_payment, validate_self_enrollment,
     # validate_seat_availability, validate_duplicate_members) reference stale field names
     # — those bugs pre-date this PR and are out of scope here.
+    registration = {
+        "doctype": "LMS Event Registration",
+        "event": event,
+        "member": user,
+        "payment": payment.name,
+    }
     original_user = frappe.session.user
-    frappe.set_user(user)
-    try:
-        frappe.get_doc({
-            "doctype": "LMS Event Registration",
-            "event": event,
-            "member": user,
-            "payment": payment.name,
-        }).insert(ignore_permissions=True)
-    finally:
-        frappe.set_user(original_user)
+    if original_user == user:
+        frappe.get_doc(registration).insert(ignore_permissions=True)
+    else:
+        frappe.set_user(user)
+        try:
+            frappe.get_doc(registration).insert(ignore_permissions=True)
+        finally:
+            frappe.set_user(original_user)
 
     return payment.name
 
