@@ -36,7 +36,19 @@
 				class="mb-5"
 			>
 				<div
-					v-if="earlyBirdActive"
+					v-if="coupon.data"
+					class="flex items-baseline gap-2"
+					data-testid="coupon-price"
+				>
+					<span class="text-lg font-semibold text-ink-gray-9">
+						{{ coupon.data.is_free ? __('Free') : formatUsd(coupon.data.final_usd) }}
+					</span>
+					<span class="text-sm text-ink-gray-6 line-through">
+						{{ formatUsd(coupon.data.original_usd) }}
+					</span>
+				</div>
+				<div
+					v-else-if="earlyBirdActive"
 					class="flex items-baseline gap-2"
 				>
 					<span class="text-lg font-semibold text-ink-gray-9">
@@ -172,24 +184,75 @@
 						{{ __('Register Now') }}
 					</span>
 				</Button>
-				<Button
+				<div
 					v-else-if="
 						batch.data.paid_event &&
 						batch.data.seats_left > 0 &&
 						batch.data.accept_enrollments
 					"
-					class="w-full mt-4"
-					variant="solid"
-					:loading="purchasing"
-					@click="purchaseEvent()"
+					class="mt-4 space-y-3"
 				>
-					<template #prefix>
-						<CreditCard class="size-4 stroke-1.5" />
-					</template>
-					<span>
-						{{ __('Register Now') }}
-					</span>
-				</Button>
+					<div v-if="user.data" class="text-sm" data-testid="coupon-box">
+						<button
+							v-if="!couponOpen && !coupon.data"
+							type="button"
+							class="text-ink-gray-5 underline hover:text-ink-gray-7"
+							@click="couponOpen = true"
+						>
+							{{ __('Have a coupon code?') }}
+						</button>
+						<div v-else-if="!coupon.data" class="flex items-center gap-2">
+							<FormControl
+								v-model="couponCode"
+								:placeholder="__('Coupon code')"
+								autocomplete="off"
+								class="flex-1"
+								:aria-label="__('Coupon code')"
+								@input="couponCode = $event.target.value.toUpperCase()"
+								@keydown.enter.prevent="applyCoupon"
+							/>
+							<Button
+								variant="outline"
+								:loading="coupon.loading"
+								:aria-label="__('Apply coupon')"
+								@click="applyCoupon"
+							>
+								{{ __('Apply') }}
+							</Button>
+						</div>
+						<div
+							v-else
+							class="flex items-center justify-between gap-2 rounded-md bg-surface-gray-1 border border-outline-gray-2 px-3 py-2"
+						>
+							<span class="text-ink-gray-7">
+								{{ __('Coupon {0} applied: {1}').format(coupon.data.code, coupon.data.label) }}
+							</span>
+							<Button
+								variant="ghost"
+								size="sm"
+								:aria-label="__('Remove coupon')"
+								@click="removeCoupon"
+							>
+								<template #icon>
+									<X class="size-4 stroke-1.5" />
+								</template>
+							</Button>
+						</div>
+					</div>
+					<Button
+						class="w-full"
+						variant="solid"
+						:loading="purchasing"
+						@click="purchaseEvent()"
+					>
+						<template #prefix>
+							<CreditCard class="size-4 stroke-1.5" />
+						</template>
+						<span>
+							{{ coupon.data?.is_free ? __('Register for free') : __('Register Now') }}
+						</span>
+					</Button>
+				</div>
 				<Button
 					variant="solid"
 					class="w-full mt-2"
@@ -266,6 +329,7 @@ import {
 	Pencil,
 	Settings,
 	Video,
+	X,
 } from 'lucide-vue-next'
 import { formatNumberIntoCurrency, formatTime } from '@/utils'
 import DateRange from '@/components/Common/DateRange.vue'
@@ -323,6 +387,42 @@ onMounted(() => {
 
 const formatUsd = (value) => `$${Number(value || 0).toFixed(2)}`
 
+// Coupon: the server validates the code and returns the discounted price for
+// display. Checkout re-validates it; nothing priced here is trusted.
+const couponOpen = ref(false)
+const couponCode = ref('')
+const coupon = createResource({
+	url: 'lms.lms.ceu_coupon.preview_coupon',
+	makeParams: () => ({
+		doctype: 'LMS Event',
+		docname: props.batch.data.name,
+		code: couponCode.value,
+	}),
+	onSuccess(data) {
+		capture('coupon_applied', {
+			event: props.batch.data.name,
+			code: data.code,
+		})
+	},
+	onError(err) {
+		toast.warning(__(err.messages?.[0] || err.message || err))
+	},
+})
+
+function applyCoupon() {
+	if (!couponCode.value.trim()) {
+		toast.warning(__('Please enter a coupon code'))
+		return
+	}
+	coupon.fetch()
+}
+
+function removeCoupon() {
+	coupon.reset()
+	couponCode.value = ''
+	couponOpen.value = false
+}
+
 async function purchaseEvent() {
 	if (!user.data) {
 		openRegisterFor('paid')
@@ -335,11 +435,29 @@ async function purchaseEvent() {
 			{
 				event_name: props.batch.data.name,
 				add_upsell: addUpsell.value ? 1 : 0,
+				coupon_code: coupon.data?.code || null,
 			}
 		)
+		if (result.status === 'enrolled') {
+			// 100% coupon: registered server-side, no Stripe step.
+			capture('registered_for_event', {
+				event: props.batch.data.name,
+				source: 'coupon',
+			})
+			toast.success(__('You have been registered for this event'))
+			// Same route, so the router will not refetch; reload the event so
+			// the panel flips to "Registered".
+			props.batch.reload?.()
+			router.push({
+				name: 'Event',
+				params: { eventName: props.batch.data.name },
+			})
+			return
+		}
 		capture('stripe_event_checkout_started', {
 			event: props.batch.data.name,
 			order_bump: addUpsell.value,
+			coupon: coupon.data?.code || null,
 		})
 		window.location.href = result.url
 	} catch (err) {

@@ -32,6 +32,12 @@ class TestCEUStripeWebhooks(UnitTestCase):
                 "active": 1
             }).insert(ignore_permissions=True)
 
+        # Left behind by a previous run; the insert below would collide on name.
+        if frappe.db.exists("Company Account", "Test Company For Cancellation"):
+            frappe.delete_doc(
+                "Company Account", "Test Company For Cancellation", force=True, ignore_permissions=True
+            )
+
         membership = frappe.get_doc({
             "doctype": "CEU Membership",
             "member": "Administrator",
@@ -104,19 +110,23 @@ class TestCEUStripeWebhooks(UnitTestCase):
         for e in frappe.db.get_all("LMS Enrollment", {"course": course_name, "member": user}):
             frappe.delete_doc("LMS Enrollment", e.name, force=True, ignore_permissions=True)
 
+        # The helper is idempotent by (payment intent, course), so a fixed id
+        # would make every run after the first a silent no-op.
+        intent_id = f"pi_test_oneoff_{frappe.generate_hash(length=10)}"
         _create_one_off_enrollment(
             course=course_name,
             user=user,
-            stripe_payment_id="cs_test_oneoff_789"
+            stripe_payment_intent_id=intent_id,
         )
 
         # Should have created a ledger entry
         ledger = frappe.get_last_doc("CEU Credit Ledger", filters={
             "user": user,
             "transaction_type": "Direct Purchase",
-            "course": course_name
+            "course": course_name,
+            "stripe_payment_id": intent_id,
         })
-        self.assertEqual(ledger.stripe_payment_id, "cs_test_oneoff_789")
+        self.assertEqual(ledger.stripe_payment_id, intent_id)
         self.assertEqual(ledger.hours, 0)
 
         # Should have created enrollment with credit_source
@@ -148,6 +158,38 @@ class TestCEUStripeWebhooks(UnitTestCase):
                 stripe_payment_intent_id="pi_test_evt",
                 amount_total=7900,
                 currency="usd",
+                coupon=None,
+            )
+
+    def test_event_checkout_passes_coupon_fields_from_metadata(self):
+        from lms.lms.ceu_stripe_webhooks import handle_checkout_completed
+
+        with patch("lms.lms.ceu_stripe_webhooks._create_event_registration") as mock_create:
+            handle_checkout_completed({
+                "id": "cs_test_event_coupon",
+                "payment_intent": "pi_test_evt_coupon",
+                "amount_total": 3200,
+                "currency": "usd",
+                "metadata": {
+                    "type": "event_one_off",
+                    "event": "test-event",
+                    "user": "test@test.com",
+                    "coupon": "cpn-1",
+                    "coupon_code": "COUPON20",
+                    "original_cents": "4000",
+                    "discount_cents": "800",
+                },
+            })
+            kwargs = mock_create.call_args.kwargs
+            self.assertEqual(kwargs["amount_total"], 3200)
+            self.assertEqual(
+                kwargs["coupon"],
+                {
+                    "coupon": "cpn-1",
+                    "coupon_code": "COUPON20",
+                    "original_amount": 40.0,
+                    "discount_amount": 8.0,
+                },
             )
 
     def test_create_event_registration_idempotent_on_existing_payment(self):

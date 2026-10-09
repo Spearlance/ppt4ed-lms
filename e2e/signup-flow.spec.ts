@@ -21,7 +21,9 @@ import { test, expect, Page } from '@playwright/test'
 
 const FREE_COURSE_SLUG =
 	'the-power-of-play-linking-play-to-language-cognitive-social-emotional-literacy-development'
-const PAID_EVENT_SLUG = 'pediatric-adaptive-equipment-evaluation-and-fitting'
+// Must be in the future: a past event renders no Register button at all.
+// (pediatric-adaptive-equipment-evaluation-and-fitting ran 2026-07-11.)
+const PAID_EVENT_SLUG = 'upsell-smoke-event'
 const PAID_PLAN_NAME = 'Individual Professional'
 const PAID_COURSE_SLUG =
 	'catch-the-wave-introduction-to-whole-body-vibration-in-pediatric-therapy-for-pts-ots-and-slps'
@@ -43,9 +45,11 @@ function password(): string {
 async function fillSignupModal(page: Page, email: string, fullName: string) {
 	// RegisterModal.vue Dialog uses frappe-ui FormControl. Inputs are matched
 	// by their visible label since FormControl wraps inputs in a structured way.
-	await page.getByLabel('Full name').fill(fullName)
-	await page.getByLabel('Email').fill(email)
-	await page.getByLabel('Password').fill(password())
+	// The Jinja modal also carries hidden login / forgot / magic-link panes
+	// with their own "Email" inputs, so scope to what is actually visible.
+	await page.getByLabel('Full name').filter({ visible: true }).fill(fullName)
+	await page.getByLabel('Email').filter({ visible: true }).fill(email)
+	await page.getByLabel('Password').filter({ visible: true }).fill(password())
 }
 
 test.describe('Public signup flow', () => {
@@ -88,7 +92,9 @@ test.describe('Public signup flow', () => {
 		await page.waitForURL(`**/lms/courses/${FREE_COURSE_SLUG}**`, { timeout: 20000 })
 	})
 
-	test('3. Event landing → register modal → paid checkout redirects to Stripe', async ({ page }) => {
+	test('3. Event landing → register modal → paid signup lands on the event page, not Stripe', async ({
+		page,
+	}) => {
 		const email = uniqueEmail()
 
 		await page.goto(`/e/${PAID_EVENT_SLUG}`)
@@ -96,13 +102,20 @@ test.describe('Public signup flow', () => {
 
 		await fillSignupModal(page, email, 'Signup Test Three')
 
-		// Submit, then wait for navigation to Stripe Checkout
+		// Submit, then wait for the in-app event page. Checkout starts there,
+		// after the buyer has had the chance to apply a coupon / add-on.
 		await Promise.all([
-			page.waitForURL(/checkout\.stripe\.com/, { timeout: 25000 }),
-			page.getByRole('button', { name: /Continue to checkout|Create account/ }).click(),
+			page.waitForURL(`**/lms/events/${PAID_EVENT_SLUG}**`, { timeout: 25000 }),
+			page.getByRole('button', { name: 'Create account' }).click(),
 		])
 
-		expect(page.url()).toContain('checkout.stripe.com')
+		expect(page.url()).not.toContain('checkout.stripe.com')
+		await expect(page.getByTestId('coupon-box').filter({ visible: true }).first()).toBeVisible({
+			timeout: 20000,
+		})
+		await expect(
+			page.getByRole('button', { name: 'Register Now' }).filter({ visible: true }).first()
+		).toBeVisible()
 	})
 
 	test('4. MembershipPlans (logged out) → Stripe via subscription intent', async ({ page }) => {
@@ -121,9 +134,10 @@ test.describe('Public signup flow', () => {
 
 		await fillSignupModal(page, email, 'Signup Test Four')
 
+		// Exact: the modal's "Create account" tab is also a button.
 		await Promise.all([
 			page.waitForURL(/checkout\.stripe\.com/, { timeout: 25000 }),
-			page.getByRole('button', { name: /Continue to checkout|Create account/ }).click(),
+			page.getByRole('button', { name: 'Continue to checkout', exact: true }).click(),
 		])
 
 		expect(page.url()).toContain('checkout.stripe.com')
@@ -143,8 +157,11 @@ test.describe('Public signup flow', () => {
 		await page.waitForURL('**/lms', { timeout: 15000 })
 
 		// Log out so we land on the Jinja landing as a guest
-		await page.goto('/api/method/logout')
-		await page.waitForLoadState('networkidle')
+		// A GET to /api/method/logout no longer clears the session on this
+		// Frappe. Every Frappe response re-sets `sid`, so leave the app page
+		// first (no in-flight XHR), then drop the cookies to become Guest.
+		await page.goto('about:blank')
+		await page.context().clearCookies()
 
 		await page.goto(`/c/${FREE_COURSE_SLUG}`)
 		await page.locator('[data-action="open-register"]').first().click()
@@ -154,7 +171,7 @@ test.describe('Public signup flow', () => {
 
 		// Modal pivots to Log In tab with email prefilled
 		await expect(page.getByText('That email is already registered')).toBeVisible({ timeout: 10000 })
-		const emailField = page.getByLabel('Email')
+		const emailField = page.getByLabel('Email').filter({ visible: true })
 		await expect(emailField).toHaveValue(email)
 		await expect(page.getByRole('button', { name: 'Log in' })).toBeVisible()
 	})
@@ -230,8 +247,11 @@ test.describe('Public signup flow', () => {
 
 		// Log out, then attempt to log in fresh — should reach the login form,
 		// not auto-bypass.
-		await page.goto('/api/method/logout')
-		await page.waitForLoadState('networkidle')
+		// A GET to /api/method/logout no longer clears the session on this
+		// Frappe. Every Frappe response re-sets `sid`, so leave the app page
+		// first (no in-flight XHR), then drop the cookies to become Guest.
+		await page.goto('about:blank')
+		await page.context().clearCookies()
 		await page.goto('/login')
 		await expect(page.locator('#login_email')).toBeVisible()
 	})
