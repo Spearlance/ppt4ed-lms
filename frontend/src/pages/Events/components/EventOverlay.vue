@@ -445,6 +445,9 @@ async function purchaseEvent() {
 				source: 'coupon',
 			})
 			toast.success(__('You have been registered for this event'))
+			// Same route, so the router will not refetch; reload the event so
+			// the panel flips to "Registered".
+			props.batch.reload?.()
 			router.push({
 				name: 'Event',
 				params: { eventName: props.batch.data.name },
