@@ -110,19 +110,23 @@ class TestCEUStripeWebhooks(UnitTestCase):
         for e in frappe.db.get_all("LMS Enrollment", {"course": course_name, "member": user}):
             frappe.delete_doc("LMS Enrollment", e.name, force=True, ignore_permissions=True)
 
+        # The helper is idempotent by (payment intent, course), so a fixed id
+        # would make every run after the first a silent no-op.
+        intent_id = f"pi_test_oneoff_{frappe.generate_hash(length=10)}"
         _create_one_off_enrollment(
             course=course_name,
             user=user,
-            stripe_payment_intent_id="cs_test_oneoff_789"
+            stripe_payment_intent_id=intent_id,
         )
 
         # Should have created a ledger entry
         ledger = frappe.get_last_doc("CEU Credit Ledger", filters={
             "user": user,
             "transaction_type": "Direct Purchase",
-            "course": course_name
+            "course": course_name,
+            "stripe_payment_id": intent_id,
         })
-        self.assertEqual(ledger.stripe_payment_id, "cs_test_oneoff_789")
+        self.assertEqual(ledger.stripe_payment_id, intent_id)
         self.assertEqual(ledger.hours, 0)
 
         # Should have created enrollment with credit_source

@@ -196,5 +196,8 @@ test('event: a 100% coupon registers without Stripe', async ({ page }) => {
 	await expect(page).not.toHaveURL(/checkout\.stripe\.com/)
 	await expectRegistered(page, EVENT)
 	await page.goto(`/lms/events/${EVENT}`)
-	await expect(page.getByText('Registered').first()).toBeVisible({ timeout: 20000 })
+	// The panel renders twice (desktop + mobile); only one is visible.
+	await expect(
+		page.getByText('Registered', { exact: true }).filter({ visible: true }).first()
+	).toBeVisible({ timeout: 20000 })
 })
