@@ -21,7 +21,9 @@ import { test, expect, Page } from '@playwright/test'
 
 const FREE_COURSE_SLUG =
 	'the-power-of-play-linking-play-to-language-cognitive-social-emotional-literacy-development'
-const PAID_EVENT_SLUG = 'pediatric-adaptive-equipment-evaluation-and-fitting'
+// Must be in the future: a past event renders no Register button at all.
+// (pediatric-adaptive-equipment-evaluation-and-fitting ran 2026-07-11.)
+const PAID_EVENT_SLUG = 'upsell-smoke-event'
 const PAID_PLAN_NAME = 'Individual Professional'
 const PAID_COURSE_SLUG =
 	'catch-the-wave-introduction-to-whole-body-vibration-in-pediatric-therapy-for-pts-ots-and-slps'
@@ -43,9 +45,11 @@ function password(): string {
 async function fillSignupModal(page: Page, email: string, fullName: string) {
 	// RegisterModal.vue Dialog uses frappe-ui FormControl. Inputs are matched
 	// by their visible label since FormControl wraps inputs in a structured way.
-	await page.getByLabel('Full name').fill(fullName)
-	await page.getByLabel('Email').fill(email)
-	await page.getByLabel('Password').fill(password())
+	// The Jinja modal also carries hidden login / forgot / magic-link panes
+	// with their own "Email" inputs, so scope to what is actually visible.
+	await page.getByLabel('Full name').filter({ visible: true }).fill(fullName)
+	await page.getByLabel('Email').filter({ visible: true }).fill(email)
+	await page.getByLabel('Password').filter({ visible: true }).fill(password())
 }
 
 test.describe('Public signup flow', () => {
