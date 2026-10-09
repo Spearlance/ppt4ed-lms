@@ -134,9 +134,10 @@ test.describe('Public signup flow', () => {
 
 		await fillSignupModal(page, email, 'Signup Test Four')
 
+		// Exact: the modal's "Create account" tab is also a button.
 		await Promise.all([
 			page.waitForURL(/checkout\.stripe\.com/, { timeout: 25000 }),
-			page.getByRole('button', { name: /Continue to checkout|Create account/ }).click(),
+			page.getByRole('button', { name: 'Continue to checkout', exact: true }).click(),
 		])
 
 		expect(page.url()).toContain('checkout.stripe.com')
@@ -156,8 +157,11 @@ test.describe('Public signup flow', () => {
 		await page.waitForURL('**/lms', { timeout: 15000 })
 
 		// Log out so we land on the Jinja landing as a guest
-		await page.goto('/api/method/logout')
-		await page.waitForLoadState('networkidle')
+		// A GET to /api/method/logout no longer clears the session on this
+		// Frappe. Every Frappe response re-sets `sid`, so leave the app page
+		// first (no in-flight XHR), then drop the cookies to become Guest.
+		await page.goto('about:blank')
+		await page.context().clearCookies()
 
 		await page.goto(`/c/${FREE_COURSE_SLUG}`)
 		await page.locator('[data-action="open-register"]').first().click()
@@ -167,7 +171,7 @@ test.describe('Public signup flow', () => {
 
 		// Modal pivots to Log In tab with email prefilled
 		await expect(page.getByText('That email is already registered')).toBeVisible({ timeout: 10000 })
-		const emailField = page.getByLabel('Email')
+		const emailField = page.getByLabel('Email').filter({ visible: true })
 		await expect(emailField).toHaveValue(email)
 		await expect(page.getByRole('button', { name: 'Log in' })).toBeVisible()
 	})
@@ -243,8 +247,11 @@ test.describe('Public signup flow', () => {
 
 		// Log out, then attempt to log in fresh — should reach the login form,
 		// not auto-bypass.
-		await page.goto('/api/method/logout')
-		await page.waitForLoadState('networkidle')
+		// A GET to /api/method/logout no longer clears the session on this
+		// Frappe. Every Frappe response re-sets `sid`, so leave the app page
+		// first (no in-flight XHR), then drop the cookies to become Guest.
+		await page.goto('about:blank')
+		await page.context().clearCookies()
 		await page.goto('/login')
 		await expect(page.locator('#login_email')).toBeVisible()
 	})
