@@ -102,6 +102,16 @@
 							"
 						/>
 						<FormControl
+							v-model="profile.credentials"
+							:label="__('Credentials')"
+							placeholder="PT, DPT"
+							:description="
+								__(
+									'Printed after your name on certificates you sign when the course has Show Signer Credentials turned on.'
+								)
+							"
+						/>
+						<FormControl
 							v-model="profile.notification_audience"
 							type="select"
 							:label="__('Notification Audience')"
@@ -170,6 +180,7 @@ const profile = reactive({
 	license_type: '',
 	license_state: '',
 	signature_text: '',
+	credentials: '',
 	notification_audience: '',
 })
 
@@ -284,6 +295,7 @@ watch(
 			profile.license_type = newVal.license_type || ''
 			profile.license_state = newVal.license_state || ''
 			profile.signature_text = newVal.signature_text || ''
+			profile.credentials = newVal.credentials || ''
 			profile.notification_audience = newVal.notification_audience || ''
 			profile.image = newVal.user_image
 			isDirty.value = false

@@ -310,6 +310,57 @@
 								/>
 							</div>
 						</div>
+						<div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+							<FormControl
+								v-model="courseResource.doc.course_format"
+								type="select"
+								:options="courseFormatOptions"
+								:label="__('Course Format')"
+								:description="
+									__(
+										'On-Demand adds an On-Demand Course line under the title on the certificate.'
+									)
+								"
+								@change="makeFormDirty()"
+							/>
+							<Switch
+								size="sm"
+								v-model="courseResource.doc.show_signer_credentials"
+								:label="__('Show Signer Credentials')"
+								:description="
+									__(
+										'Print the credentials from each signer profile after their name on the certificate.'
+									)
+								"
+								@change="makeFormDirty()"
+							/>
+						</div>
+						<div>
+							<MultiSelect
+								v-model="certificate_signers"
+								doctype="User"
+								:label="__('Certificate Signers')"
+								url="lms.lms.api.search_users_by_role"
+								:searchParams="{
+									roles: JSON.stringify(['Moderator', 'LMS Student']),
+								}"
+								:validate="() => certificate_signers.length < 2"
+								:errorMessage="
+									() =>
+										__(
+											'A course can have at most 2 certificate signers (one per discipline).'
+										)
+								"
+								@update:modelValue="makeFormDirty()"
+							/>
+							<div class="mt-1.5 text-xs text-ink-gray-5">
+								{{
+									__(
+										'Up to two signatures, one per discipline. Leave blank to sign with the first two instructors. Instructors who are not signing are listed as additional presenters.'
+									)
+								}}
+							</div>
+						</div>
 					</div>
 
 					<div class="pr-5 md:pr-10 pb-5 space-y-5">
@@ -392,6 +443,12 @@ const newTag = ref('')
 const router = useRouter()
 const instructors = ref([])
 const related_courses = ref([])
+const certificate_signers = ref([])
+const courseFormatOptions = [
+	{ label: __('Not set'), value: '' },
+	{ label: __('Live'), value: 'Live' },
+	{ label: __('On-Demand'), value: 'On-Demand' },
+]
 const app = getCurrentInstance()
 const { $dialog } = app.appContext.config.globalProperties
 const isDirty = ref(false)
@@ -460,6 +517,11 @@ const updateCourseData = () => {
 			courseResource.doc.related_courses.forEach((course) => {
 				related_courses.value.push(course.course)
 			})
+		} else if (key == 'certificate_signers') {
+			certificate_signers.value = []
+			;(courseResource.doc.certificate_signers || []).forEach((row) => {
+				certificate_signers.value.push(row.signer)
+			})
 		}
 	})
 	let checkboxes = [
@@ -469,6 +531,7 @@ const updateCourseData = () => {
 		'paid_course',
 		'featured',
 		'enable_certification',
+		'show_signer_credentials',
 	]
 	for (let idx in checkboxes) {
 		let key = checkboxes[idx]
@@ -502,6 +565,9 @@ const updateCourse = () => {
 			})),
 			related_courses: related_courses.value.map((course) => ({
 				course: course,
+			})),
+			certificate_signers: certificate_signers.value.map((signer) => ({
+				signer: signer,
 			})),
 		},
 		{
