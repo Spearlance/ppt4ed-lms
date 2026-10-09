@@ -147,14 +147,22 @@ const props = defineProps({
 
 onMounted(() => {
 	const status = route.query.payment
+	const signup = route.query.signup
 	if (status === 'success') {
 		toast.success(__('Payment received — registering you now'))
 		setTimeout(() => batch.reload(), 2000)
 	} else if (status === 'cancelled') {
 		toast.info(__('Payment cancelled'))
 	}
-	if (status) {
-		router.replace({ query: { ...route.query, payment: undefined } })
+	if (signup === 'complete') {
+		// Paid signup lands here instead of Stripe so coupons and add-ons can
+		// be chosen before paying.
+		toast.success(
+			__('Your account is ready. Apply a coupon or add-on below, then register.')
+		)
+	}
+	if (status || signup) {
+		router.replace({ query: { ...route.query, payment: undefined, signup: undefined } })
 	}
 })
 

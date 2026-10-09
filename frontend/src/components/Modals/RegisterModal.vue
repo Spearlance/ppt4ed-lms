@@ -293,9 +293,11 @@ watch(show, (next) => {
 })
 
 const submitLabel = computed(() => {
-	if (props.intent === 'paid' || (props.intent || '').startsWith('membership:')) {
+	if ((props.intent || '').startsWith('membership:')) {
 		return __('Continue to checkout')
 	}
+	// Paid courses/events land on their page after signup (coupon + add-ons
+	// are chosen there), so the button must not promise checkout.
 	return __('Create account')
 })
 
