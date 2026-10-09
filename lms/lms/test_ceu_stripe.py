@@ -41,7 +41,10 @@ class TestCEUStripe(UnitTestCase):
         mock_event = MagicMock()
         mock_event.title = "Test Event"
         mock_event.paid_event = 1
+        mock_event.currency = "USD"
+        mock_event.amount = 79.00
         mock_event.amount_usd = 79.00
+        mock_event.early_bird_deadline = None
         mock_event.credit_hours = 3
         mock_event.seat_count = 0
 
@@ -81,7 +84,10 @@ class TestCEUStripe(UnitTestCase):
 
         mock_event = MagicMock()
         mock_event.paid_event = 1
+        mock_event.currency = "USD"
+        mock_event.amount = 0
         mock_event.amount_usd = 0
+        mock_event.early_bird_deadline = None
 
         frappe.set_user("test@test.com")
         try:
