@@ -7,7 +7,19 @@
 			:src="video_link"
 		></div>
 		<div class="p-5">
-			<div v-if="course.data.paid_course" class="text-2xl font-semibold mb-3">
+			<div
+				v-if="course.data.paid_course && coupon.data"
+				class="flex items-baseline gap-2 mb-3"
+				data-testid="coupon-price"
+			>
+				<span class="text-2xl font-semibold">
+					{{ coupon.data.is_free ? __('Free') : formatUsd(coupon.data.final_usd) }}
+				</span>
+				<span class="text-base text-ink-gray-5 line-through">
+					{{ formatUsd(coupon.data.original_usd) }}
+				</span>
+			</div>
+			<div v-else-if="course.data.paid_course" class="text-2xl font-semibold mb-3">
 				{{ course.data.price }}
 			</div>
 			<div v-if="!readOnlyMode">
@@ -118,6 +130,53 @@
 							</template>
 						</div>
 					</div>
+					<div v-if="user.data" class="text-sm" data-testid="coupon-box">
+						<button
+							v-if="!couponOpen && !coupon.data"
+							type="button"
+							class="text-ink-gray-5 underline hover:text-ink-gray-7"
+							@click="couponOpen = true"
+						>
+							{{ __('Have a coupon code?') }}
+						</button>
+						<div v-else-if="!coupon.data" class="flex items-center gap-2">
+							<FormControl
+								v-model="couponCode"
+								:placeholder="__('Coupon code')"
+								autocomplete="off"
+								class="flex-1"
+								:aria-label="__('Coupon code')"
+								@input="couponCode = $event.target.value.toUpperCase()"
+								@keydown.enter.prevent="applyCoupon"
+							/>
+							<Button
+								variant="outline"
+								:loading="coupon.loading"
+								:aria-label="__('Apply coupon')"
+								@click="applyCoupon"
+							>
+								{{ __('Apply') }}
+							</Button>
+						</div>
+						<div
+							v-else
+							class="flex items-center justify-between gap-2 rounded-md bg-surface-gray-1 border border-outline-gray-2 px-3 py-2"
+						>
+							<span class="text-ink-gray-7">
+								{{ __('Coupon {0} applied: {1}').format(coupon.data.code, coupon.data.label) }}
+							</span>
+							<Button
+								variant="ghost"
+								size="sm"
+								:aria-label="__('Remove coupon')"
+								@click="removeCoupon"
+							>
+								<template #icon>
+									<X class="size-4 stroke-1.5" />
+								</template>
+							</Button>
+						</div>
+					</div>
 					<Button
 						@click="purchaseCourse()"
 						variant="solid"
@@ -129,7 +188,7 @@
 							<CreditCard class="size-4 stroke-1.5" />
 						</template>
 						<span>
-							{{ __('Buy this course') }}
+							{{ coupon.data?.is_free ? __('Enroll for free') : __('Buy this course') }}
 						</span>
 					</Button>
 				</div>
@@ -259,6 +318,7 @@ import {
 	Star,
 	TrendingUp,
 	Users,
+	X,
 } from 'lucide-vue-next'
 import { computed, inject, onMounted, ref, watch } from 'vue'
 import {
@@ -434,6 +494,42 @@ onMounted(() => {
 
 const formatUsd = (value) => `$${Number(value || 0).toFixed(2)}`
 
+// Coupon: the server validates the code and returns the discounted price for
+// display. Checkout re-validates it; nothing priced here is trusted.
+const couponOpen = ref(false)
+const couponCode = ref('')
+const coupon = createResource({
+	url: 'lms.lms.ceu_coupon.preview_coupon',
+	makeParams: () => ({
+		doctype: 'LMS Course',
+		docname: props.course.data.name,
+		code: couponCode.value,
+	}),
+	onSuccess(data) {
+		capture('coupon_applied', {
+			course: props.course.data.name,
+			code: data.code,
+		})
+	},
+	onError(err) {
+		toast.warning(__(err.messages?.[0] || err.message || err))
+	},
+})
+
+function applyCoupon() {
+	if (!couponCode.value.trim()) {
+		toast.warning(__('Please enter a coupon code'))
+		return
+	}
+	coupon.fetch()
+}
+
+function removeCoupon() {
+	coupon.reset()
+	couponCode.value = ''
+	couponOpen.value = false
+}
+
 function openRegisterFor(intent) {
 	registerIntent.value = intent
 	showRegister.value = true
@@ -451,11 +547,32 @@ async function purchaseCourse() {
 			{
 				course_name: props.course.data.name,
 				add_upsell: addUpsell.value ? 1 : 0,
+				coupon_code: coupon.data?.code || null,
 			}
 		)
+		if (result.status === 'enrolled') {
+			// 100% coupon: enrolled server-side, no Stripe step.
+			capture('enrolled_in_course', {
+				course: props.course.data.name,
+				source: 'coupon',
+			})
+			toast.success(__('You have been enrolled in this course'))
+			setTimeout(() => {
+				router.push({
+					name: 'Lesson',
+					params: {
+						courseName: props.course.data.name,
+						chapterNumber: 1,
+						lessonNumber: 1,
+					},
+				})
+			}, 1000)
+			return
+		}
 		capture('stripe_checkout_started', {
 			course: props.course.data.name,
 			order_bump: addUpsell.value,
+			coupon: coupon.data?.code || null,
 		})
 		window.location.href = result.url
 	} catch (err) {

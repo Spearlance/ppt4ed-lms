@@ -54,7 +54,7 @@
 										{{ row['percentage_discount'] }}%
 									</div>
 									<div v-else-if="row['discount_type'] == 'Fixed Amount'">
-										{{ row['fixed_amount_discount'] }}/-
+										${{ row['fixed_amount_discount'] }}
 									</div>
 								</div>
 								<div v-else class="leading-5 text-sm">

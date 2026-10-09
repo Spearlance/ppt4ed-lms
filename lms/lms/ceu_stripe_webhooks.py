@@ -2,6 +2,7 @@ import frappe
 from frappe import _
 from frappe.utils import add_years, cint, today, now_datetime
 
+from lms.lms import ceu_coupon
 from lms.lms.traffic_source import traffic_fields_from_metadata
 
 
@@ -131,6 +132,8 @@ def _handle_one_off_checkout(data, metadata):
         is_upsell=is_upsell,
         upsell_type=metadata.get("upsell_type") if is_upsell else None,
         parent_session_id=parent_session if is_upsell else None,
+        # A coupon discounts the main course only, never the bump add-on.
+        coupon=ceu_coupon.payment_fields_from_metadata(metadata),
         **common,
     )
     if is_upsell and parent_session:
@@ -176,6 +179,7 @@ def _handle_event_checkout(data, metadata):
         stripe_payment_intent_id=payment_intent_id,
         amount_total=max(cint(data.get("amount_total")) - upsell_cents, 0),
         currency=data.get("currency"),
+        coupon=ceu_coupon.payment_fields_from_metadata(metadata),
     )
 
     if upsell_course:
@@ -329,6 +333,7 @@ def _create_one_off_enrollment(
     is_upsell=0,
     upsell_type=None,
     parent_session_id=None,
+    coupon=None,
 ):
     """Create an LMS Enrollment for a one-off purchase with ledger entry + billing receipt.
 
@@ -338,6 +343,10 @@ def _create_one_off_enrollment(
 
     `traffic` is the buyer's traffic-source fields, carried through Checkout
     metadata because this request comes from Stripe, not from their browser.
+
+    `coupon` is the LMS Payment field dict from ceu_coupon (coupon, coupon_code,
+    original_amount, discount_amount). Its redemption is counted here, once
+    per payment created, so webhook replays never double-count.
 
     Returns the LMS Payment name, or None when nothing new was created.
     """
@@ -380,7 +389,10 @@ def _create_one_off_enrollment(
         "is_upsell": cint(is_upsell),
         "upsell_type": upsell_type if is_upsell else None,
         "parent_session_id": parent_session_id if is_upsell else None,
+        **(coupon or {}),
     }).insert(ignore_permissions=True)
+    if coupon:
+        ceu_coupon.record_redemption(coupon.get("coupon"))
 
     frappe.get_doc({
         "doctype": "LMS Enrollment",
@@ -413,18 +425,22 @@ def _create_event_registration(
     stripe_payment_intent_id=None,
     amount_total=None,
     currency=None,
+    coupon=None,
 ):
     """Create an LMS Event Registration for a paid event with ledger marker + billing receipt.
 
     Idempotent by stripe_session_id — Stripe may deliver the same event more than once.
+    `coupon` is recorded on the payment and counted once, as for courses.
+
+    Returns the LMS Payment name, or None when nothing new was created.
     """
     # Scoped to the event: an order-bump course shares this Checkout Session.
     if stripe_session_id and frappe.db.exists(
         "LMS Payment", {"stripe_session_id": stripe_session_id, "payment_for_document": event}
     ):
-        return
+        return None
     if frappe.db.exists("LMS Event Registration", {"event": event, "member": user}):
-        return
+        return None
 
     # Audit marker — real CEU credits are issued on event completion, not purchase.
     frappe.get_doc({
@@ -451,7 +467,10 @@ def _create_event_registration(
         "payment_received": 1,
         "stripe_session_id": stripe_session_id,
         "stripe_payment_intent_id": stripe_payment_intent_id,
+        **(coupon or {}),
     }).insert(ignore_permissions=True)
+    if coupon:
+        ceu_coupon.record_redemption(coupon.get("coupon"))
 
     # Impersonate the buyer so LMS Event Registration.validate_owner sees owner == member.
     # The registration's legacy validations (validate_payment, validate_self_enrollment,
@@ -468,6 +487,8 @@ def _create_event_registration(
         }).insert(ignore_permissions=True)
     finally:
         frappe.set_user(original_user)
+
+    return payment.name
 
 
 def _confirm_community_event_registration(

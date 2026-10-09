@@ -24,7 +24,7 @@
 								v-model="row.reference_doctype"
 								:options="[
 									{ label: 'Course', value: 'LMS Course' },
-									{ label: 'Batch', value: 'LMS Batch' },
+									{ label: 'Event', value: 'LMS Event' },
 								]"
 							/>
 						</td>
