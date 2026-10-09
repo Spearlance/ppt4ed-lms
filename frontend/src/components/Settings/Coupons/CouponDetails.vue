@@ -61,8 +61,8 @@
 				/>
 
 				<FormControl
-					v-model="data.redemptions_count"
-					:label="__('Redemptions Count')"
+					v-model="data.redemption_count"
+					:label="__('Redemption Count')"
 					type="number"
 					:disabled="true"
 				/>
@@ -105,15 +105,24 @@ const saveCoupon = () => {
 }
 
 const editCoupon = () => {
+	// Rows added to an existing coupon only live in CouponItems until this
+	// save sends them; set_value replaces the child table with what we pass.
+	const applicable_items = couponItems.value
+		? couponItems.value.saveItems().filter((row: any) => row.reference_name)
+		: undefined
 	props.coupons.setValue.submit(
 		{
 			...props.data,
+			...(applicable_items ? { applicable_items } : {}),
 		},
 		{
 			onSuccess(data: Coupon) {
-				if (couponItems.value) {
-					couponItems.value.saveItems()
-				}
+				toast.success(__('Coupon updated successfully'))
+				emit('updateStep', 'list')
+			},
+			onError(err: any) {
+				toast.error(err.messages?.[0] || err.message || err)
+				console.error(err)
 			},
 		}
 	)

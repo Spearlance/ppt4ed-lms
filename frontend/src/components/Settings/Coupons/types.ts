@@ -8,7 +8,7 @@ export interface Coupon {
     expires_on?: string;
     description?: string;
     usage_limit?: number;
-    redemptions_count: number;
+    redemption_count: number;
     applicable_items: ApplicableItem[];
 }
 

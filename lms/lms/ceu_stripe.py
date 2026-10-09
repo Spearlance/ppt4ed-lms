@@ -1,8 +1,9 @@
 import frappe
 from frappe import _
-from frappe.utils import cint, getdate, nowdate
+from frappe.utils import cint
 import stripe
 
+from lms.lms import ceu_coupon
 from lms.lms.traffic_source import checkout_traffic_metadata
 
 
@@ -24,7 +25,7 @@ def get_stripe_test_mode():
 
 
 @frappe.whitelist()
-def create_one_off_checkout(course_name, add_upsell=0):
+def create_one_off_checkout(course_name, add_upsell=0, coupon_code=None):
     """Create a Stripe Checkout session for a one-off course purchase.
 
     Price and buyer identity are derived server-side. Never trust client input
@@ -34,6 +35,11 @@ def create_one_off_checkout(course_name, add_upsell=0):
     course and at what price is decided here from Related Courses and
     CEU Stripe Settings (see lms/lms/ceu_upsell.py). With both upsell flags
     off this function behaves exactly as it did before upsells existed.
+
+    `coupon_code` is re-validated and re-priced here (see lms/lms/ceu_coupon.py);
+    the discount applies to the course only, not to an order-bump add-on. A
+    100% coupon enrolls immediately and returns `{"status": "enrolled",
+    "redirect_to": ...}` instead of a Checkout URL.
     """
     if frappe.session.user == "Guest":
         frappe.throw(_("You must be logged in to purchase a course"), frappe.AuthenticationError)
@@ -48,16 +54,32 @@ def create_one_off_checkout(course_name, add_upsell=0):
     if not course.paid_course:
         frappe.throw(_("This course is not for sale"))
 
-    amount_usd = course.amount_usd or 0
+    amount_usd = ceu_coupon.course_usd_price(course)
     if amount_usd <= 0:
         frappe.throw(_("This course has no USD price configured"))
 
     user_email = frappe.session.user
     unit_amount_cents = int(round(float(amount_usd) * 100))
 
+    # Coupon: validated and priced server-side. The preview the buyer saw is
+    # never trusted. A free (100%) result never reaches Stripe.
+    coupon_pricing = None
+    if coupon_code:
+        coupon_pricing = ceu_coupon.apply_coupon("LMS Course", course_name, coupon_code, amount_usd)
+        if coupon_pricing["is_free"]:
+            return ceu_coupon.enroll_free_course(course_name, user_email, coupon_pricing)
+        unit_amount_cents = coupon_pricing["final_cents"]
+
     product_data = {"name": course.title, "metadata": {"course": course_name}}
     if course.ceu_hours:
         product_data["description"] = f"{course.ceu_hours} CEU Hours"
+    if coupon_pricing:
+        coupon_note = f"Coupon {coupon_pricing['code']} ({coupon_pricing['label']})"
+        product_data["description"] = (
+            f"{product_data['description']} — {coupon_note}"
+            if product_data.get("description")
+            else coupon_note
+        )
 
     line_items = [{
         "price_data": {
@@ -75,6 +97,8 @@ def create_one_off_checkout(course_name, add_upsell=0):
         # buyer's traffic source rides along here.
         **checkout_traffic_metadata(),
     }
+    if coupon_pricing:
+        metadata.update(ceu_coupon.checkout_metadata(coupon_pricing))
     success_url = frappe.utils.get_url(f"/lms/courses/{course_name}?payment=success")
     buyer = {"customer_email": user_email}
 
@@ -162,7 +186,7 @@ def create_one_off_checkout(course_name, add_upsell=0):
 
 
 @frappe.whitelist()
-def create_event_checkout(event_name, add_upsell=0):
+def create_event_checkout(event_name, add_upsell=0, coupon_code=None):
     """Create a Stripe Checkout session for a paid event registration.
 
     Price and buyer identity are derived server-side. Never trust client input
@@ -171,6 +195,10 @@ def create_event_checkout(event_name, add_upsell=0):
     Upsells work as they do for courses (see lms/lms/ceu_upsell.py): the
     event's Related Courses supply the add-on course, `add_upsell` is only the
     order-bump checkbox, and with both upsell flags off nothing changes.
+
+    `coupon_code` works as it does for courses (see lms/lms/ceu_coupon.py): it
+    discounts the event price (early-bird price, when active), never the
+    order-bump add-on, and a 100% coupon registers immediately without Stripe.
     """
     if frappe.session.user == "Guest":
         frappe.throw(_("You must be logged in to register for an event"), frappe.AuthenticationError)
@@ -183,25 +211,10 @@ def create_event_checkout(event_name, add_upsell=0):
     if not event.paid_event:
         frappe.throw(_("This event is not for sale"))
 
-    # Stripe is USD-only for now. If the event is priced in USD, the `amount`
-    # field is authoritative; `amount_usd` is the USD equivalent for non-USD events.
-    if (event.currency or "").upper() == "USD":
-        amount_usd = event.amount_usd or event.amount or 0
-    else:
-        amount_usd = event.amount_usd or 0
-
-    # Early-bird auto-discount: when today is on or before the deadline and
-    # an early-bird amount exists, swap in the lower price. Selection happens
-    # server-side so the client cannot ask for it after the cutoff.
-    is_early_bird = False
-    if event.early_bird_deadline and getdate(nowdate()) <= getdate(event.early_bird_deadline):
-        if (event.currency or "").upper() == "USD":
-            eb = event.early_bird_amount_usd or event.early_bird_amount or 0
-        else:
-            eb = event.early_bird_amount_usd or 0
-        if eb and float(eb) > 0:
-            amount_usd = eb
-            is_early_bird = True
+    # Stripe is USD-only for now. The early-bird price replaces the list price
+    # while the deadline is open; selection happens server-side so the client
+    # cannot ask for it after the cutoff. See ceu_coupon.event_usd_price.
+    amount_usd, is_early_bird = ceu_coupon.event_usd_price(event)
 
     if amount_usd <= 0:
         frappe.throw(_("This event has no USD price configured"))
@@ -220,6 +233,14 @@ def create_event_checkout(event_name, add_upsell=0):
 
     unit_amount_cents = int(round(float(amount_usd) * 100))
 
+    # Coupon on top of whichever price is active (list or early bird).
+    coupon_pricing = None
+    if coupon_code:
+        coupon_pricing = ceu_coupon.apply_coupon("LMS Event", event_name, coupon_code, amount_usd)
+        if coupon_pricing["is_free"]:
+            return ceu_coupon.register_free_event(event_name, user_email, coupon_pricing)
+        unit_amount_cents = coupon_pricing["final_cents"]
+
     product_data = {"name": event.title}
     if event.credit_hours:
         product_data["description"] = f"{event.credit_hours} CEU Hours"
@@ -228,6 +249,13 @@ def create_event_checkout(event_name, add_upsell=0):
             f"{product_data['description']} — Early Bird"
             if product_data.get("description")
             else "Early Bird"
+        )
+    if coupon_pricing:
+        coupon_note = f"Coupon {coupon_pricing['code']} ({coupon_pricing['label']})"
+        product_data["description"] = (
+            f"{product_data['description']} — {coupon_note}"
+            if product_data.get("description")
+            else coupon_note
         )
 
     line_items = [{
@@ -244,6 +272,8 @@ def create_event_checkout(event_name, add_upsell=0):
         "user": user_email,
         "early_bird": "1" if is_early_bird else "0",
     }
+    if coupon_pricing:
+        metadata.update(ceu_coupon.checkout_metadata(coupon_pricing))
     success_url = frappe.utils.get_url(f"/lms/events/{event_name}?payment=success")
     buyer = {"customer_email": user_email}
 
