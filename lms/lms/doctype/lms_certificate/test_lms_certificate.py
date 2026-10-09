@@ -5,6 +5,7 @@ import json
 import re
 
 import frappe
+from frappe.utils import add_days, nowdate
 
 from lms.lms.test_helpers import BaseTestUtils
 
@@ -221,6 +222,31 @@ class TestCertificatePrintFormat(BaseTestUtils):
 		self.cleanup_items.append(("LMS Course", course.name))
 		return course
 
+	def _make_event(self, title, instructors):
+		"""Minimal LMS Event (no evaluator / course rows, which
+		BaseTestUtils._create_batch links to users that may not exist)."""
+		existing = frappe.db.exists("LMS Event", {"title": title})
+		if existing:
+			frappe.delete_doc("LMS Event", existing, force=True)
+		event = frappe.new_doc("LMS Event")
+		event.update(
+			{
+				"title": title,
+				"start_date": nowdate(),
+				"end_date": add_days(nowdate(), 1),
+				"start_time": "09:00:00",
+				"end_time": "11:00:00",
+				"timezone": "America/New_York",
+				"published": 1,
+				"description": "Certificate print format fixture event.",
+				"event_details": "Certificate print format fixture event.",
+				"instructors": [{"instructor": u.email} for u in instructors],
+			}
+		)
+		event.save()
+		self.cleanup_items.append(("LMS Event", event.name))
+		return event
+
 	def _mint(self, course_name):
 		enrollment = self._create_enrollment(self.student.email, course_name)
 		enrollment.reload()
@@ -343,12 +369,7 @@ class TestCertificatePrintFormat(BaseTestUtils):
 		self._set_signers(self.outsider.email)
 		frappe.db.set_value("LMS Course", self.course.name, "course_format", "On-Demand")
 
-		event = self._create_batch(
-			self.course.name, instructor=self.presenters[0].email, title="Cert Format Event"
-		)
-		event.append("instructors", {"instructor": self.presenters[1].email})
-		event.append("instructors", {"instructor": self.presenters[2].email})
-		event.save()
+		event = self._make_event("Cert Format Event", self.presenters[:3])
 		self._create_batch_enrollment(self.student.email, event.name)
 
 		cert = frappe.new_doc("LMS Certificate")
