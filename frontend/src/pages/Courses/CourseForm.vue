@@ -329,7 +329,7 @@
 								:label="__('Show Signer Credentials')"
 								:description="
 									__(
-										'Print each signer's credentials (from their profile) after their name on the certificate.'
+										'Print the credentials from each signer profile after their name on the certificate.'
 									)
 								"
 								@change="makeFormDirty()"
