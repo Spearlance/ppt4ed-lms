@@ -7,6 +7,7 @@ import re
 import frappe
 from frappe.utils import add_days, nowdate
 
+from lms.lms.doctype.lms_certificate.lms_certificate import get_default_certificate_template
 from lms.lms.test_helpers import BaseTestUtils
 
 
@@ -377,7 +378,8 @@ class TestCertificatePrintFormat(BaseTestUtils):
 			{
 				"event_name": event.name,
 				"member": self.student.email,
-				"issue_date": frappe.utils.nowdate(),
+				"issue_date": nowdate(),
+				"template": get_default_certificate_template(),
 				"published": 1,
 			}
 		)
