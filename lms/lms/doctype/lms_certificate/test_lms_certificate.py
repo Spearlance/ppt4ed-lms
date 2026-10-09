@@ -192,16 +192,34 @@ class TestCertificatePrintFormat(BaseTestUtils):
 		self.outsider = self._create_user(
 			"certfmt_outsider@example.com", "Outside", "Signer", ["Course Creator"]
 		)
-		self.course = self._create_course(
-			title="Cert Format Course", instructor=self.presenters[0].email
-		)
-		self.course.set("instructors", [{"instructor": p.email} for p in self.presenters])
-		self.course.set("certificate_signers", [])
-		self.course.course_format = ""
-		self.course.show_signer_credentials = 0
-		self.course.enable_certification = 1
-		self.course.save()
+		self.course = self._make_course("Cert Format Course", self.presenters)
 		self.cert_name = self._mint(self.course.name)
+
+	def _make_course(self, title, instructors):
+		"""Like BaseTestUtils._create_course but without the legacy
+		`category: Business` link, which does not exist on every site, and
+		with every instructor row set up front. New certificate fields are
+		explicitly blank so each test starts from the pre-change state."""
+		existing = frappe.db.exists("LMS Course", {"title": title})
+		if existing:
+			frappe.delete_doc("LMS Course", existing, force=True)
+		course = frappe.new_doc("LMS Course")
+		course.update(
+			{
+				"title": title,
+				"short_introduction": "Certificate print format fixture",
+				"description": "Certificate print format fixture course.",
+				"published": 1,
+				"enable_certification": 1,
+				"course_format": "",
+				"show_signer_credentials": 0,
+				"instructors": [{"instructor": u.email} for u in instructors],
+				"certificate_signers": [],
+			}
+		)
+		course.save()
+		self.cleanup_items.append(("LMS Course", course.name))
+		return course
 
 	def _mint(self, course_name):
 		enrollment = self._create_enrollment(self.student.email, course_name)
@@ -296,12 +314,9 @@ class TestCertificatePrintFormat(BaseTestUtils):
 	def test_additional_presenters_hidden_when_everyone_signs(self):
 		# Two instructors, no explicit signers: identical to the pre-change
 		# certificate, so no presenters line and no compact-spacing class.
-		two_instructor_course = self._create_course(
-			title="Cert Format Two Instructors", instructor=self.presenters[0].email
+		two_instructor_course = self._make_course(
+			"Cert Format Two Instructors", self.presenters[:2]
 		)
-		two_instructor_course.append("instructors", {"instructor": self.presenters[1].email})
-		two_instructor_course.enable_certification = 1
-		two_instructor_course.save()
 		cert_name = self._mint(two_instructor_course.name)
 
 		html = self._render(cert_name)
