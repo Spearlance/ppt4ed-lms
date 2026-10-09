@@ -1,6 +1,9 @@
 # Copyright (c) 2021, FOSS United and Contributors
 # See license.txt
 
+import json
+import re
+
 import frappe
 
 from lms.lms.test_helpers import BaseTestUtils
@@ -167,3 +170,188 @@ class TestLMSCertificate(BaseTestUtils):
 		)
 		self.assertIsNotNone(row)
 		self.assertEqual(row.approval_number, "PENDING-001")
+
+
+class TestCertificatePrintFormat(BaseTestUtils):
+	"""Renders the Certificate print format straight from the JSON on disk
+	(bench migrate does not reload print formats, so the DB row can lag the
+	repo) and asserts on signer selection, the On-Demand line, the additional
+	presenters line and the credentials toggle."""
+
+	def setUp(self):
+		super().setUp()
+		self.student = self._create_user(
+			"certfmt_student@example.com", "Garrett", "Test", ["LMS Student"]
+		)
+		self.presenters = [
+			self._create_user(
+				f"certfmt_presenter{i}@example.com", "Presenter", f"Number{i}", ["Course Creator"]
+			)
+			for i in range(1, 5)
+		]
+		self.outsider = self._create_user(
+			"certfmt_outsider@example.com", "Outside", "Signer", ["Course Creator"]
+		)
+		self.course = self._create_course(
+			title="Cert Format Course", instructor=self.presenters[0].email
+		)
+		self.course.set("instructors", [{"instructor": p.email} for p in self.presenters])
+		self.course.set("certificate_signers", [])
+		self.course.course_format = ""
+		self.course.show_signer_credentials = 0
+		self.course.enable_certification = 1
+		self.course.save()
+		self.cert_name = self._mint(self.course.name)
+
+	def _mint(self, course_name):
+		enrollment = self._create_enrollment(self.student.email, course_name)
+		enrollment.reload()
+		enrollment.progress = 100
+		enrollment.save(ignore_permissions=True)
+		cert_name = frappe.db.get_value(
+			"LMS Certificate", {"course": course_name, "member": self.student.email}, "name"
+		)
+		self.assertIsNotNone(cert_name)
+		self.cleanup_items.append(("LMS Certificate", cert_name))
+		return cert_name
+
+	def _set_signers(self, *emails):
+		self.course.reload()
+		self.course.set("certificate_signers", [{"signer": e} for e in emails])
+		self.course.save()
+
+	@staticmethod
+	def _render(cert_name):
+		path = frappe.get_app_path("lms", "lms", "print_format", "certificate", "certificate.json")
+		with open(path, encoding="utf-8") as f:
+			html = json.load(f)["html"]
+		return frappe.render_template(html, {"doc": frappe.get_doc("LMS Certificate", cert_name)})
+
+	@staticmethod
+	def _signature_names(html):
+		return re.findall(r'class="cert-sig-name">(.*?)</div>', html)
+
+	@staticmethod
+	def _additional_line(html):
+		match = re.search(r'class="cert-additional">(.*?)</div>', html)
+		return match.group(1) if match else None
+
+	def test_no_signers_falls_back_to_first_two_instructors(self):
+		html = self._render(self.cert_name)
+		self.assertEqual(self._signature_names(html), ["Presenter Number1", "Presenter Number2"])
+		self.assertEqual(
+			self._additional_line(html),
+			"Additional presenters: Presenter Number3, Presenter Number4",
+		)
+
+	def test_certificate_signers_override_instructor_order(self):
+		self._set_signers(self.presenters[2].email, self.presenters[0].email)
+		html = self._render(self.cert_name)
+		self.assertEqual(self._signature_names(html), ["Presenter Number3", "Presenter Number1"])
+		# Non-signing instructors are listed in instructor-table order.
+		self.assertEqual(
+			self._additional_line(html),
+			"Additional presenters: Presenter Number2, Presenter Number4",
+		)
+
+	def test_signer_outside_instructor_table_signs_alone(self):
+		self._set_signers(self.outsider.email)
+		html = self._render(self.cert_name)
+		self.assertEqual(self._signature_names(html), ["Outside Signer"])
+		self.assertEqual(
+			self._additional_line(html),
+			"Additional presenters: Presenter Number1, Presenter Number2, "
+			"Presenter Number3, Presenter Number4",
+		)
+
+	def test_more_than_two_signers_is_rejected(self):
+		self.course.reload()
+		self.course.set(
+			"certificate_signers", [{"signer": p.email} for p in self.presenters[:3]]
+		)
+		with self.assertRaises(frappe.ValidationError):
+			self.course.save()
+
+	def test_duplicate_signer_is_rejected(self):
+		self.course.reload()
+		self.course.set(
+			"certificate_signers",
+			[{"signer": self.presenters[0].email}, {"signer": self.presenters[0].email}],
+		)
+		with self.assertRaises(frappe.ValidationError):
+			self.course.save()
+
+	def test_on_demand_line_shows_only_when_format_is_on_demand(self):
+		html = self._render(self.cert_name)
+		self.assertNotIn("On-Demand Course", html)
+
+		frappe.db.set_value("LMS Course", self.course.name, "course_format", "Live")
+		html = self._render(self.cert_name)
+		self.assertNotIn("On-Demand Course", html)
+
+		frappe.db.set_value("LMS Course", self.course.name, "course_format", "On-Demand")
+		html = self._render(self.cert_name)
+		self.assertIn('<div class="cert-format">On-Demand Course</div>', html)
+
+	def test_additional_presenters_hidden_when_everyone_signs(self):
+		# Two instructors, no explicit signers: identical to the pre-change
+		# certificate, so no presenters line and no compact-spacing class.
+		two_instructor_course = self._create_course(
+			title="Cert Format Two Instructors", instructor=self.presenters[0].email
+		)
+		two_instructor_course.append("instructors", {"instructor": self.presenters[1].email})
+		two_instructor_course.enable_certification = 1
+		two_instructor_course.save()
+		cert_name = self._mint(two_instructor_course.name)
+
+		html = self._render(cert_name)
+		self.assertEqual(self._signature_names(html), ["Presenter Number1", "Presenter Number2"])
+		self.assertIsNone(self._additional_line(html))
+		self.assertNotIn("cert-page--compact", html)
+		self.assertNotIn("On-Demand Course", html)
+
+	def test_credentials_print_only_when_toggle_is_on(self):
+		frappe.db.set_value("User", self.presenters[0].email, "credentials", "PT, DPT")
+		frappe.db.set_value("User", self.presenters[1].email, "credentials", "")
+
+		html = self._render(self.cert_name)
+		self.assertEqual(self._signature_names(html), ["Presenter Number1", "Presenter Number2"])
+
+		frappe.db.set_value("LMS Course", self.course.name, "show_signer_credentials", 1)
+		html = self._render(self.cert_name)
+		# Blank credentials never leave a dangling comma.
+		self.assertEqual(
+			self._signature_names(html), ["Presenter Number1, PT, DPT", "Presenter Number2"]
+		)
+
+	def test_event_certificate_ignores_course_level_settings(self):
+		self._set_signers(self.outsider.email)
+		frappe.db.set_value("LMS Course", self.course.name, "course_format", "On-Demand")
+
+		event = self._create_batch(
+			self.course.name, instructor=self.presenters[0].email, title="Cert Format Event"
+		)
+		event.append("instructors", {"instructor": self.presenters[1].email})
+		event.append("instructors", {"instructor": self.presenters[2].email})
+		event.save()
+		self._create_batch_enrollment(self.student.email, event.name)
+
+		cert = frappe.new_doc("LMS Certificate")
+		cert.update(
+			{
+				"event_name": event.name,
+				"member": self.student.email,
+				"issue_date": frappe.utils.nowdate(),
+				"published": 1,
+			}
+		)
+		cert.insert()
+		self.cleanup_items.append(("LMS Certificate", cert.name))
+
+		html = self._render(cert.name)
+		# Events keep the pre-change behaviour: first two instructors sign,
+		# nobody else is listed, no format line, no compact spacing.
+		self.assertEqual(self._signature_names(html), ["Presenter Number1", "Presenter Number2"])
+		self.assertIsNone(self._additional_line(html))
+		self.assertNotIn("On-Demand Course", html)
+		self.assertNotIn("cert-page--compact", html)

@@ -2308,6 +2308,7 @@ def get_profile_details(username: str):
 			"license_type",
 			"license_state",
 			"signature_text",
+			"credentials",
 			"notification_audience",
 		],
 		as_dict=True,
