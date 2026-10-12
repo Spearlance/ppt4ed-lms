@@ -488,12 +488,17 @@
 		}
 		setSubmitting(signupForm, true, "{{ _('Creating account…') }}");
 
-		frappe.call({
-			method: 'lms.lms.api.signup_and_enroll',
-			type: 'POST',
-			args: args,
-			callback: function(r) {
-				const result = (r && r.message) || {};
+		// Plain fetch (see apiPost below) rather than the website frappe.call:
+		// that one pops its own msgprint dialog on a 417 validation error
+		// (e.g. a missing license) instead of reaching our error handler.
+		apiPost('lms.lms.api.signup_and_enroll', args).then(({ ok, data }) => {
+			if (!ok) {
+				setSubmitting(signupForm, false);
+				showAlert('error', errorFromData(data) || "{{ _('Something went wrong. Please try again.') }}");
+				return;
+			}
+			{
+				const result = (data && data.message) || {};
 				if (result.status === 'verification_sent') {
 					// PPT-domain gate: hide the form, show a "check your email"
 					// holding message until they click the link.
@@ -527,12 +532,10 @@
 				}
 				setSubmitting(signupForm, false);
 				showAlert('error', "{{ _('Something went wrong. Please try again.') }}");
-			},
-			error: function(err) {
-				setSubmitting(signupForm, false);
-				const msg = extractError(err) || "{{ _('Something went wrong. Please try again.') }}";
-				showAlert('error', msg);
 			}
+		}).catch(() => {
+			setSubmitting(signupForm, false);
+			showAlert('error', "{{ _('Something went wrong. Please try again.') }}");
 		});
 	});
 

@@ -52,10 +52,14 @@
 // null for them.
 import { Button, ErrorMessage, call } from 'frappe-ui'
 import { TriangleAlert } from 'lucide-vue-next'
-import { inject, reactive, ref } from 'vue'
+import { reactive, ref } from 'vue'
 import LicenseFields from '@/components/LicenseFields.vue'
+import { usersStore } from '@/stores/user'
 
-const user = inject('$user')
+// Not inject('$user'): main.js provides it only after app.mount(), and the
+// layouts (where this banner lives) render during mount, so the injection
+// comes back undefined there. The store holds the same resource object.
+const { userResource: user } = usersStore()
 const expanded = ref(false)
 const saving = ref(false)
 const errorMessage = ref('')

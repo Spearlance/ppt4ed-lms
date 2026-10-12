@@ -27,8 +27,9 @@
 // $user resource (so the banner and the overlays see license_complete) and
 // emits `saved`, which the caller uses to resume the original action.
 import { Button, call, Dialog, ErrorMessage } from 'frappe-ui'
-import { inject, reactive, ref, watch } from 'vue'
+import { reactive, ref, watch } from 'vue'
 import LicenseFields from '@/components/LicenseFields.vue'
+import { usersStore } from '@/stores/user'
 
 const show = defineModel('open', { default: false })
 const props = defineProps({
@@ -36,7 +37,9 @@ const props = defineProps({
 })
 const emit = defineEmits(['saved'])
 
-const user = inject('$user')
+// Same resource the overlays inject as $user; read from the store so this
+// works no matter where in the tree the dialog mounts (see LicenseBanner).
+const { userResource: user } = usersStore()
 const saving = ref(false)
 const errorMessage = ref('')
 const form = reactive({
