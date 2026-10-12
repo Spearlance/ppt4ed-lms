@@ -306,6 +306,12 @@
 		:intent="registerIntent"
 		:context-label="course.data.title"
 		:redirect-url="`/lms/courses/${course.data.name}`"
+		:require-license="requiresLicense"
+	/>
+	<LicenseDialog
+		v-model:open="showLicense"
+		:reason="__('This course awards CEU credit, and the broker needs your license to report it. Add it once and you are set for every course.')"
+		@saved="resumeAfterLicense"
 	/>
 </template>
 <script setup>
@@ -334,6 +340,7 @@ import { enablePlyr, formatAmount } from '@/utils/'
 import { useRouter } from 'vue-router'
 import CertificationLinks from '@/components/CertificationLinks.vue'
 import RegisterModal from '@/components/Modals/RegisterModal.vue'
+import LicenseDialog from '@/components/Modals/LicenseDialog.vue'
 import { useTelemetry } from 'frappe-ui/frappe'
 
 const router = useRouter()
@@ -347,6 +354,34 @@ const props = defineProps({
 		default: null,
 	},
 })
+
+// Mirrors lms.lms.license.license_required_for_target: paid or CEU-hour
+// courses need a license on file before signup, purchase or credit
+// enrollment. The server enforces it too (LicenseRequiredError).
+const requiresLicense = computed(
+	() =>
+		Boolean(props.course.data?.paid_course) ||
+		(props.course.data?.ceu_hours || 0) > 0
+)
+const showLicense = ref(false)
+let pendingAction = null
+
+function needsLicense(action) {
+	if (!requiresLicense.value || user.data?.license_complete) return false
+	pendingAction = action
+	showLicense.value = true
+	return true
+}
+
+function resumeAfterLicense() {
+	const action = pendingAction
+	pendingAction = null
+	if (action) action()
+}
+
+function isLicenseError(err) {
+	return err?.exc_type === 'LicenseRequiredError'
+}
 
 const video_link = computed(() => {
 	if (props.course.data.video_link) {
@@ -437,6 +472,7 @@ async function enrollViaCompany() {
 		}, 500)
 		return
 	}
+	if (needsLicense(enrollViaCompany)) return
 	try {
 		const result = await call(
 			'lms.lms.ceu_enrollment.enroll_company_member',
@@ -463,6 +499,11 @@ async function enrollViaCompany() {
 			}, 1000)
 		}
 	} catch (err) {
+		if (isLicenseError(err)) {
+			pendingAction = enrollViaCompany
+			showLicense.value = true
+			return
+		}
 		toast.warning(__(err.messages?.[0] || err))
 		console.error(err)
 	}
@@ -540,6 +581,7 @@ async function purchaseCourse() {
 		openRegisterFor('paid')
 		return
 	}
+	if (needsLicense(purchaseCourse)) return
 	purchasing.value = true
 	try {
 		const result = await call(
@@ -577,6 +619,11 @@ async function purchaseCourse() {
 		window.location.href = result.url
 	} catch (err) {
 		purchasing.value = false
+		if (isLicenseError(err)) {
+			pendingAction = purchaseCourse
+			showLicense.value = true
+			return
+		}
 		toast.warning(__(err.messages?.[0] || err.message || err))
 		console.error(err)
 	}
@@ -590,6 +637,7 @@ async function enrollPptEmployee() {
 		}, 500)
 		return
 	}
+	if (needsLicense(enrollPptEmployee)) return
 	try {
 		await call('lms.lms.ceu_enrollment.enroll_ppt_employee', {
 			course_name: props.course.data.name,
@@ -608,6 +656,11 @@ async function enrollPptEmployee() {
 			})
 		}, 1000)
 	} catch (err) {
+		if (isLicenseError(err)) {
+			pendingAction = enrollPptEmployee
+			showLicense.value = true
+			return
+		}
 		toast.warning(__(err.messages?.[0] || err))
 		console.error(err)
 	}

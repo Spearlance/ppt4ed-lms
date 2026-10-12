@@ -250,6 +250,8 @@ img.lms-landing__instructor-avatar { object-fit: cover; }
 {% set register_modal_intent = 'free' if is_resource else ('paid' if is_paid else 'free') %}
 {% set register_modal_redirect_url = register_url %}
 {% set register_modal_context_label = course.title %}
+{# Mirrors lms.lms.license.license_required_for_target: paid or CEU-hour courses, never resources. #}
+{% set register_modal_require_license = (not is_resource) and (is_paid or (course.ceu_hours or 0) > 0) %}
 
 <div class="lms-landing">
 	<div class="lms-landing__main">

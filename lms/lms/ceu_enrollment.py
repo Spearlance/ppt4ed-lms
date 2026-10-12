@@ -53,6 +53,16 @@ def send_enrollment_confirmation_email(
         )
 
 
+def _require_license_for_course(course_name):
+    """Credit-based and staff enrollments skip Stripe, so the license gate that
+    create_one_off_checkout applies has to live here too. Only CEU-bearing
+    courses (paid or with CEU hours) are gated; see lms.lms.license."""
+    from lms.lms.license import license_required_for_target, require_complete_license
+
+    if license_required_for_target("course", course_name):
+        require_complete_license(frappe.session.user)
+
+
 def check_enrollment_eligibility(membership_name, course_ceu_hours):
     """Check if a user can enroll based on their membership."""
     if not membership_name:
@@ -77,6 +87,8 @@ def enroll_professional_member(course_name, membership_name):
     """Enroll a professional member using their credit pool."""
     course = frappe.get_doc("LMS Course", course_name)
     ceu_hours = frappe.db.get_value("LMS Course", course_name, "ceu_hours") or 0
+
+    _require_license_for_course(course_name)
 
     eligibility = check_enrollment_eligibility(membership_name, ceu_hours)
     if not eligibility["eligible"]:
@@ -108,6 +120,8 @@ def enroll_company_member(course_name, company_name):
     """Enroll a company employee - either directly or via approval request."""
     company = frappe.get_doc("Company Account", company_name)
     ceu_hours = frappe.db.get_value("LMS Course", course_name, "ceu_hours") or 0
+
+    _require_license_for_course(course_name)
 
     if not company.membership:
         frappe.throw(_("Company has no active membership"))
@@ -225,6 +239,8 @@ def enroll_ppt_employee(course_name: str, membership_name: str):
     if frappe.db.exists("LMS Enrollment", {"course": course_name, "member": frappe.session.user}):
         frappe.throw(_("Already enrolled in this course"))
 
+    _require_license_for_course(course_name)
+
     frappe.get_doc({
         "doctype": "CEU Credit Ledger",
         "membership": membership_name,
@@ -267,6 +283,10 @@ def register_ppt_employee_for_event(event_name: str, membership_name: str):
 
     if frappe.db.exists("LMS Event Registration", {"event": event_name, "member": frappe.session.user}):
         frappe.throw(_("Already registered for this event"))
+
+    # PPT staff earn CEUs at their own events too; the broker needs their license.
+    from lms.lms.license import require_complete_license
+    require_complete_license(frappe.session.user)
 
     frappe.get_doc({
         "doctype": "CEU Credit Ledger",

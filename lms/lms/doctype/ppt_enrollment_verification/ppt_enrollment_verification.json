@@ -4,7 +4,7 @@
     "creation": "2026-04-13 00:00:00.000000",
     "doctype": "DocType",
     "engine": "InnoDB",
-    "field_order": ["email", "full_name", "password", "target_type", "target_slug", "intent", "token", "expires_on", "used"],
+    "field_order": ["email", "full_name", "password", "target_type", "target_slug", "intent", "license_type", "license_state", "professional_license_number", "token", "expires_on", "used"],
     "fields": [
         {
             "fieldname": "email",
@@ -39,6 +39,24 @@
             "fieldname": "intent",
             "fieldtype": "Data",
             "label": "Intent"
+        },
+        {
+            "fieldname": "license_type",
+            "fieldtype": "Data",
+            "label": "License Type",
+            "read_only": 1
+        },
+        {
+            "fieldname": "license_state",
+            "fieldtype": "Data",
+            "label": "License State",
+            "read_only": 1
+        },
+        {
+            "fieldname": "professional_license_number",
+            "fieldtype": "Data",
+            "label": "Professional License Number",
+            "read_only": 1
         },
         {
             "fieldname": "token",
