@@ -144,13 +144,12 @@
 									variant="ghost"
 									theme="red"
 									:loading="removeRegistrations.loading"
-									:aria-label="__('Remove from event')"
 									@click="confirmRemoval(selections, unselectAll)"
 								>
 									<template #prefix>
 										<UserMinus class="size-4 stroke-1.5" />
 									</template>
-									<span class="hidden sm:inline">
+									<span class="sr-only sm:not-sr-only">
 										{{ __('Remove from event') }}
 									</span>
 								</Button>
