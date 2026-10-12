@@ -3128,14 +3128,20 @@ def register_for_free_event(event: str):
 	row = frappe.db.get_value(
 		"LMS Event",
 		event,
-		["published", "paid_event", "allow_self_enrollment", "accept_enrollments", "seat_count"],
+		["published", "paid_event", "allow_self_enrollment", "seat_count", "start_date", "start_time"],
 		as_dict=True,
 	)
 	if not row or not row.published:
 		frappe.throw(_("Event not found."))
 	if row.paid_event:
 		frappe.throw(_("This event requires payment. Please use Register Now."))
-	if not (row.allow_self_enrollment and row.accept_enrollments):
+	# Same window the event page uses for `accept_enrollments` (lms.lms.utils
+	# get_event_details): a future start date, or today before the start time.
+	from frappe.utils import getdate, nowtime
+	window_open = row.start_date > getdate() or (
+		row.start_date == getdate() and str(row.start_time) > nowtime()
+	)
+	if not (row.allow_self_enrollment and window_open):
 		frappe.throw(_("This event is not open for registration."))
 
 	require_complete_license(frappe.session.user)

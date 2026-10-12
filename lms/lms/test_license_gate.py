@@ -12,7 +12,7 @@ from unittest.mock import MagicMock, patch
 
 import frappe
 from frappe.tests import UnitTestCase
-from frappe.utils import today
+from frappe.utils import add_days, today
 
 from lms.lms.license import (
 	LicenseRequiredError,
@@ -74,8 +74,8 @@ class TestLicenseGate(UnitTestCase):
 		event = frappe.get_doc("LMS Event", existing) if existing else frappe.get_doc({
 			"doctype": "LMS Event",
 			"title": title,
-			"start_date": today(),
-			"end_date": today(),
+			"start_date": add_days(today(), 30),
+			"end_date": add_days(today(), 30),
 			"start_time": "09:00:00",
 			"end_time": "11:00:00",
 			"timezone": "America/New_York",
@@ -89,7 +89,6 @@ class TestLicenseGate(UnitTestCase):
 		event.amount_usd = 100 if paid else 0
 		event.currency = "USD"
 		event.allow_self_enrollment = 1
-		event.accept_enrollments = 1
 		event.save(ignore_permissions=True)
 		return event.name
 
