@@ -72,7 +72,7 @@
 						:rows="students.data"
 						rowKey="name"
 						:options="{
-							selectable: false,
+							selectable: true,
 							showTooltip: false,
 						}"
 					>
@@ -138,6 +138,23 @@
 								</template>
 							</ListRow>
 						</ListRows>
+						<ListSelectBanner class="!min-w-0 sm:!min-w-[596px]">
+							<template #actions="{ unselectAll, selections }">
+								<Button
+									variant="ghost"
+									theme="red"
+									:loading="removeRegistrations.loading"
+									@click="confirmRemoval(selections, unselectAll)"
+								>
+									<template #prefix>
+										<UserMinus class="size-4 stroke-1.5" />
+									</template>
+									<span class="sr-only sm:not-sr-only">
+										{{ __('Remove from event') }}
+									</span>
+								</Button>
+							</template>
+						</ListSelectBanner>
 					</ListView>
 					<div
 						v-if="students.data && students.hasNextPage"
@@ -201,16 +218,19 @@ import {
 	ListRows,
 	ListRow,
 	ListRowItem,
+	ListSelectBanner,
 	Avatar,
 	Button,
 	toast,
 } from 'frappe-ui'
-import { computed, ref, watch } from 'vue'
+import { computed, getCurrentInstance, ref, watch } from 'vue'
 import { formatAmount } from '@/utils'
-import { Download, Plus } from 'lucide-vue-next'
+import { Download, Plus, UserMinus } from 'lucide-vue-next'
 import NumberChartGraph from '@/components/NumberChartGraph.vue'
 import StudentModal from '@/components/Modals/StudentModal.vue'
 
+const app = getCurrentInstance()
+const $dialog = app?.appContext.config.globalProperties.$dialog
 const searchFilter = ref<string | null>(null)
 const showEnrollmentModal = ref<boolean>(false)
 
@@ -298,11 +318,88 @@ const students = createListResource({
 		'member_name',
 		'member_username',
 		'member_image',
+		'payment',
 		'creation',
 	],
 	orderBy: 'creation desc',
 	auto: true,
 })
+
+const removeRegistrations = createResource({
+	url: 'lms.lms.ceu_event_admin.remove_event_registrations',
+})
+
+function confirmRemoval(selections: Set<string>, unselectAll: () => void) {
+	const names = Array.from(selections || [])
+	if (!names.length) {
+		toast.info(__('Select at least one person to remove'))
+		return
+	}
+	const selected = (students.data || []).filter((row: any) =>
+		names.includes(row.name)
+	)
+	const who =
+		selected.length === 1
+			? selected[0].member_name || selected[0].member
+			: __('{0} people').format(names.length)
+	const paidCount = selected.filter((row: any) => row.payment).length
+	let message = __(
+		'Their seat opens up right away and they stop getting reminders for this event. Nobody is emailed about the removal.'
+	)
+	if (paidCount) {
+		message +=
+			' ' +
+			__(
+				'{0} of them paid for this event. Removing them does not issue a refund, so handle that in Stripe.'
+			).format(paidCount)
+	}
+
+	$dialog({
+		title: __('Remove {0} from this event?').format(who),
+		message,
+		actions: [
+			{
+				label: __('Remove'),
+				theme: 'red',
+				variant: 'solid',
+				onClick({ close }: { close: () => void }) {
+					removeRegistrations
+						.submit({
+							event: props.batch?.data?.name,
+							registrations: names,
+						})
+						.then((res: any) => {
+							const count = res?.removed?.length || 0
+							toast.success(
+								count === 1
+									? __('Removed {0} from the event').format(
+											res.removed[0].member_name
+									  )
+									: __('Removed {0} people from the event').format(count)
+							)
+							if (res?.paid?.length) {
+								toast.warning(
+									__('Refund still needed in Stripe for: {0}').format(
+										res.paid.map((p: any) => p.member_name).join(', ')
+									)
+								)
+							}
+							unselectAll()
+							close()
+							students.reload()
+							chartData.reload()
+							props.batch?.reload?.()
+						})
+						.catch((e: any) => {
+							toast.error(
+								e?.messages?.[0] || __('Could not remove registration')
+							)
+						})
+				},
+			},
+		],
+	})
+}
 
 const filteredChartData = computed(() =>
 	(chartData.data || []).filter((item: { value: number }) => item.value > 0)

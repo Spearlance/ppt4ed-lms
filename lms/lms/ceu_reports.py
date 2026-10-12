@@ -766,3 +766,137 @@ def get_upsell_report(from_date=None, to_date=None):
         "by_course": by_course,
         "recent": recent,
     }
+
+
+@frappe.whitelist()
+def get_coupon_report(from_date=None, to_date=None):
+    """Coupon redemptions: how often each code was used, what it gave away,
+    and what was still paid.
+
+    Every redemption is an `LMS Payment` carrying `coupon`; `original_amount`
+    is the list price at the time, `discount_amount` what the code took off,
+    and `amount` what Stripe charged. A 100% code never reaches Stripe, so its
+    payment has `amount` 0 and no Stripe ids: those are "comps" here and show
+    up nowhere on the Money tab, which mirrors Stripe charges.
+
+    Codes with no redemptions in the range are still listed so admins can see
+    every code that exists, with its lifetime count and limit.
+    """
+    _require_admin()
+    from_date, to_date = _date_window(from_date, to_date)
+    params = {"start": from_date, "end": to_date}
+
+    redeemed = """
+        FROM `tabLMS Payment` p
+        WHERE COALESCE(p.coupon, '') != ''
+          AND p.payment_received = 1
+          AND DATE(p.creation) BETWEEN %(start)s AND %(end)s
+    """
+
+    totals = frappe.db.sql(f"""
+        SELECT
+            COUNT(*) AS redemptions,
+            SUM(p.amount = 0) AS comps,
+            COALESCE(SUM(p.original_amount), 0) AS list_value,
+            COALESCE(SUM(p.discount_amount), 0) AS discount_given,
+            COALESCE(SUM(p.amount), 0) AS net_revenue,
+            COALESCE(SUM(CASE WHEN p.amount = 0 THEN p.original_amount ELSE 0 END), 0) AS comp_value
+        {redeemed}
+    """, params, as_dict=True)[0]
+
+    summary = {
+        "redemptions": cint(totals.redemptions),
+        "comps": cint(totals.comps),
+        "list_value": flt(totals.list_value),
+        "discount_given": flt(totals.discount_given),
+        "net_revenue": flt(totals.net_revenue),
+        "comp_value": flt(totals.comp_value),
+    }
+
+    # Every code, with this range's usage joined on. Lifetime count and limit
+    # come from the coupon itself.
+    by_code = frappe.db.sql("""
+        SELECT
+            c.name AS coupon,
+            c.code,
+            c.enabled,
+            c.discount_type,
+            c.percentage_discount,
+            c.fixed_amount_discount,
+            c.expires_on,
+            c.usage_limit,
+            c.redemption_count AS lifetime_redemptions,
+            COUNT(p.name) AS redemptions,
+            COALESCE(SUM(p.amount = 0), 0) AS comps,
+            COALESCE(SUM(p.original_amount), 0) AS list_value,
+            COALESCE(SUM(p.discount_amount), 0) AS discount_given,
+            COALESCE(SUM(p.amount), 0) AS net_revenue
+        FROM `tabLMS Coupon` c
+        LEFT JOIN `tabLMS Payment` p
+          ON p.coupon = c.name
+         AND p.payment_received = 1
+         AND DATE(p.creation) BETWEEN %(start)s AND %(end)s
+        GROUP BY c.name, c.code, c.enabled, c.discount_type, c.percentage_discount,
+                 c.fixed_amount_discount, c.expires_on, c.usage_limit, c.redemption_count
+        ORDER BY redemptions DESC, discount_given DESC, c.code ASC
+    """, params, as_dict=True)
+    for row in by_code:
+        row["discount_label"] = (
+            f"{cint(row.percentage_discount)}% off"
+            if row.discount_type == "Percentage"
+            else f"${flt(row.fixed_amount_discount):,.0f} off"
+        )
+
+    by_item = frappe.db.sql(f"""
+        SELECT
+            p.coupon_code AS code,
+            p.payment_for_document_type AS item_type,
+            p.payment_for_document AS item,
+            COALESCE(c.title, e.title, p.payment_for_document) AS item_title,
+            COUNT(*) AS redemptions,
+            SUM(p.amount = 0) AS comps,
+            COALESCE(SUM(p.original_amount), 0) AS list_value,
+            COALESCE(SUM(p.discount_amount), 0) AS discount_given,
+            COALESCE(SUM(p.amount), 0) AS net_revenue
+        {redeemed.replace("FROM `tabLMS Payment` p", '''
+        FROM `tabLMS Payment` p
+        LEFT JOIN `tabLMS Course` c ON p.payment_for_document_type = 'LMS Course' AND c.name = p.payment_for_document
+        LEFT JOIN `tabLMS Event` e ON p.payment_for_document_type = 'LMS Event' AND e.name = p.payment_for_document
+        ''')}
+        GROUP BY 1, 2, 3, 4
+        ORDER BY redemptions DESC, discount_given DESC
+    """, params, as_dict=True)
+
+    recent = frappe.db.sql(f"""
+        SELECT
+            p.name,
+            p.creation,
+            p.member,
+            u.full_name AS member_name,
+            p.coupon_code AS code,
+            p.payment_for_document_type AS item_type,
+            p.payment_for_document AS item,
+            COALESCE(c.title, e.title, p.payment_for_document) AS item_title,
+            p.original_amount,
+            p.discount_amount,
+            p.amount,
+            p.currency,
+            (p.amount = 0) AS is_comp
+        {redeemed.replace("FROM `tabLMS Payment` p", '''
+        FROM `tabLMS Payment` p
+        LEFT JOIN `tabUser` u ON u.name = p.member
+        LEFT JOIN `tabLMS Course` c ON p.payment_for_document_type = 'LMS Course' AND c.name = p.payment_for_document
+        LEFT JOIN `tabLMS Event` e ON p.payment_for_document_type = 'LMS Event' AND e.name = p.payment_for_document
+        ''')}
+        ORDER BY p.creation DESC
+        LIMIT 200
+    """, params, as_dict=True)
+
+    return {
+        "from_date": str(from_date),
+        "to_date": str(to_date),
+        "summary": summary,
+        "by_code": by_code,
+        "by_item": by_item,
+        "recent": recent,
+    }
