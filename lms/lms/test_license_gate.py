@@ -34,6 +34,7 @@ class TestLicenseGate(UnitTestCase):
 		# request. Stub it so the full signup path runs under run-tests.
 		if not hasattr(frappe.local, "login_manager"):
 			frappe.local.login_manager = MagicMock()
+			frappe.local.login_manager.login_as.side_effect = frappe.set_user
 			self.addCleanup(lambda: delattr(frappe.local, "login_manager"))
 
 	# ----- fixtures -------------------------------------------------------
@@ -47,6 +48,9 @@ class TestLicenseGate(UnitTestCase):
 			frappe.delete_doc("PPT Enrollment Verification", v.name, force=True, ignore_permissions=True)
 		if frappe.db.exists("User", email):
 			frappe.delete_doc("User", email, force=True, ignore_permissions=True)
+		# Re-inserting the same email in the transaction that deleted it trips
+		# MariaDB 1020 on tabContact; start the recreate from a clean transaction.
+		frappe.db.commit()
 
 	def _make_user(self, email, **fields):
 		self._delete_user_state(email)
