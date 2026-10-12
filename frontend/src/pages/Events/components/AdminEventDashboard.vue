@@ -138,7 +138,7 @@
 								</template>
 							</ListRow>
 						</ListRows>
-						<ListSelectBanner>
+						<ListSelectBanner class="!min-w-0 sm:!min-w-[596px]">
 							<template #actions="{ unselectAll, selections }">
 								<Button
 									variant="ghost"
