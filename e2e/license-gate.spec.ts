@@ -75,7 +75,7 @@ test.describe('License gate', () => {
 
 		await banner.getByRole('button', { name: 'Add license' }).click()
 		const fields = banner.getByTestId('license-fields')
-		await fields.getByLabel('License type').selectOption('SLP')
+		await fields.locator('select').selectOption('SLP')
 		await fields.getByLabel('State').fill('wa')
 		await fields.getByLabel('License number').fill('SLP-E2E-0001')
 		await banner.getByRole('button', { name: 'Save license' }).click()
@@ -100,7 +100,7 @@ test.describe('License gate', () => {
 		expect(page.url()).not.toContain('checkout.stripe.com')
 
 		const fields = dialog.getByTestId('license-fields')
-		await fields.getByLabel('License type').selectOption('PT')
+		await fields.locator('select').selectOption('PT')
 		await fields.getByLabel('State').fill('FL')
 		await fields.getByLabel('License number').fill('PT-E2E-0002')
 

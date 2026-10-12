@@ -59,7 +59,7 @@ async function fillSignupModal(page: Page, email: string, fullName: string) {
 async function fillLicenseIfAsked(page: Page) {
 	const block = page.getByTestId('register-license-fields').filter({ visible: true })
 	if ((await block.count()) === 0) return
-	await block.getByLabel('License type').selectOption('PT')
+	await block.locator('select').selectOption('PT')
 	await block.getByLabel('State').fill('FL')
 	await block.getByLabel('License number').fill('PT-E2E-0001')
 }

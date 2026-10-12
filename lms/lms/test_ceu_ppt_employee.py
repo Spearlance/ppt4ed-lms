@@ -4,6 +4,15 @@ from frappe.utils import today, add_years
 
 
 class TestPPTEmployee(UnitTestCase):
+    def setUp(self):
+        super().setUp()
+        # _consume_ppt_signup_token calls frappe.local.login_manager.login_as,
+        # which only exists inside a web request. Stub it under run-tests.
+        from unittest.mock import MagicMock
+        if not hasattr(frappe.local, "login_manager"):
+            frappe.local.login_manager = MagicMock()
+            self.addCleanup(lambda: delattr(frappe.local, "login_manager"))
+
     def _ensure_plan(self):
         if not frappe.db.exists("CEU Membership Plan", "PPT Employee Test Plan"):
             frappe.get_doc({
@@ -182,6 +191,8 @@ class TestPPTEmployee(UnitTestCase):
                 "end_time": "11:00:00",
                 "timezone": "America/New_York",
                 "description": "Test paid event for PPT employee signup flow.",
+                "event_details": "<p>Test paid event for PPT employee signup flow.</p>",
+                "instructors": [{"instructor": "Administrator"}],
             })
         event.published = 1
         event.paid_event = 1

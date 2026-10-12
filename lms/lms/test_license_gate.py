@@ -8,7 +8,7 @@ Run on dev with allow_tests toggled on (see memory feedback_run_tests_on_dev):
     bench --site devlms.ppt4ed.org run-tests --module lms.lms.test_license_gate
 """
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import frappe
 from frappe.tests import UnitTestCase
@@ -27,6 +27,15 @@ LICENSE = {"license_type": "PT", "license_state": "fl", "professional_license_nu
 
 
 class TestLicenseGate(UnitTestCase):
+	def setUp(self):
+		super().setUp()
+		# signup_and_enroll / _consume_ppt_signup_token call
+		# frappe.local.login_manager.login_as, which only exists inside a web
+		# request. Stub it so the full signup path runs under run-tests.
+		if not hasattr(frappe.local, "login_manager"):
+			frappe.local.login_manager = MagicMock()
+			self.addCleanup(lambda: delattr(frappe.local, "login_manager"))
+
 	# ----- fixtures -------------------------------------------------------
 
 	def _delete_user_state(self, email):
@@ -67,6 +76,8 @@ class TestLicenseGate(UnitTestCase):
 			"end_time": "11:00:00",
 			"timezone": "America/New_York",
 			"description": "License gate test event.",
+			"event_details": "<p>License gate test event.</p>",
+			"instructors": [{"instructor": "Administrator"}],
 		})
 		event.published = 1
 		event.paid_event = 1 if paid else 0
