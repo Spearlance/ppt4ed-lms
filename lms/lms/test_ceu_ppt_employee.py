@@ -11,6 +11,7 @@ class TestPPTEmployee(UnitTestCase):
         from unittest.mock import MagicMock
         if not hasattr(frappe.local, "login_manager"):
             frappe.local.login_manager = MagicMock()
+            frappe.local.login_manager.login_as.side_effect = frappe.set_user
             self.addCleanup(lambda: delattr(frappe.local, "login_manager"))
 
     def _ensure_plan(self):
