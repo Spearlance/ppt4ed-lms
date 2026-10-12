@@ -280,6 +280,7 @@ class TestPPTEmployee(UnitTestCase):
                 target_type="event",
                 target_slug=event_name,
                 intent="paid",
+                license_type="OT", license_state="FL", professional_license_number="OT-TEST-1",
             )
 
         self.assertEqual(result["status"], "verification_sent")
@@ -316,6 +317,7 @@ class TestPPTEmployee(UnitTestCase):
             signup_and_enroll(
                 email=email, password="testpass1234", full_name="Consume PPT",
                 target_type="event", target_slug=event_name, intent="paid",
+                license_type="OT", license_state="FL", professional_license_number="OT-TEST-1",
             )
 
         token = frappe.db.get_value("PPT Enrollment Verification", {"email": email}, "token")
@@ -347,6 +349,7 @@ class TestPPTEmployee(UnitTestCase):
             signup_and_enroll(
                 email=email, password="testpass1234", full_name="Consume PPT Course",
                 target_type="course", target_slug=course_name, intent="paid",
+                license_type="OT", license_state="FL", professional_license_number="OT-TEST-1",
             )
 
         token = frappe.db.get_value("PPT Enrollment Verification", {"email": email}, "token")
@@ -375,6 +378,7 @@ class TestPPTEmployee(UnitTestCase):
             signup_and_enroll(
                 email=email, password="testpass1234", full_name="Used Token PPT",
                 target_type="event", target_slug=event_name, intent="paid",
+                license_type="OT", license_state="FL", professional_license_number="OT-TEST-1",
             )
         token = frappe.db.get_value("PPT Enrollment Verification", {"email": email}, "token")
 
@@ -402,6 +406,7 @@ class TestPPTEmployee(UnitTestCase):
             signup_and_enroll(
                 email=email, password="testpass1234", full_name="Expired PPT",
                 target_type="event", target_slug=event_name, intent="paid",
+                license_type="OT", license_state="FL", professional_license_number="OT-TEST-1",
             )
         row_name = frappe.db.get_value("PPT Enrollment Verification", {"email": email}, "name")
         # Force-expire by setting expires_on into the past
@@ -437,6 +442,7 @@ class TestPPTEmployee(UnitTestCase):
             signup_and_enroll(
                 email=email, password="testpass1234", full_name="Replay PPT",
                 target_type="event", target_slug=event_name, intent="paid",
+                license_type="OT", license_state="FL", professional_license_number="OT-TEST-1",
             )
             first_token = frappe.db.get_value(
                 "PPT Enrollment Verification", {"email": email}, "token"
@@ -445,6 +451,7 @@ class TestPPTEmployee(UnitTestCase):
             signup_and_enroll(
                 email=email, password="testpass1234", full_name="Replay PPT",
                 target_type="event", target_slug=event_name, intent="paid",
+                license_type="OT", license_state="FL", professional_license_number="OT-TEST-1",
             )
 
         # Only ONE pending verification row, and it has a different token.

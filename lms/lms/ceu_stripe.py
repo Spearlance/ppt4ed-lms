@@ -54,6 +54,10 @@ def create_one_off_checkout(course_name, add_upsell=0, coupon_code=None):
     if not course.paid_course:
         frappe.throw(_("This course is not for sale"))
 
+    # The broker needs a license to award the CEU hours this purchase buys.
+    from lms.lms.license import require_complete_license
+    require_complete_license(frappe.session.user)
+
     amount_usd = ceu_coupon.course_usd_price(course)
     if amount_usd <= 0:
         frappe.throw(_("This course has no USD price configured"))
@@ -211,6 +215,11 @@ def create_event_checkout(event_name, add_upsell=0, coupon_code=None):
     if not event.paid_event:
         frappe.throw(_("This event is not for sale"))
 
+    # Checked before Stripe so the attendee export is never blank for a
+    # paying registrant (every event is a CEU event).
+    from lms.lms.license import require_complete_license
+    require_complete_license(frappe.session.user)
+
     # Stripe is USD-only for now. The early-bird price replaces the list price
     # while the deadline is open; selection happens server-side so the client
     # cannot ask for it after the cutoff. See ceu_coupon.event_usd_price.
@@ -359,6 +368,13 @@ def create_event_checkout(event_name, add_upsell=0, coupon_code=None):
 @frappe.whitelist()
 def create_subscription_checkout(plan_name, stripe_price_id, user_email, company_name=None):
     """Create a Stripe Checkout session for a membership subscription."""
+    # Individual memberships buy CEU credits for the buyer, so the buyer needs
+    # a license on file. Company plans are bought by an admin on behalf of
+    # staff; the gate lands on each employee when they enroll.
+    if not company_name:
+        from lms.lms.license import require_complete_license
+        require_complete_license(user_email)
+
     s = get_stripe()
 
     metadata = {

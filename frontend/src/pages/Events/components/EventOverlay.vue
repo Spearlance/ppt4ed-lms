@@ -308,6 +308,12 @@
 			:intent="registerIntent"
 			:context-label="batch.data.title"
 			:redirect-url="`/lms/events/${batch.data.name}`"
+			:require-license="true"
+		/>
+		<LicenseDialog
+			v-model:open="showLicense"
+			:reason="__('Every PPT event awards CEU credit, and the broker needs your license to report it. Add it once and you are set for every event.')"
+			@saved="resumeAfterLicense"
 		/>
 	</div>
 </template>
@@ -334,6 +340,7 @@ import {
 import { formatNumberIntoCurrency, formatTime } from '@/utils'
 import DateRange from '@/components/Common/DateRange.vue'
 import RegisterModal from '@/components/Modals/RegisterModal.vue'
+import LicenseDialog from '@/components/Modals/LicenseDialog.vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
@@ -350,6 +357,30 @@ function openRegisterFor(intent) {
 	showRegister.value = true
 }
 
+// License gate for logged-in users: every event is a CEU event, so the
+// server refuses checkout/registration (LicenseRequiredError) until the
+// profile has type, state and number. We check the flag up front to avoid
+// the round trip, and also catch the server error in case the flag is stale.
+const showLicense = ref(false)
+let pendingAction = null
+
+function needsLicense(action) {
+	if (user.data?.license_complete) return false
+	pendingAction = action
+	showLicense.value = true
+	return true
+}
+
+function resumeAfterLicense() {
+	const action = pendingAction
+	pendingAction = null
+	if (action) action()
+}
+
+function isLicenseError(err) {
+	return err?.exc_type === 'LicenseRequiredError'
+}
+
 const props = defineProps({
 	batch: {
 		type: Object,
@@ -357,8 +388,10 @@ const props = defineProps({
 	},
 })
 
+// Free, self-enrollable events. The old target (lms.lms.utils.enroll_in_event)
+// no longer existed after the Batch→Event rename, so this button was dead.
 const enroll = createResource({
-	url: 'lms.lms.utils.enroll_in_event',
+	url: 'lms.lms.api.register_for_free_event',
 	makeParams(values) {
 		return {
 			event: props.batch.data.name,
@@ -428,6 +461,7 @@ async function purchaseEvent() {
 		openRegisterFor('paid')
 		return
 	}
+	if (needsLicense(purchaseEvent)) return
 	purchasing.value = true
 	try {
 		const result = await call(
@@ -462,6 +496,11 @@ async function purchaseEvent() {
 		window.location.href = result.url
 	} catch (err) {
 		purchasing.value = false
+		if (isLicenseError(err)) {
+			pendingAction = purchaseEvent
+			showLicense.value = true
+			return
+		}
 		toast.warning(__(err.messages?.[0] || err.message || err))
 		console.error(err)
 	}
@@ -472,6 +511,7 @@ async function registerAsPptEmployee() {
 		openRegisterFor('free')
 		return
 	}
+	if (needsLicense(registerAsPptEmployee)) return
 	registering.value = true
 	try {
 		await call('lms.lms.ceu_enrollment.register_ppt_employee_for_event', {
@@ -489,6 +529,11 @@ async function registerAsPptEmployee() {
 		})
 	} catch (err) {
 		registering.value = false
+		if (isLicenseError(err)) {
+			pendingAction = registerAsPptEmployee
+			showLicense.value = true
+			return
+		}
 		toast.warning(__(err.messages?.[0] || err.message || err))
 		console.error(err)
 	}
@@ -499,11 +544,17 @@ const enrollInBatch = () => {
 		openRegisterFor('free')
 		return
 	}
+	if (needsLicense(enrollInBatch)) return
 	enroll.submit(
 		{},
 		{
 			onSuccess(data) {
-				toast.success(__('You have been enrolled in this event'))
+				capture('registered_for_event', {
+					event: props.batch.data.name,
+					source: 'free',
+				})
+				toast.success(__('You have been registered for this event'))
+				props.batch.reload?.()
 				router.push({
 					name: 'Event',
 					params: {
@@ -512,6 +563,11 @@ const enrollInBatch = () => {
 				})
 			},
 			onError(err) {
+				if (isLicenseError(err)) {
+					pendingAction = enrollInBatch
+					showLicense.value = true
+					return
+				}
 				toast.error(__(err.messages?.[0] || err))
 				console.error(err)
 			},

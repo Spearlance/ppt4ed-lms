@@ -1,6 +1,7 @@
 <template>
 	<div class="flex h-full flex-col relative">
 		<div class="h-full pb-10 flex flex-col" id="scrollContainer">
+			<LicenseBanner />
 			<div class="flex-1">
 				<slot />
 			</div>
@@ -62,6 +63,7 @@ import { useRouter } from 'vue-router'
 import { call } from 'frappe-ui'
 import { watch, ref, onMounted } from 'vue'
 import { sessionStore } from '@/stores/session'
+import LicenseBanner from '@/components/LicenseBanner.vue'
 import { useSettings } from '@/stores/settings'
 import { usersStore } from '@/stores/user'
 import * as icons from 'lucide-vue-next'
