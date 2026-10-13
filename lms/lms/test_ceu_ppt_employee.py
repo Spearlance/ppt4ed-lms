@@ -4,6 +4,16 @@ from frappe.utils import today, add_years
 
 
 class TestPPTEmployee(UnitTestCase):
+    def setUp(self):
+        super().setUp()
+        # _consume_ppt_signup_token calls frappe.local.login_manager.login_as,
+        # which only exists inside a web request. Stub it under run-tests.
+        from unittest.mock import MagicMock
+        if not hasattr(frappe.local, "login_manager"):
+            frappe.local.login_manager = MagicMock()
+            frappe.local.login_manager.login_as.side_effect = frappe.set_user
+            self.addCleanup(lambda: delattr(frappe.local, "login_manager"))
+
     def _ensure_plan(self):
         if not frappe.db.exists("CEU Membership Plan", "PPT Employee Test Plan"):
             frappe.get_doc({
@@ -182,6 +192,8 @@ class TestPPTEmployee(UnitTestCase):
                 "end_time": "11:00:00",
                 "timezone": "America/New_York",
                 "description": "Test paid event for PPT employee signup flow.",
+                "event_details": "<p>Test paid event for PPT employee signup flow.</p>",
+                "instructors": [{"instructor": "Administrator"}],
             })
         event.published = 1
         event.paid_event = 1
@@ -280,6 +292,7 @@ class TestPPTEmployee(UnitTestCase):
                 target_type="event",
                 target_slug=event_name,
                 intent="paid",
+                license_type="OT", license_state="FL", professional_license_number="OT-TEST-1",
             )
 
         self.assertEqual(result["status"], "verification_sent")
@@ -316,6 +329,7 @@ class TestPPTEmployee(UnitTestCase):
             signup_and_enroll(
                 email=email, password="testpass1234", full_name="Consume PPT",
                 target_type="event", target_slug=event_name, intent="paid",
+                license_type="OT", license_state="FL", professional_license_number="OT-TEST-1",
             )
 
         token = frappe.db.get_value("PPT Enrollment Verification", {"email": email}, "token")
@@ -347,6 +361,7 @@ class TestPPTEmployee(UnitTestCase):
             signup_and_enroll(
                 email=email, password="testpass1234", full_name="Consume PPT Course",
                 target_type="course", target_slug=course_name, intent="paid",
+                license_type="OT", license_state="FL", professional_license_number="OT-TEST-1",
             )
 
         token = frappe.db.get_value("PPT Enrollment Verification", {"email": email}, "token")
@@ -375,6 +390,7 @@ class TestPPTEmployee(UnitTestCase):
             signup_and_enroll(
                 email=email, password="testpass1234", full_name="Used Token PPT",
                 target_type="event", target_slug=event_name, intent="paid",
+                license_type="OT", license_state="FL", professional_license_number="OT-TEST-1",
             )
         token = frappe.db.get_value("PPT Enrollment Verification", {"email": email}, "token")
 
@@ -402,6 +418,7 @@ class TestPPTEmployee(UnitTestCase):
             signup_and_enroll(
                 email=email, password="testpass1234", full_name="Expired PPT",
                 target_type="event", target_slug=event_name, intent="paid",
+                license_type="OT", license_state="FL", professional_license_number="OT-TEST-1",
             )
         row_name = frappe.db.get_value("PPT Enrollment Verification", {"email": email}, "name")
         # Force-expire by setting expires_on into the past
@@ -437,6 +454,7 @@ class TestPPTEmployee(UnitTestCase):
             signup_and_enroll(
                 email=email, password="testpass1234", full_name="Replay PPT",
                 target_type="event", target_slug=event_name, intent="paid",
+                license_type="OT", license_state="FL", professional_license_number="OT-TEST-1",
             )
             first_token = frappe.db.get_value(
                 "PPT Enrollment Verification", {"email": email}, "token"
@@ -445,6 +463,7 @@ class TestPPTEmployee(UnitTestCase):
             signup_and_enroll(
                 email=email, password="testpass1234", full_name="Replay PPT",
                 target_type="event", target_slug=event_name, intent="paid",
+                license_type="OT", license_state="FL", professional_license_number="OT-TEST-1",
             )
 
         # Only ONE pending verification row, and it has a different token.

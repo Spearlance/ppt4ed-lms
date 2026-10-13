@@ -4,6 +4,7 @@
 			<AppSidebar />
 		</div>
 		<div class="flex-1 flex flex-col h-full overflow-auto bg-surface-white">
+			<LicenseBanner />
 			<div class="flex-1">
 				<slot />
 			</div>
@@ -14,4 +15,5 @@
 <script setup>
 import AppSidebar from '@/components/Sidebar/AppSidebar.vue'
 import AppFooter from '@/components/AppFooter.vue'
+import LicenseBanner from '@/components/LicenseBanner.vue'
 </script>

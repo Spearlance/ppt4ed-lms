@@ -50,6 +50,18 @@ async function fillSignupModal(page: Page, email: string, fullName: string) {
 	await page.getByLabel('Full name').filter({ visible: true }).fill(fullName)
 	await page.getByLabel('Email').filter({ visible: true }).fill(email)
 	await page.getByLabel('Password').filter({ visible: true }).fill(password())
+	await fillLicenseIfAsked(page)
+}
+
+// CEU-bearing targets (every event, paid or CEU-hour courses, memberships)
+// render the license block; the server rejects the signup without it.
+// Resources and bare signups don't show it, so fill only when present.
+async function fillLicenseIfAsked(page: Page) {
+	const block = page.getByTestId('register-license-fields').filter({ visible: true })
+	if ((await block.count()) === 0) return
+	await block.locator('select').selectOption('PT')
+	await block.getByLabel('State').fill('FL')
+	await block.getByLabel('License number').fill('PT-E2E-0001')
 }
 
 test.describe('Public signup flow', () => {
@@ -192,6 +204,7 @@ test.describe('Public signup flow', () => {
 		await signup.locator('input[name="full_name"]').fill('PPT Kids Event')
 		await signup.locator('input[name="email"]').fill(email)
 		await signup.locator('input[name="password"]').fill(password())
+		await fillLicenseIfAsked(page)
 		await signup.locator('button[type="submit"]').click()
 
 		// Holding message rendered into #register-modal-alert by the verification_sent branch.
@@ -214,6 +227,7 @@ test.describe('Public signup flow', () => {
 		await signup.locator('input[name="full_name"]').fill('PPT Kids Course')
 		await signup.locator('input[name="email"]').fill(email)
 		await signup.locator('input[name="password"]').fill(password())
+		await fillLicenseIfAsked(page)
 		await signup.locator('button[type="submit"]').click()
 
 		await expect(page.locator('#register-modal-alert')).toContainText(

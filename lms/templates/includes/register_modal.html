@@ -7,6 +7,9 @@
     register_modal_intent         'free' | 'paid' | 'membership:<plan>' | none
     register_modal_redirect_url   fallback URL after login (string, defaults to /lms)
     register_modal_context_label  short label shown under the modal title (e.g. course title)
+    register_modal_require_license  truthy when the target is CEU-bearing (every event, paid or
+                                  CEU-hour course): the modal then asks for license type, state
+                                  and number and signup_and_enroll rejects the request without them.
 
   Triggers: any element with `data-action="open-register"` opens the modal.
   Programmatic: window.openRegisterModal({ pane: 'login', email: 'x@y.com' }).
@@ -113,6 +116,45 @@
 	color: #829ab1;
 	margin: -0.4rem 0 1rem;
 }
+.register-modal__pane select {
+	display: block;
+	width: 100%;
+	margin-top: 0.3rem;
+	padding: 0.6rem 0.75rem;
+	border: 1px solid #d9e2ec;
+	border-radius: 8px;
+	font-size: 0.95rem;
+	color: #1f2933;
+	background: #ffffff;
+	box-sizing: border-box;
+}
+.register-modal__pane select:focus {
+	outline: none;
+	border-color: #2c5282;
+	box-shadow: 0 0 0 3px rgba(44, 82, 130, 0.15);
+}
+.register-modal__license {
+	border-top: 1px solid #e4e9f0;
+	margin: 0.25rem 0 0.85rem;
+	padding-top: 0.85rem;
+}
+.register-modal__license-title {
+	font-size: 0.8rem;
+	font-weight: 600;
+	color: #334e68;
+	margin: 0 0 0.15rem;
+}
+.register-modal__license-why {
+	font-size: 0.78rem;
+	color: #627d98;
+	margin: 0 0 0.75rem;
+}
+.register-modal__license-row {
+	display: flex;
+	gap: 0.5rem;
+}
+.register-modal__license-row label:first-child { flex: 0 0 34%; }
+.register-modal__license-row label:last-child { flex: 1; }
 .register-modal__submit {
 	display: block;
 	width: 100%;
@@ -230,6 +272,30 @@
 			</label>
 			<p class="register-modal__hint">{{ _("At least 8 characters.") }}</p>
 
+			{% if register_modal_require_license %}
+			<div class="register-modal__license" data-testid="register-license-fields">
+				<p class="register-modal__license-title">{{ _("Professional license") }}</p>
+				<p class="register-modal__license-why">{{ _("Required to award CEU credit. Your CEU broker report uses exactly what you enter here.") }}</p>
+				<label>{{ _("License type") }}
+					<select name="license_type">
+						<option value="">{{ _("Select one") }}</option>
+						<option value="OT">{{ _("OT — Occupational Therapy") }}</option>
+						<option value="PT">{{ _("PT — Physical Therapy") }}</option>
+						<option value="SLP">{{ _("SLP — Speech-Language Pathology") }}</option>
+						<option value="Other">{{ _("Other") }}</option>
+					</select>
+				</label>
+				<div class="register-modal__license-row">
+					<label>{{ _("State") }}
+						<input name="license_state" type="text" maxlength="10" placeholder="FL" autocomplete="off">
+					</label>
+					<label>{{ _("License number") }}
+						<input name="professional_license_number" type="text" autocomplete="off">
+					</label>
+				</div>
+			</div>
+			{% endif %}
+
 			<button type="submit" class="register-modal__submit">{{ _("Create account") }}</button>
 		</form>
 
@@ -293,7 +359,8 @@
 		target_type: {{ (register_modal_target_type or None) | tojson }},
 		target_slug: {{ (register_modal_target_slug or None) | tojson }},
 		intent: {{ (register_modal_intent or 'free') | tojson }},
-		redirect_url: {{ (register_modal_redirect_url or '/lms') | tojson }}
+		redirect_url: {{ (register_modal_redirect_url or '/lms') | tojson }},
+		require_license: {{ (1 if register_modal_require_license else 0) | tojson }}
 	};
 
 	const modal = document.getElementById('register-modal');
@@ -403,21 +470,35 @@
 	signupForm.addEventListener('submit', (e) => {
 		e.preventDefault();
 		hideAlert();
+		const args = {
+			email: signupForm.elements.email.value.trim(),
+			password: signupForm.elements.password.value,
+			full_name: signupForm.elements.full_name.value.trim(),
+			target_type: CONFIG.target_type,
+			target_slug: CONFIG.target_slug,
+			intent: CONFIG.intent
+		};
+		// Not validated here on purpose: the server answers "exists" (pivot to
+		// Log In) before it checks the license, so a returning user who typed
+		// their email into the signup tab isn't nagged for a license first.
+		if (CONFIG.require_license) {
+			args.license_type = (signupForm.elements.license_type.value || '').trim();
+			args.license_state = (signupForm.elements.license_state.value || '').trim().toUpperCase();
+			args.professional_license_number = (signupForm.elements.professional_license_number.value || '').trim();
+		}
 		setSubmitting(signupForm, true, "{{ _('Creating account…') }}");
 
-		frappe.call({
-			method: 'lms.lms.api.signup_and_enroll',
-			type: 'POST',
-			args: {
-				email: signupForm.elements.email.value.trim(),
-				password: signupForm.elements.password.value,
-				full_name: signupForm.elements.full_name.value.trim(),
-				target_type: CONFIG.target_type,
-				target_slug: CONFIG.target_slug,
-				intent: CONFIG.intent
-			},
-			callback: function(r) {
-				const result = (r && r.message) || {};
+		// Plain fetch (see apiPost below) rather than the website frappe.call:
+		// that one pops its own msgprint dialog on a 417 validation error
+		// (e.g. a missing license) instead of reaching our error handler.
+		apiPost('lms.lms.api.signup_and_enroll', args).then(({ ok, data }) => {
+			if (!ok) {
+				setSubmitting(signupForm, false);
+				showAlert('error', errorFromData(data) || "{{ _('Something went wrong. Please try again.') }}");
+				return;
+			}
+			{
+				const result = (data && data.message) || {};
 				if (result.status === 'verification_sent') {
 					// PPT-domain gate: hide the form, show a "check your email"
 					// holding message until they click the link.
@@ -451,12 +532,10 @@
 				}
 				setSubmitting(signupForm, false);
 				showAlert('error', "{{ _('Something went wrong. Please try again.') }}");
-			},
-			error: function(err) {
-				setSubmitting(signupForm, false);
-				const msg = extractError(err) || "{{ _('Something went wrong. Please try again.') }}";
-				showAlert('error', msg);
 			}
+		}).catch(() => {
+			setSubmitting(signupForm, false);
+			showAlert('error', "{{ _('Something went wrong. Please try again.') }}");
 		});
 	});
 

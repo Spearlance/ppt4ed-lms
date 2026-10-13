@@ -283,6 +283,8 @@ img.lms-landing__instructor-avatar { object-fit: cover; }
 {% set register_modal_intent = 'paid' if is_paid else 'free' %}
 {% set register_modal_redirect_url = register_url %}
 {% set register_modal_context_label = event.title %}
+{# Every event is a CEU event: the broker needs a license for each registrant. #}
+{% set register_modal_require_license = True %}
 
 <div class="lms-landing">
 	<div class="lms-landing__main">
