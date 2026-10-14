@@ -22,6 +22,7 @@
 							<th class="pb-2 pr-4 font-medium">{{ __('Campaign') }}</th>
 							<th class="pb-2 pr-4 font-medium text-right">{{ __('New accounts') }}</th>
 							<th class="pb-2 pr-4 font-medium text-right">{{ __('Course enrollments') }}</th>
+							<th class="pb-2 pr-4 font-medium text-right">{{ __('Event registrations') }}</th>
 							<th class="pb-2 font-medium text-right">{{ __('Resource claims') }}</th>
 						</tr>
 					</thead>
@@ -38,10 +39,13 @@
 							<td class="py-2 pr-4 text-right font-mono text-ink-gray-9">
 								{{ row.course_enrollments }}
 							</td>
+							<td class="py-2 pr-4 text-right font-mono text-ink-gray-9">
+								{{ row.event_registrations }}
+							</td>
 							<td class="py-2 text-right text-ink-gray-7">{{ row.resource_claims }}</td>
 						</tr>
 						<tr v-if="!report.data?.sources?.length && !report.loading">
-							<td class="py-6 text-center text-ink-gray-5" colspan="6">
+							<td class="py-6 text-center text-ink-gray-5" colspan="7">
 								{{ __('No signups or enrollments in this range.') }}
 							</td>
 						</tr>
@@ -82,6 +86,45 @@
 						<tr v-if="!report.data?.by_course?.length && !report.loading">
 							<td class="py-6 text-center text-ink-gray-5" colspan="5">
 								{{ __('No enrollments in this range.') }}
+							</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+		</div>
+
+		<div>
+			<h3 class="mb-2 text-base font-semibold text-ink-gray-9">
+				{{ __('Event by source') }}
+			</h3>
+			<div class="overflow-x-auto">
+				<table class="w-full text-sm">
+					<thead>
+						<tr class="border-b text-left text-ink-gray-5">
+							<th class="pb-2 pr-4 font-medium">{{ __('Event') }}</th>
+							<th class="pb-2 pr-4 font-medium">{{ __('Source') }}</th>
+							<th class="pb-2 pr-4 font-medium">{{ __('Medium') }}</th>
+							<th class="pb-2 pr-4 font-medium">{{ __('Campaign') }}</th>
+							<th class="pb-2 font-medium text-right">{{ __('Registrations') }}</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr
+							v-for="row in report.data?.by_event || []"
+							:key="`${row.event}|${rowKey(row)}`"
+							class="border-b last:border-0"
+						>
+							<td class="py-2 pr-4 font-medium text-ink-gray-9">
+								{{ row.event_title || row.event }}
+							</td>
+							<td class="py-2 pr-4 text-ink-gray-7">{{ sourceLabel(row) }}</td>
+							<td class="py-2 pr-4 text-ink-gray-7">{{ mediumLabel(row) }}</td>
+							<td class="py-2 pr-4 text-ink-gray-7">{{ row.traffic_campaign || '—' }}</td>
+							<td class="py-2 text-right font-mono text-ink-gray-9">{{ row.registrations }}</td>
+						</tr>
+						<tr v-if="!report.data?.by_event?.length && !report.loading">
+							<td class="py-6 text-center text-ink-gray-5" colspan="5">
+								{{ __('No event registrations in this range.') }}
 							</td>
 						</tr>
 					</tbody>
@@ -142,7 +185,19 @@ const mediumLabel = (row) =>
 	!row.traffic_medium || row.traffic_medium === 'none' ? '—' : row.traffic_medium
 
 const downloadCsv = () => {
-	const rows = report.data?.by_course || []
+	const courses = (report.data?.by_course || []).map((row) => ({
+		type: 'Course',
+		title: row.course_title || row.course,
+		...row,
+		count: row.enrollments,
+	}))
+	const events = (report.data?.by_event || []).map((row) => ({
+		type: 'Event',
+		title: row.event_title || row.event,
+		...row,
+		count: row.registrations,
+	}))
+	const rows = [...courses, ...events]
 	if (!rows.length) {
 		toast.error(__('Nothing to export for this range.'))
 		return
@@ -151,15 +206,16 @@ const downloadCsv = () => {
 		const text = value === null || value === undefined ? '' : String(value)
 		return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text
 	}
-	const lines = [['Course', 'Source', 'Medium', 'Campaign', 'Enrollments'].join(',')]
+	const lines = [['Type', 'Title', 'Source', 'Medium', 'Campaign', 'Count'].join(',')]
 	rows.forEach((row) => {
 		lines.push(
 			[
-				row.course_title || row.course,
+				row.type,
+				row.title,
 				row.traffic_source,
 				row.traffic_medium,
 				row.traffic_campaign,
-				row.enrollments,
+				row.count,
 			]
 				.map(escape)
 				.join(','),
@@ -168,7 +224,7 @@ const downloadCsv = () => {
 	const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' })
 	const link = document.createElement('a')
 	link.href = URL.createObjectURL(blob)
-	link.download = `ppt4ed-course-sources-${fromDate.value}-to-${toDate.value}.csv`
+	link.download = `ppt4ed-sources-${fromDate.value}-to-${toDate.value}.csv`
 	link.click()
 	URL.revokeObjectURL(link.href)
 }
