@@ -318,6 +318,26 @@
 							</tbody>
 						</table>
 					</div>
+
+					<div>
+						<h4 class="mb-1 font-semibold text-ink-gray-9">{{ __('Registered for') }}</h4>
+						<table class="w-full text-sm">
+							<tbody>
+								<tr
+									v-for="r in memberDetail.data.registrations"
+									:key="r.event"
+									class="border-b last:border-0"
+								>
+									<td class="py-1.5 pr-3 text-ink-gray-9">{{ r.event_title || r.event }}</td>
+									<td class="py-1.5 pr-3 text-ink-gray-5">{{ r.credit_source || '—' }}</td>
+									<td class="py-1.5 text-right text-ink-gray-7">{{ shortDate(r.start_date) }}</td>
+								</tr>
+								<tr v-if="!memberDetail.data.registrations?.length">
+									<td class="py-2 text-ink-gray-5">{{ __('No event registrations.') }}</td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
 				</div>
 			</template>
 		</Dialog>
