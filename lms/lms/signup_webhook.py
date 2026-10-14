@@ -209,7 +209,10 @@ def _enrollment_payload(name):
 
 def _event_registration_payload(name):
 	registration = frappe.db.get_value(
-		"LMS Event Registration", name, ["creation", "member", "event"], as_dict=True
+		"LMS Event Registration",
+		name,
+		["creation", "member", "event"] + [f"traffic_{key}" for key in TRAFFIC_KEYS],
+		as_dict=True,
 	)
 	if not registration:
 		return None
@@ -219,6 +222,7 @@ def _event_registration_payload(name):
 		registration.creation,
 		**_member(registration.member),
 		**_event_item(registration.event),
+		**_traffic(registration),
 	)
 
 

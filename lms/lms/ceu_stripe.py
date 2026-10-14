@@ -280,6 +280,9 @@ def create_event_checkout(event_name, add_upsell=0, coupon_code=None):
         "event": event_name,
         "user": user_email,
         "early_bird": "1" if is_early_bird else "0",
+        # Same as courses: the webhook creates the registration and has no
+        # browser, so the buyer's traffic source rides along here.
+        **checkout_traffic_metadata(),
     }
     if coupon_pricing:
         metadata.update(ceu_coupon.checkout_metadata(coupon_pricing))

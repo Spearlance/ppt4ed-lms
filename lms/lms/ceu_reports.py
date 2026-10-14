@@ -224,6 +224,19 @@ def get_member_purchase_detail(member):
         ORDER BY e.creation DESC
     """, {"member": user.name}, as_dict=True)
 
+    registrations = frappe.db.sql("""
+        SELECT
+            r.event,
+            ev.title AS event_title,
+            ev.start_date,
+            r.credit_source,
+            r.creation AS registered_on
+        FROM `tabLMS Event Registration` r
+        LEFT JOIN `tabLMS Event` ev ON ev.name = r.event
+        WHERE r.member = %(member)s
+        ORDER BY r.creation DESC
+    """, {"member": user.name}, as_dict=True)
+
     memberships = frappe.get_all(
         "CEU Membership",
         filters={"member": user.name},
@@ -242,6 +255,7 @@ def get_member_purchase_detail(member):
         "lifetime_transactions": lifetime[0].transactions if lifetime else 0,
         "transactions": transactions,
         "enrollments": enrollments,
+        "registrations": registrations,
         "memberships": memberships,
     }
 
@@ -297,11 +311,12 @@ def get_monthly_course_stats(from_date=None, to_date=None):
 
 @frappe.whitelist()
 def get_traffic_source_report(from_date=None, to_date=None):
-    """Where new accounts and enrollments came from, by traffic source.
+    """Where new accounts, enrollments and event registrations came from.
 
     Source, medium and campaign are captured in the visitor's browser (UTM tags,
     ad click IDs or the referring site) and stamped onto the User at signup and
-    onto each LMS Enrollment. See `lms/lms/traffic_source.py`.
+    onto each LMS Enrollment / LMS Event Registration. See
+    `lms/lms/traffic_source.py`.
 
     A blank source is reported as "not tracked": the row predates tracking, or
     was created by an admin, an import or a company seat assignment rather than
@@ -339,6 +354,32 @@ def get_traffic_source_report(from_date=None, to_date=None):
         GROUP BY 1, 2, 3
     """, params, as_dict=True)
 
+    registrations = frappe.db.sql("""
+        SELECT
+            COALESCE(NULLIF(r.traffic_source, ''), 'not tracked') AS traffic_source,
+            COALESCE(r.traffic_medium, '') AS traffic_medium,
+            COALESCE(r.traffic_campaign, '') AS traffic_campaign,
+            COUNT(*) AS event_registrations
+        FROM `tabLMS Event Registration` r
+        WHERE DATE(r.creation) BETWEEN %(start)s AND %(end)s
+        GROUP BY 1, 2, 3
+    """, params, as_dict=True)
+
+    by_event = frappe.db.sql("""
+        SELECT
+            r.event,
+            ev.title AS event_title,
+            COALESCE(NULLIF(r.traffic_source, ''), 'not tracked') AS traffic_source,
+            COALESCE(r.traffic_medium, '') AS traffic_medium,
+            COALESCE(r.traffic_campaign, '') AS traffic_campaign,
+            COUNT(*) AS registrations
+        FROM `tabLMS Event Registration` r
+        JOIN `tabLMS Event` ev ON ev.name = r.event
+        WHERE DATE(r.creation) BETWEEN %(start)s AND %(end)s
+        GROUP BY 1, 2, 3, 4, 5
+        ORDER BY registrations DESC, event_title ASC
+    """, params, as_dict=True)
+
     by_course = frappe.db.sql("""
         SELECT
             e.course,
@@ -356,7 +397,7 @@ def get_traffic_source_report(from_date=None, to_date=None):
     """, params, as_dict=True)
 
     sources = {}
-    for row in [*signups, *enrollments]:
+    for row in [*signups, *enrollments, *registrations]:
         key = (row.traffic_source, row.traffic_medium, row.traffic_campaign)
         merged = sources.setdefault(key, {
             "traffic_source": row.traffic_source,
@@ -364,18 +405,24 @@ def get_traffic_source_report(from_date=None, to_date=None):
             "traffic_campaign": row.traffic_campaign,
             "signups": 0,
             "course_enrollments": 0,
+            "event_registrations": 0,
             "resource_claims": 0,
         })
-        for metric in ("signups", "course_enrollments", "resource_claims"):
+        for metric in ("signups", "course_enrollments", "event_registrations", "resource_claims"):
             merged[metric] += cint(row.get(metric))
 
     return {
         "sources": sorted(
             sources.values(),
-            key=lambda r: (r["course_enrollments"], r["signups"], r["resource_claims"]),
+            key=lambda r: (
+                r["course_enrollments"] + r["event_registrations"],
+                r["signups"],
+                r["resource_claims"],
+            ),
             reverse=True,
         ),
         "by_course": by_course,
+        "by_event": by_event,
         "from_date": str(from_date),
         "to_date": str(to_date),
     }

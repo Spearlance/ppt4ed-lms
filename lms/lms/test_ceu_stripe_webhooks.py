@@ -158,8 +158,45 @@ class TestCEUStripeWebhooks(UnitTestCase):
                 stripe_payment_intent_id="pi_test_evt",
                 amount_total=7900,
                 currency="usd",
+                traffic={},
                 coupon=None,
             )
+
+    def test_event_checkout_passes_traffic_source_from_metadata(self):
+        """Event buyers are attributed the same way course buyers are: the
+        source captured at checkout rides in Checkout metadata and lands on
+        the registration (and on the order-bump enrollment, when there is one)."""
+        from lms.lms.ceu_stripe_webhooks import handle_checkout_completed
+
+        with patch("lms.lms.ceu_stripe_webhooks._create_event_registration") as mock_reg, \
+             patch("lms.lms.ceu_stripe_webhooks._create_one_off_enrollment") as mock_enroll, \
+             patch("lms.lms.ceu_upsell.mark_offer_paid"):
+            handle_checkout_completed({
+                "id": "cs_test_event_traffic",
+                "payment_intent": "pi_test_evt_traffic",
+                "amount_total": 10000,
+                "currency": "usd",
+                "metadata": {
+                    "type": "event_one_off",
+                    "event": "test-event",
+                    "user": "test@test.com",
+                    "traffic_source": "google",
+                    "traffic_medium": "cpc",
+                    "traffic_campaign": "fall-webinar",
+                    "upsell_course": "bump-course",
+                    "upsell_cents": "2100",
+                },
+            })
+            expected = {
+                "traffic_source": "google",
+                "traffic_medium": "cpc",
+                "traffic_campaign": "fall-webinar",
+                "traffic_referrer": "",
+            }
+            self.assertEqual(mock_reg.call_args.kwargs["traffic"], expected)
+            self.assertEqual(mock_reg.call_args.kwargs["amount_total"], 7900)
+            self.assertEqual(mock_enroll.call_args.kwargs["traffic"], expected)
+            self.assertEqual(mock_enroll.call_args.kwargs["amount_total"], 2100)
 
     def test_event_checkout_passes_coupon_fields_from_metadata(self):
         from lms.lms.ceu_stripe_webhooks import handle_checkout_completed
