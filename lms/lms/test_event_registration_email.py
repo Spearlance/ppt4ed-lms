@@ -2,8 +2,9 @@
 
 Paid events get the same receipt a paid course enrollment gets (amount,
 payment reference, purchase date) and a mail failure never rolls back the
-registration. Kept off the database: everything the controller reads is
-patched.
+registration. Kept off the database: the rows the controller reads are
+stubbed; every other `get_value` call (number formats, system settings)
+falls through to the real function.
 """
 
 from datetime import date, datetime, time
@@ -15,14 +16,30 @@ from frappe.tests import UnitTestCase
 MODULE = "lms.lms.doctype.lms_event_registration.lms_event_registration"
 
 
+def _stub_get_value(rows):
+	"""get_value replacement that answers for the doctypes in `rows` and
+	delegates everything else to the real frappe.db.get_value."""
+	real = frappe.db.get_value
+
+	def get_value(doctype, *args, **kwargs):
+		if doctype in rows:
+			return rows[doctype]
+		return real(doctype, *args, **kwargs)
+
+	return get_value
+
+
+def _payment(amount=79.0):
+	return frappe._dict(
+		name="PAY-0042", amount=amount, currency="usd", creation=datetime(2026, 10, 14, 9, 30)
+	)
+
+
 class TestReceiptArgs(UnitTestCase):
 	def test_paid_registration_gets_receipt_lines(self):
 		from lms.lms.doctype.lms_event_registration.lms_event_registration import receipt_args
 
-		payment = frappe._dict(
-			name="PAY-0042", amount=79.0, currency="usd", creation=datetime(2026, 10, 14, 9, 30)
-		)
-		with patch(f"{MODULE}.frappe.db.get_value", return_value=payment):
+		with patch(f"{MODULE}.frappe.db.get_value", side_effect=_stub_get_value({"LMS Payment": _payment()})):
 			args = receipt_args("PAY-0042")
 
 		self.assertEqual(args["payment_reference"], "PAY-0042")
@@ -37,8 +54,7 @@ class TestReceiptArgs(UnitTestCase):
 	def test_zero_dollar_coupon_payment_has_no_receipt(self):
 		from lms.lms.doctype.lms_event_registration.lms_event_registration import receipt_args
 
-		payment = frappe._dict(name="PAY-0", amount=0, currency="USD", creation=datetime(2026, 10, 14))
-		with patch(f"{MODULE}.frappe.db.get_value", return_value=payment):
+		with patch(f"{MODULE}.frappe.db.get_value", side_effect=_stub_get_value({"LMS Payment": _payment(0)})):
 			self.assertEqual(receipt_args("PAY-0")["amount_display"], None)
 
 
@@ -69,25 +85,13 @@ class TestSendMail(UnitTestCase):
 		row.update(overrides)
 		return row
 
-	def _get_value(self, event_row, payment_row, first_name="Pat"):
-		def get_value(doctype, name, fields=None, as_dict=False, **kwargs):
-			if doctype == "LMS Event":
-				return event_row
-			if doctype == "LMS Payment":
-				return payment_row
-			if doctype == "User":
-				return first_name
-			return None
-
-		return get_value
+	def _rows(self, event_row, payment_row, first_name="Pat"):
+		return _stub_get_value({"LMS Event": event_row, "LMS Payment": payment_row, "User": first_name})
 
 	def test_paid_registration_email_carries_the_receipt(self):
 		from lms.lms.doctype.lms_event_registration.lms_event_registration import send_mail
 
-		payment = frappe._dict(
-			name="PAY-0042", amount=79.0, currency="usd", creation=datetime(2026, 10, 14, 9, 30)
-		)
-		with patch(f"{MODULE}.frappe.db.get_value", side_effect=self._get_value(self._event(), payment)), \
+		with patch(f"{MODULE}.frappe.db.get_value", side_effect=self._rows(self._event(), _payment())), \
 			patch(f"{MODULE}.frappe.db.get_single_value", return_value=None), \
 			patch("lms.lms.utils.lms_send_template_mail") as send:
 			send_mail(self._doc())
@@ -108,7 +112,7 @@ class TestSendMail(UnitTestCase):
 	def test_free_registration_email_has_no_receipt_block(self):
 		from lms.lms.doctype.lms_event_registration.lms_event_registration import send_mail
 
-		with patch(f"{MODULE}.frappe.db.get_value", side_effect=self._get_value(self._event(), None)), \
+		with patch(f"{MODULE}.frappe.db.get_value", side_effect=self._rows(self._event(), None)), \
 			patch(f"{MODULE}.frappe.db.get_single_value", return_value=None), \
 			patch("lms.lms.utils.lms_send_template_mail") as send:
 			send_mail(self._doc(payment=None))
@@ -121,7 +125,7 @@ class TestSendMail(UnitTestCase):
 		from lms.lms.doctype.lms_event_registration.lms_event_registration import send_mail
 
 		event = self._event(confirmation_email_template="My Custom Confirmation")
-		with patch(f"{MODULE}.frappe.db.get_value", side_effect=self._get_value(event, None)), \
+		with patch(f"{MODULE}.frappe.db.get_value", side_effect=self._rows(event, None)), \
 			patch(f"{MODULE}.frappe.db.get_single_value", return_value="Site Wide Template"), \
 			patch("lms.lms.utils.lms_send_template_mail") as send:
 			send_mail(self._doc(payment=None))

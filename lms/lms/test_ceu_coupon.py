@@ -159,6 +159,7 @@ class TestCouponAtCheckout(UnitTestCase):
 		try:
 			with patch("lms.lms.ceu_stripe.stripe") as mock_stripe, \
 				patch("lms.lms.api._is_ppt_employee_email", return_value=False), \
+				patch("lms.lms.license.require_complete_license"), \
 				patch("lms.lms.ceu_stripe.frappe.get_doc", return_value=_mock_course()), \
 				patch("lms.lms.ceu_upsell.get_upsell_settings", return_value=SETTINGS_OFF), \
 				patch("lms.lms.ceu_coupon.resolve_coupon", return_value=coupon), \
@@ -196,6 +197,7 @@ class TestCouponAtCheckout(UnitTestCase):
 		try:
 			with patch("lms.lms.ceu_stripe.stripe") as mock_stripe, \
 				patch("lms.lms.api._is_ppt_employee_email", return_value=False), \
+				patch("lms.lms.license.require_complete_license"), \
 				patch("lms.lms.ceu_stripe.frappe.get_doc", return_value=_mock_course()), \
 				patch("lms.lms.ceu_coupon.resolve_coupon", return_value=coupon), \
 				patch("lms.lms.ceu_coupon.enroll_free_course", return_value=enroll_result) as enroll_free:
@@ -219,6 +221,7 @@ class TestCouponAtCheckout(UnitTestCase):
 		try:
 			with patch("lms.lms.ceu_stripe.stripe") as mock_stripe, \
 				patch("lms.lms.api._is_ppt_employee_email", return_value=False), \
+				patch("lms.lms.license.require_complete_license"), \
 				patch("lms.lms.ceu_stripe.frappe.get_doc", return_value=_mock_event()), \
 				patch("lms.lms.ceu_stripe.frappe.db.exists", return_value=False), \
 				patch("lms.lms.ceu_upsell.get_upsell_settings", return_value=SETTINGS_OFF), \
@@ -244,6 +247,7 @@ class TestCouponAtCheckout(UnitTestCase):
 		try:
 			with patch("lms.lms.ceu_stripe.stripe") as mock_stripe, \
 				patch("lms.lms.api._is_ppt_employee_email", return_value=False), \
+				patch("lms.lms.license.require_complete_license"), \
 				patch("lms.lms.ceu_stripe.frappe.get_doc", return_value=_mock_event()), \
 				patch("lms.lms.ceu_stripe.frappe.db.exists", return_value=False), \
 				patch("lms.lms.ceu_coupon.resolve_coupon", return_value=_coupon(percentage_discount=100)), \
