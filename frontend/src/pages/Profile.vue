@@ -212,7 +212,7 @@ const coverImage = createResource({
 
 const setActiveTab = () => {
 	let fragments = route.path.split('/')
-	let sections = ['certificates', 'roles', 'slots', 'schedule']
+	let sections = ['certificates', 'purchases', 'roles', 'slots', 'schedule']
 	sections.forEach((section) => {
 		if (fragments.includes(section)) {
 			activeTab.value = convertToTitleCase(section)
@@ -226,6 +226,7 @@ watchEffect(() => {
 		let route = {
 			About: { name: 'ProfileAbout' },
 			Certificates: { name: 'ProfileCertificates' },
+			Purchases: { name: 'ProfilePurchases' },
 			Roles: { name: 'ProfileRoles' },
 			Slots: { name: 'ProfileEvaluator' },
 			Schedule: { name: 'ProfileEvaluationSchedule' },
@@ -266,6 +267,10 @@ const getTabButtons = () => {
 		{ label: __('About'), value: 'About' },
 		{ label: __('Certificates'), value: 'Certificates' },
 	]
+	// Purchase history is private: the member sees their own, admins see anyone's.
+	if (isSessionUser() || $user.data?.is_moderator) {
+		buttons.push({ label: __('Purchases'), value: 'Purchases' })
+	}
 	if ($user.data?.is_moderator) {
 		buttons.push({ label: __('Roles'), value: 'Roles' })
 		buttons.push({ label: __('Membership'), value: 'Membership' })
