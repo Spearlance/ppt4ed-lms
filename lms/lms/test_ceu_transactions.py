@@ -52,6 +52,7 @@ class TestCEUTransactions(UnitTestCase):
         payment = frappe.get_doc({
             "doctype": "LMS Payment",
             "member": "Administrator",
+            "billing_name": "Administrator",
             "amount": 129,
             "currency": "USD",
             "payment_for_document_type": "LMS Course",
@@ -86,7 +87,7 @@ class TestCEUTransactions(UnitTestCase):
             "doctype": "CEU Membership",
             "member": "Administrator",
             "plan": "Txn Test Plan",
-            "membership_type": "Individual",
+            "membership_type": "Professional",
             "stripe_subscription_id": "sub_test_txn",
             "status": "Active",
             "start_date": nowdate(),
@@ -275,7 +276,7 @@ class TestCEUTransactions(UnitTestCase):
             "doctype": "CEU Membership",
             "member": "Administrator",
             "plan": "Txn Webhook Plan",
-            "membership_type": "Individual",
+            "membership_type": "Professional",
             "stripe_subscription_id": "sub_test_webhook_txn",
             "status": "Active",
             "start_date": nowdate(),
@@ -317,3 +318,111 @@ class TestCEUTransactions(UnitTestCase):
             side_effect=Exception("stripe down"),
         ):
             self.assertIsNone(record_invoice_transaction("in_test_boom"))
+
+    # -- receipts (Profile > Purchases) ------------------------------------
+
+    def test_charge_to_row_captures_stripe_receipt_url(self):
+        from lms.lms.ceu_transactions import charge_to_row
+
+        row = charge_to_row(_charge(id="ch_test_receipt", receipt_url="https://pay.stripe.com/receipts/r1"))
+        self.assertEqual(row["receipt_url"], "https://pay.stripe.com/receipts/r1")
+
+        row = charge_to_row(_charge(id="ch_test_noreceipt"))
+        self.assertIsNone(row["receipt_url"])
+
+    def _buyer(self):
+        email = "txn-buyer@example.com"
+        if not frappe.db.exists("User", email):
+            frappe.get_doc({
+                "doctype": "User",
+                "email": email,
+                "first_name": "Txn",
+                "last_name": "Buyer",
+                "send_welcome_email": 0,
+                "roles": [{"role": "LMS Student"}],
+            }).insert(ignore_permissions=True)
+        return email
+
+    def test_member_purchases_are_scoped_to_the_caller(self):
+        from lms.lms.ceu_transactions import get_member_purchases, upsert_transaction
+
+        buyer = self._buyer()
+        upsert_transaction(
+            {**_charge_row("ch_test_mine"), "member": buyer, "customer_email": buyer,
+             "receipt_url": "https://pay.stripe.com/receipts/mine"}
+        )
+        upsert_transaction(
+            {**_charge_row("ch_test_theirs"), "member": "Administrator",
+             "customer_email": "admin@example.com", "receipt_url": "https://pay.stripe.com/receipts/theirs"}
+        )
+        upsert_transaction(
+            {**_charge_row("ch_test_failed"), "member": buyer, "status": "Failed"}
+        )
+
+        try:
+            frappe.set_user(buyer)
+            mine = get_member_purchases()
+            self.assertEqual([r.name for r in mine], ["ch_test_mine"])
+            self.assertEqual(mine[0].receipt_url, "https://pay.stripe.com/receipts/mine")
+            self.assertEqual(mine[0].amount_display, "$ 129.00")
+
+            with self.assertRaises(frappe.PermissionError):
+                get_member_purchases(member="Administrator")
+        finally:
+            frappe.set_user("Administrator")
+
+        # Admins may look at any member.
+        theirs = get_member_purchases(member=buyer)
+        self.assertEqual([r.name for r in theirs], ["ch_test_mine"])
+
+    def test_member_purchases_resolve_missing_receipt_lazily_and_persist(self):
+        from lms.lms.ceu_transactions import get_member_purchases, upsert_transaction
+
+        buyer = self._buyer()
+        upsert_transaction({**_charge_row("ch_test_lazy"), "member": buyer, "customer_email": buyer})
+        self.assertFalse(frappe.db.get_value("CEU Transaction", "ch_test_lazy", "receipt_url"))
+
+        with patch(
+            "lms.lms.ceu_transactions._retrieve_charge",
+            return_value={"id": "ch_test_lazy", "receipt_url": "https://pay.stripe.com/receipts/lazy"},
+        ) as fetch:
+            rows = get_member_purchases(member=buyer)
+            self.assertEqual(rows[0].receipt_url, "https://pay.stripe.com/receipts/lazy")
+            fetch.assert_called_once_with("ch_test_lazy")
+
+            # Second view is served from the stored value, not Stripe.
+            get_member_purchases(member=buyer)
+            fetch.assert_called_once()
+
+        self.assertEqual(
+            frappe.db.get_value("CEU Transaction", "ch_test_lazy", "receipt_url"),
+            "https://pay.stripe.com/receipts/lazy",
+        )
+
+    def test_member_purchases_survive_stripe_outage(self):
+        from lms.lms.ceu_transactions import get_member_purchases, upsert_transaction
+
+        buyer = self._buyer()
+        upsert_transaction({**_charge_row("ch_test_outage"), "member": buyer, "customer_email": buyer})
+        with patch("lms.lms.ceu_transactions._retrieve_charge", side_effect=Exception("stripe down")):
+            rows = get_member_purchases(member=buyer)
+        self.assertEqual(rows[0].name, "ch_test_outage")
+        self.assertIsNone(rows[0].receipt_url)
+
+
+def _charge_row(stripe_id, **overrides):
+    row = {
+        "stripe_id": stripe_id,
+        "transaction_date": now_datetime(),
+        "transaction_type": "Course",
+        "status": "Succeeded",
+        "description": "Test purchase",
+        "gross_amount": 129.0,
+        "refunded_amount": 0,
+        "net_amount": 129.0,
+        "currency": "USD",
+        "classified_by": "unclassified",
+        "synced_at": now_datetime(),
+    }
+    row.update(overrides)
+    return row

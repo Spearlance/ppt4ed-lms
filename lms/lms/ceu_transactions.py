@@ -21,9 +21,11 @@ Classification is deliberately layered, cheapest and most reliable first:
 import json
 
 import frappe
-from frappe.utils import add_days, cint, flt, get_datetime, now_datetime
+from frappe import _
+from frappe.utils import add_days, cint, flt, fmt_money, get_datetime, now_datetime
 
 SYNC_OVERLAP_DAYS = 3
+MAX_LAZY_RECEIPT_LOOKUPS = 10
 DEFAULT_PAGE_SIZE = 100
 MAX_PAGES = 200
 
@@ -229,6 +231,17 @@ def _retrieve_invoice(invoice_id: str) -> dict | None:
         return None
 
 
+def _retrieve_charge(charge_id: str) -> dict | None:
+    try:
+        return _stripe().Charge.retrieve(charge_id)
+    except Exception:
+        frappe.log_error(
+            title="CEU Transaction charge fetch failed",
+            message=f"{charge_id}\n\n{frappe.get_traceback()}",
+        )
+        return None
+
+
 def _retrieve_session_for_intent(intent_id: str) -> dict | None:
     try:
         sessions = _stripe().checkout.Session.list(payment_intent=intent_id, limit=1)
@@ -304,6 +317,7 @@ def charge_to_row(charge: dict, invoice_cache: dict | None = None) -> dict:
         "stripe_invoice_id": classified.get("stripe_invoice_id") or charge.get("invoice"),
         "stripe_subscription_id": classified.get("stripe_subscription_id"),
         "stripe_metadata": json.dumps(charge.get("metadata") or {}),
+        "receipt_url": charge.get("receipt_url") or None,
         "classified_by": classified.get("classified_by"),
         "synced_at": now_datetime(),
     }
@@ -349,6 +363,7 @@ def upsert_transaction(row: dict) -> str | None:
             "member",
             "stripe_invoice_id",
             "stripe_subscription_id",
+            "receipt_url",
             "classified_by",
             "synced_at",
         ):
@@ -446,6 +461,7 @@ def record_invoice_transaction(invoice_id: str, subscription_id: str | None = No
             "stripe_invoice_id": invoice.get("id"),
             "stripe_subscription_id": subscription_id,
             "stripe_metadata": json.dumps(invoice.get("metadata") or {}),
+            "receipt_url": invoice.get("hosted_invoice_url") or None,
             "classified_by": "webhook",
             "synced_at": now_datetime(),
         }
@@ -456,6 +472,129 @@ def record_invoice_transaction(invoice_id: str, subscription_id: str | None = No
             message=f"{invoice_id}\n\n{frappe.get_traceback()}",
         )
         return None
+
+
+# ---------------------------------------------------------------------------
+# receipts
+# ---------------------------------------------------------------------------
+
+
+def resolve_receipt_url(row) -> str | None:
+    """Return the Stripe-hosted receipt link for one transaction, fetching and
+    persisting it when the row predates the receipt_url field.
+
+    Memberships point at the hosted invoice page (which carries the PDF
+    download); one-off charges point at Stripe's receipt page. Both URLs are
+    stable, so once stored we never call Stripe for that row again.
+    """
+    if row.get("receipt_url"):
+        return row["receipt_url"]
+
+    url = None
+    if row.get("stripe_invoice_id"):
+        invoice = _retrieve_invoice(row["stripe_invoice_id"])
+        url = (invoice or {}).get("hosted_invoice_url")
+    if not url and str(row.get("name") or "").startswith("ch_"):
+        charge = _retrieve_charge(row["name"])
+        url = (charge or {}).get("receipt_url")
+
+    if url:
+        frappe.db.set_value(
+            "CEU Transaction", row["name"], "receipt_url", url, update_modified=False
+        )
+    return url or None
+
+
+def backfill_receipt_urls(limit: int = 2000) -> dict:
+    """Fill receipt_url on rows synced before the field existed. Fails open
+    per row so one bad charge id cannot stall the rest."""
+    rows = frappe.get_all(
+        "CEU Transaction",
+        filters={"receipt_url": ["in", ["", None]], "status": ["!=", "Failed"]},
+        fields=["name", "stripe_invoice_id", "receipt_url"],
+        order_by="transaction_date desc",
+        limit=limit,
+    )
+    filled = skipped = 0
+    for row in rows:
+        try:
+            if resolve_receipt_url(row):
+                filled += 1
+            else:
+                skipped += 1
+        except Exception:
+            skipped += 1
+            frappe.log_error(
+                title="CEU Transaction receipt backfill failed",
+                message=f"{row.name}\n\n{frappe.get_traceback()}",
+            )
+    frappe.db.commit()
+    return {"filled": filled, "skipped": skipped}
+
+
+PURCHASE_FIELDS = [
+    "name",
+    "transaction_date",
+    "transaction_type",
+    "status",
+    "description",
+    "item_type",
+    "item",
+    "item_title",
+    "gross_amount",
+    "refunded_amount",
+    "net_amount",
+    "currency",
+    "stripe_invoice_id",
+    "receipt_url",
+]
+
+
+@frappe.whitelist()
+def get_member_purchases(member: str | None = None) -> list[dict]:
+    """Purchase history for the Profile > Purchases tab.
+
+    A member only ever sees their own rows; admins may pass another member.
+    Rows are read with get_all because learners have no read permission on
+    CEU Transaction (the admin money report must stay admin-only), and the
+    member filter is what scopes the data.
+    """
+    user = frappe.session.user
+    if not user or user == "Guest":
+        frappe.throw(_("Please log in to view purchases"), frappe.PermissionError)
+
+    member = member or user
+    if member != user:
+        _require_admin()
+
+    rows = frappe.get_all(
+        "CEU Transaction",
+        filters={"status": ["!=", "Failed"]},
+        or_filters=[["member", "=", member], ["customer_email", "=", member]],
+        fields=PURCHASE_FIELDS,
+        order_by="transaction_date desc",
+        limit=200,
+    )
+
+    # Rows synced before receipt_url existed get resolved on first view, a
+    # few at a time so a long history cannot turn one page load into a
+    # hundred Stripe calls. The rest fill in on the next visit (or backfill).
+    lookups = 0
+    for row in rows:
+        if not row.receipt_url and lookups < MAX_LAZY_RECEIPT_LOOKUPS:
+            lookups += 1
+            try:
+                row.receipt_url = resolve_receipt_url(row)
+            except Exception:
+                frappe.log_error(
+                    title="CEU Transaction receipt lookup failed",
+                    message=f"{row.name}\n\n{frappe.get_traceback()}",
+                )
+        currency = (row.currency or "USD").upper()
+        row.amount_display = fmt_money(row.gross_amount or 0, currency=currency)
+        row.net_display = fmt_money(row.net_amount or 0, currency=currency)
+        row.title = row.item_title or row.description or row.transaction_type
+    return rows
 
 
 # ---------------------------------------------------------------------------
