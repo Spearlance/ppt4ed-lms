@@ -26,7 +26,9 @@ def _charge(**overrides):
 class TestCEUTransactions(UnitTestCase):
     def tearDown(self):
         for row in frappe.get_all(
-            "CEU Transaction", filters=[["stripe_id", "like", "ch_test_%"]], pluck="name"
+            "CEU Transaction",
+            or_filters=[["stripe_id", "like", "ch_test_%"], ["stripe_id", "like", "py_test_%"]],
+            pluck="name",
         ):
             frappe.delete_doc("CEU Transaction", row, force=True, ignore_permissions=True)
 
@@ -329,6 +331,23 @@ class TestCEUTransactions(UnitTestCase):
 
         row = charge_to_row(_charge(id="ch_test_noreceipt"))
         self.assertIsNone(row["receipt_url"])
+
+    def test_receipt_url_stores_full_length_stripe_links(self):
+        """Stripe receipt links are ~200 chars; a 140-char Data column truncated
+        them with a DataError on dev (0/40 backfilled)."""
+        from lms.lms.ceu_transactions import get_member_purchases, upsert_transaction
+
+        buyer = self._buyer()
+        long_url = "https://pay.stripe.com/receipts/payment/" + ("CAcaFwoVYWNjdF8xUTNqQTdMdDFPcjV2bGY0" * 5)
+        self.assertGreater(len(long_url), 140)
+        upsert_transaction({**_charge_row("py_test_long"), "member": buyer, "customer_email": buyer})
+        with patch(
+            "lms.lms.ceu_transactions._retrieve_charge",
+            return_value={"id": "py_test_long", "receipt_url": long_url},
+        ):
+            rows = get_member_purchases(member=buyer)
+        self.assertEqual(rows[0].receipt_url, long_url)
+        self.assertEqual(frappe.db.get_value("CEU Transaction", "py_test_long", "receipt_url"), long_url)
 
     def _buyer(self):
         email = "txn-buyer@example.com"

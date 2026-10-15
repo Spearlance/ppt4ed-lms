@@ -494,7 +494,8 @@ def resolve_receipt_url(row) -> str | None:
     if row.get("stripe_invoice_id"):
         invoice = _retrieve_invoice(row["stripe_invoice_id"])
         url = (invoice or {}).get("hosted_invoice_url")
-    if not url and str(row.get("name") or "").startswith("ch_"):
+    # Charge ids are "ch_" for cards and "py_" for Link / bank-style payments.
+    if not url and str(row.get("name") or "").startswith(("ch_", "py_")):
         charge = _retrieve_charge(row["name"])
         url = (charge or {}).get("receipt_url")
 
