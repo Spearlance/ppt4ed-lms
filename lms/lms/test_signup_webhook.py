@@ -181,6 +181,10 @@ class TestSignupWebhook(UnitTestCase):
 				"creation": "2026-10-02 10:00:00",
 				"member": "pat@example.com",
 				"event": "fall-webinar",
+				"traffic_source": "facebook",
+				"traffic_medium": "paid-social",
+				"traffic_campaign": "fall-webinar-ads",
+				"traffic_referrer": "",
 			},
 			("User", "pat@example.com"): MEMBER,
 			("LMS Event", "fall-webinar"): {
@@ -197,6 +201,10 @@ class TestSignupWebhook(UnitTestCase):
 		self.assertEqual(payload["item_title"], "Fall Webinar")
 		self.assertEqual(payload["audience"], "Healthcare Professionals")
 		self.assertIs(payload["paid"], True)
+		# Same attribution fields a course enrollment carries.
+		self.assertEqual(payload["traffic_source"], "facebook")
+		self.assertEqual(payload["traffic_medium"], "paid-social")
+		self.assertEqual(payload["traffic_campaign"], "fall-webinar-ads")
 
 	def test_community_event_contact_is_the_guardian(self):
 		rows = {

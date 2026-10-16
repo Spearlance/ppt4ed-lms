@@ -172,6 +172,8 @@ def _handle_event_checkout(data, metadata):
     upsell_course = metadata.get("upsell_course")
     upsell_cents = cint(metadata.get("upsell_cents")) if upsell_course else 0
 
+    traffic = traffic_fields_from_metadata(metadata)
+
     _create_event_registration(
         event=metadata.get("event"),
         user=metadata.get("user"),
@@ -179,6 +181,7 @@ def _handle_event_checkout(data, metadata):
         stripe_payment_intent_id=payment_intent_id,
         amount_total=max(cint(data.get("amount_total")) - upsell_cents, 0),
         currency=data.get("currency"),
+        traffic=traffic,
         coupon=ceu_coupon.payment_fields_from_metadata(metadata),
     )
 
@@ -192,6 +195,7 @@ def _handle_event_checkout(data, metadata):
             stripe_payment_intent_id=payment_intent_id,
             amount_total=upsell_cents,
             currency=data.get("currency"),
+            traffic=traffic,
             is_upsell=1,
             upsell_type=ceu_upsell.ORDER_BUMP,
             parent_session_id=session_id,
@@ -425,12 +429,18 @@ def _create_event_registration(
     stripe_payment_intent_id=None,
     amount_total=None,
     currency=None,
+    traffic=None,
     coupon=None,
 ):
     """Create an LMS Event Registration for a paid event with ledger marker + billing receipt.
 
     Idempotent by stripe_session_id — Stripe may deliver the same event more than once.
-    `coupon` is recorded on the payment and counted once, as for courses.
+    `traffic` and `coupon` work exactly as they do for `_create_one_off_enrollment`:
+    the traffic source is carried through Checkout metadata and stamped on the
+    registration; the coupon is recorded on the payment and counted once.
+
+    The confirmation/receipt email is sent by LMSEventRegistration.after_insert
+    (fail-open), reading the amount from the LMS Payment linked here.
 
     Returns the LMS Payment name, or None when nothing new was created.
     """
@@ -446,6 +456,7 @@ def _create_event_registration(
     frappe.get_doc({
         "doctype": "CEU Credit Ledger",
         "user": user,
+        "event": event,
         "transaction_type": "Direct Purchase",
         "hours": 0,
         "balance_after": 0,
@@ -484,6 +495,7 @@ def _create_event_registration(
         "event": event,
         "member": user,
         "payment": payment.name,
+        **(traffic or {}),
     }
     original_user = frappe.session.user
     if original_user == user:

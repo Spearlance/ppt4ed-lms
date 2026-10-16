@@ -75,6 +75,19 @@
 						:required="true"
 						:description="__('At least 8 characters.')"
 					/>
+					<div
+						v-if="requireLicense"
+						class="space-y-2 border-t border-outline-gray-2 pt-3"
+						data-testid="register-license-fields"
+					>
+						<div class="text-sm font-semibold text-ink-gray-8">
+							{{ __('Professional license') }}
+						</div>
+						<p class="text-xs text-ink-gray-6">
+							{{ __('Required to award CEU credit. Your CEU broker report uses exactly what you enter here.') }}
+						</p>
+						<LicenseFields v-model="license" />
+					</div>
 					<Button
 						class="w-full"
 						variant="solid"
@@ -215,6 +228,7 @@
 <script setup>
 import { Button, call, Dialog, ErrorMessage, FormControl } from 'frappe-ui'
 import { computed, h, reactive, ref, watch } from 'vue'
+import LicenseFields from '@/components/LicenseFields.vue'
 
 // Small inline "Back to log in" link shared by the forgot / magic-link views.
 const BackToLogin = {
@@ -248,6 +262,10 @@ const props = defineProps({
 	prefillEmail: { type: String, default: '' },
 	contextLabel: { type: String, default: '' },
 	redirectUrl: { type: String, default: '/lms' },
+	// True when the target is CEU-bearing (every event, paid or CEU-hour
+	// course, membership purchase). Mirrors lms.lms.license on the server,
+	// which rejects the signup without the three fields either way.
+	requireLicense: { type: Boolean, default: false },
 })
 
 // 'signup' | 'login' | 'forgot' | 'magic'
@@ -272,6 +290,12 @@ const signup = reactive({
 	password: '',
 })
 
+const license = reactive({
+	license_type: '',
+	license_state: '',
+	professional_license_number: '',
+})
+
 const login = reactive({
 	usr: '',
 	pwd: '',
@@ -287,6 +311,9 @@ watch(show, (next) => {
 		signup.full_name = ''
 		signup.email = props.prefillEmail || ''
 		signup.password = ''
+		license.license_type = ''
+		license.license_state = ''
+		license.professional_license_number = ''
 		login.usr = props.prefillEmail || ''
 		login.pwd = ''
 	}
@@ -324,14 +351,23 @@ async function submitSignup() {
 	infoMessage.value = ''
 	submitting.value = true
 	try {
-		const result = await call('lms.lms.api.signup_and_enroll', {
+		const args = {
 			email: signup.email.trim(),
 			password: signup.password,
 			full_name: signup.full_name.trim(),
 			target_type: props.targetType,
 			target_slug: props.targetSlug,
 			intent: props.intent,
-		})
+		}
+		if (props.requireLicense) {
+			// Sent unvalidated: the server answers "exists" (pivot to Log In)
+			// before it checks the license, and its own error names the
+			// missing field.
+			args.license_type = license.license_type
+			args.license_state = license.license_state.trim().toUpperCase()
+			args.professional_license_number = license.professional_license_number.trim()
+		}
+		const result = await call('lms.lms.api.signup_and_enroll', args)
 		if (result?.status === 'verification_sent') {
 			// PPT-domain signup gate: User row is NOT created until the user
 			// clicks the link in the email. Show a holding message; modal

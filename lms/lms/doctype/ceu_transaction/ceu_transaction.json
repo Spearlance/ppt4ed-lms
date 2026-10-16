@@ -5,14 +5,34 @@
     "doctype": "DocType",
     "engine": "InnoDB",
     "field_order": [
-        "stripe_id", "transaction_date", "transaction_type", "status",
-        "description", "column_break_amounts",
-        "gross_amount", "refunded_amount", "net_amount", "currency",
-        "member_section", "customer_email", "member", "member_full_name",
-        "item_section", "item_type", "item", "item_title",
-        "stripe_section", "stripe_customer_id", "stripe_payment_intent_id",
-        "stripe_invoice_id", "stripe_subscription_id", "stripe_metadata",
-        "sync_section", "classified_by", "synced_at"
+        "stripe_id",
+        "transaction_date",
+        "transaction_type",
+        "status",
+        "description",
+        "column_break_amounts",
+        "gross_amount",
+        "refunded_amount",
+        "net_amount",
+        "currency",
+        "member_section",
+        "customer_email",
+        "member",
+        "member_full_name",
+        "item_section",
+        "item_type",
+        "item",
+        "item_title",
+        "stripe_section",
+        "stripe_customer_id",
+        "stripe_payment_intent_id",
+        "stripe_invoice_id",
+        "stripe_subscription_id",
+        "receipt_url",
+        "stripe_metadata",
+        "sync_section",
+        "classified_by",
+        "synced_at"
     ],
     "fields": [
         {
@@ -153,6 +173,13 @@
             "label": "Stripe Subscription ID"
         },
         {
+            "fieldname": "receipt_url",
+            "fieldtype": "Small Text",
+            "label": "Receipt URL",
+            "read_only": 1,
+            "description": "Stripe-hosted receipt (charge) or invoice page (membership). Filled by the sync; resolved lazily on first view when missing. Small Text because Stripe receipt URLs run well past 140 characters."
+        },
+        {
             "fieldname": "stripe_metadata",
             "fieldtype": "Small Text",
             "label": "Stripe Metadata"
@@ -177,7 +204,7 @@
     "in_create": 1,
     "index_web_pages_for_search": 0,
     "links": [],
-    "modified": "2026-09-18 00:00:00.000000",
+    "modified": "2026-10-15 01:00:00.000000",
     "modified_by": "Administrator",
     "module": "LMS",
     "name": "CEU Transaction",
@@ -185,11 +212,15 @@
     "owner": "Administrator",
     "permissions": [
         {
-            "read": 1, "report": 1, "export": 1,
+            "read": 1,
+            "report": 1,
+            "export": 1,
             "role": "System Manager"
         },
         {
-            "read": 1, "report": 1, "export": 1,
+            "read": 1,
+            "report": 1,
+            "export": 1,
             "role": "Global Admin"
         }
     ],

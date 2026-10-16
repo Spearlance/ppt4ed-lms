@@ -316,6 +316,7 @@ def enroll_free_course(course_name: str, user: str, pricing: dict) -> dict:
 def register_free_event(event_name: str, user: str, pricing: dict) -> dict:
 	"""100%-off path for an event: register now, record a $0 payment, no Stripe."""
 	from lms.lms.ceu_stripe_webhooks import _create_event_registration
+	from lms.lms.traffic_source import checkout_traffic_metadata, traffic_fields_from_metadata
 
 	if frappe.db.exists("LMS Event Registration", {"event": event_name, "member": user}):
 		frappe.throw(_("You are already registered for this event"))
@@ -325,6 +326,7 @@ def register_free_event(event_name: str, user: str, pricing: dict) -> dict:
 		user=user,
 		amount_total=0,
 		currency="usd",
+		traffic=traffic_fields_from_metadata(checkout_traffic_metadata()),
 		coupon=payment_fields_from_pricing(pricing),
 	)
 	return {"status": "enrolled", "redirect_to": f"/lms/events/{event_name}"}

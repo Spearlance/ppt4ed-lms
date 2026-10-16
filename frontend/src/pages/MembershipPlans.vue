@@ -213,6 +213,12 @@
             :intent="registerIntent"
             :context-label="registerContextLabel"
             redirect-url="/lms/membership-plans"
+            :require-license="registerIntent.startsWith('membership:')"
+        />
+        <LicenseDialog
+            v-model:open="showLicense"
+            :reason="__('A membership buys CEU credits, and the broker needs your license to report them. Add it once and you are set.')"
+            @saved="resumeCheckout"
         />
     </div>
 </template>
@@ -223,6 +229,7 @@ import { computed, inject, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { sessionStore } from '@/stores/session'
 import RegisterModal from '@/components/Modals/RegisterModal.vue'
+import LicenseDialog from '@/components/Modals/LicenseDialog.vue'
 
 const router = useRouter()
 
@@ -290,7 +297,24 @@ const startCheckout = async (plan) => {
         return
     }
 
+    // Individual plans buy CEU credits for the buyer; the server refuses
+    // checkout (LicenseRequiredError) until their license is on file.
+    if (plan.plan_type !== 'Company' && !user.data.license_complete) {
+        licensePendingPlan.value = plan
+        showLicense.value = true
+        return
+    }
+
     await doCheckout(plan, companyNames[plan.name] || null)
+}
+
+const showLicense = ref(false)
+const licensePendingPlan = ref(null)
+
+const resumeCheckout = async () => {
+    const plan = licensePendingPlan.value
+    licensePendingPlan.value = null
+    if (plan) await doCheckout(plan, companyNames[plan.name] || null)
 }
 
 const confirmCompanyCheckout = async (close) => {
@@ -319,8 +343,13 @@ const doCheckout = async (plan, companyName) => {
         })
         window.location.href = result.url
     } catch (err) {
-        toast.error(err.messages?.[0] || __('Unable to start checkout'))
         checkingOut.value = null
+        if (err?.exc_type === 'LicenseRequiredError') {
+            licensePendingPlan.value = plan
+            showLicense.value = true
+            return
+        }
+        toast.error(err.messages?.[0] || __('Unable to start checkout'))
     }
 }
 

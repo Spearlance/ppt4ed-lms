@@ -5,10 +5,10 @@ import json
 
 import frappe
 from frappe import _
-from frappe.email.doctype.email_template.email_template import get_email_template
 from frappe.model.document import Document
 
 from lms.lms.signup_webhook import queue_signup_webhook
+from lms.lms.traffic_source import get_request_traffic_source, traffic_fields
 
 
 def _moderator_roles():
@@ -22,8 +22,35 @@ def _moderator_roles():
 
 
 class LMSEventRegistration(Document):
+	def before_insert(self):
+		self.set_traffic_source()
+
+	def set_traffic_source(self):
+		"""Record which channel brought the member here, for Admin Reports > Sources.
+
+		Mirrors LMSEnrollment.set_traffic_source: only when the member is
+		registering themselves from their own browser. The Stripe webhook passes
+		the source captured at checkout in explicitly (it has no browser).
+		"""
+		if self.get("traffic_source") or frappe.session.user != self.member:
+			return
+
+		traffic = get_request_traffic_source()
+		if traffic:
+			self.update(traffic_fields(traffic))
+
 	def after_insert(self):
-		send_confirmation_email(self)
+		# Best-effort, like the course confirmation: a mail problem must never
+		# roll back a paid registration or 500 the Stripe webhook into a retry
+		# loop. The registration row keeps confirmation_email_sent = 0 so an
+		# admin can resend from the event dashboard / Desk.
+		try:
+			send_confirmation_email(self)
+		except Exception:
+			frappe.log_error(
+				title="Event registration confirmation email failed",
+				message=f"member: {self.member}\nevent: {self.event}\n\n{frappe.get_traceback()}",
+			)
 		self.add_member_to_live_class()
 		queue_signup_webhook(self.doctype, self.name)
 
@@ -150,7 +177,35 @@ def send_confirmation_email(doc: Document):
 			frappe.db.set_value(doc.doctype, doc.name, "confirmation_email_sent", 1)
 
 
+def receipt_args(payment_name):
+	"""Receipt lines for a paid registration, from its LMS Payment row.
+
+	Same shape the course confirmation uses (amount_display, payment_reference,
+	purchase_date) so the two templates read alike. Empty when there is no
+	payment (free event) or the payment was $0 (100% coupon).
+	"""
+	from frappe.utils import fmt_money, format_date
+
+	empty = {"amount_display": None, "payment_reference": None, "purchase_date": None}
+	if not payment_name:
+		return empty
+	payment = frappe.db.get_value(
+		"LMS Payment", payment_name, ["name", "amount", "currency", "creation"], as_dict=True
+	)
+	if not payment or not payment.amount:
+		return empty
+	return {
+		"amount_display": fmt_money(payment.amount, currency=(payment.currency or "USD").upper()),
+		"payment_reference": payment.name,
+		"purchase_date": format_date(payment.creation, "long"),
+	}
+
+
 def send_mail(doc):
+	from frappe.utils import format_date, format_time, get_url
+
+	from lms.lms.utils import get_lms_route, lms_send_template_mail
+
 	batch = frappe.db.get_value(
 		"LMS Event",
 		doc.event,
@@ -171,33 +226,41 @@ def send_mail(doc):
 	# live_class_reminder still exists and is used by the daily reminder cron
 	# (lms_live_class.send_live_class_reminder) where "tomorrow" is correct.
 	template = "event_enrollment_confirmation"
-	custom_template = batch.confirmation_email_template or frappe.db.get_single_value(
-		"LMS Settings", "batch_confirmation_template"
+	# An event-specific or site-wide custom template wins; otherwise the seeded
+	# "Event Registration Confirmation" Email Template (editable in /lms
+	# Settings -> Email Templates), and the Jinja file as the last fallback.
+	template_name = (
+		batch.confirmation_email_template
+		or frappe.db.get_single_value("LMS Settings", "batch_confirmation_template")
+		or "Event Registration Confirmation"
 	)
+
+	first_name = frappe.db.get_value("User", doc.member, "first_name") or doc.member_name
 
 	args = {
 		"title": batch.title,
 		"student_name": doc.member_name,
+		"first_name": first_name,
 		"start_time": batch.start_time,
 		"start_date": batch.start_date,
 		"date": batch.start_date,
 		"time": batch.start_time,
+		"event_date_display": format_date(batch.start_date, "long") if batch.start_date else "",
+		"event_time_display": format_time(batch.start_time, "hh:mm a") if batch.start_time else "",
 		"medium": batch.medium,
 		"name": batch.name,
 		"zoom_link": batch.zoom_link,
+		"event_url": get_url(get_lms_route(f"events/{batch.name}")),
+		"credit_source": doc.get("credit_source"),
+		**receipt_args(doc.get("payment")),
 	}
 
-	if custom_template:
-		email_template = get_email_template(custom_template, args)
-		subject = email_template.get("subject")
-		content = email_template.get("message")
-
-	frappe.sendmail(
+	lms_send_template_mail(
 		recipients=doc.member,
-		subject=subject,
-		template=template if not custom_template else None,
-		content=content if custom_template else None,
+		default_subject=subject,
+		jinja_template=template,
 		args=args,
+		template_name=template_name,
 		header=[_(batch.title), "green"],
 		retry=3,
 	)

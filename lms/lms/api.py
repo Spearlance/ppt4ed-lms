@@ -58,10 +58,16 @@ def get_user_info():
 	user = frappe.db.get_value(
 		"User",
 		frappe.session.user,
-		["name", "email", "enabled", "user_image", "full_name", "user_type", "username", "bio", "headline"],
+		[
+			"name", "email", "enabled", "user_image", "full_name", "user_type", "username", "bio", "headline",
+			"license_type", "license_state", "professional_license_number",
+		],
 		as_dict=1,
 	)
 	user["roles"] = frappe.get_roles(user.name)
+	# The in-app banner and the pre-checkout dialog key off this flag.
+	from lms.lms.license import LICENSE_FIELDS
+	user.license_complete = all((user.get(k) or "").strip() for k in LICENSE_FIELDS)
 	user.is_system_manager = "System Manager" in user.roles
 	user.is_global_admin = "Global Admin" in user.roles
 	user.is_lms_admin = user.is_system_manager or user.is_global_admin
@@ -3107,6 +3113,55 @@ def delete_membership_plan(plan_name):
 	return {"status": "deleted"}
 
 
+@frappe.whitelist(methods=["POST"])
+def register_for_free_event(event: str):
+	"""Register the logged-in user for a free, self-enrollable event.
+
+	EventOverlay.vue's "Enroll Now" button used to call a method that no
+	longer exists (lms.lms.utils.enroll_in_event, lost in the Batch→Event
+	rename), so this path was dead. Rebuilt here with the license gate every
+	CEU-bearing registration now carries."""
+	from lms.lms.license import require_complete_license
+
+	if frappe.session.user == "Guest":
+		frappe.throw(_("Please log in to register."), frappe.AuthenticationError)
+
+	row = frappe.db.get_value(
+		"LMS Event",
+		event,
+		["published", "paid_event", "allow_self_enrollment", "seat_count", "start_date", "start_time"],
+		as_dict=True,
+	)
+	if not row or not row.published:
+		frappe.throw(_("Event not found."))
+	if row.paid_event:
+		frappe.throw(_("This event requires payment. Please use Register Now."))
+	# Same window the event page uses for `accept_enrollments` (lms.lms.utils
+	# get_event_details): a future start date, or today before the start time.
+	from frappe.utils import getdate, nowtime
+	window_open = row.start_date > getdate() or (
+		row.start_date == getdate() and str(row.start_time) > nowtime()
+	)
+	if not (row.allow_self_enrollment and window_open):
+		frappe.throw(_("This event is not open for registration."))
+
+	require_complete_license(frappe.session.user)
+
+	if frappe.db.exists("LMS Event Registration", {"event": event, "member": frappe.session.user}):
+		return {"status": "registered", "already_registered": True}
+
+	if row.seat_count and frappe.db.count("LMS Event Registration", {"event": event}) >= row.seat_count:
+		frappe.throw(_("There are no seats available for this event."))
+
+	registration = frappe.get_doc({
+		"doctype": "LMS Event Registration",
+		"event": event,
+		"member": frappe.session.user,
+		"member_name": frappe.db.get_value("User", frappe.session.user, "full_name"),
+	}).insert(ignore_permissions=True)
+	return {"status": "registered", "registration": registration.name}
+
+
 @frappe.whitelist()
 def claim_resource(resource_name: str):
 	"""Explicitly enroll the current user in a free resource. Idempotent.
@@ -3201,9 +3256,13 @@ def _validate_signup_target(target_type, target_slug, intent):
 	return plan_name, plan_price_id
 
 
-def _create_signup_user(email, full_name, password, target_type, target_slug):
+def _create_signup_user(email, full_name, password, target_type, target_slug, license=None):
 	"""Create the User row and persist signup attribution. Used by the immediate
-	(non-PPT) signup path AND by verify_ppt_signup after email verification."""
+	(non-PPT) signup path AND by verify_ppt_signup after email verification.
+
+	`license` is the dict from lms.lms.license.normalize_license (or None when
+	the target did not require one); it lands on the User custom fields the
+	attendee export and certificate read."""
 	parts = full_name.split(None, 1)
 	first_name = parts[0]
 	last_name = parts[1] if len(parts) > 1 else ""
@@ -3217,6 +3276,7 @@ def _create_signup_user(email, full_name, password, target_type, target_slug):
 		"send_welcome_email": 0,
 		"user_type": "Website User",
 		"new_password": password,
+		**(license or {}),
 	})
 	user.flags.ignore_permissions = True
 	user.flags.ignore_password_policy = True
@@ -3355,6 +3415,14 @@ def _consume_ppt_signup_token(token: str) -> str:
 	target_type = verification.target_type or None
 	target_slug = verification.target_slug or None
 	intent = verification.intent or None
+	# License was validated at signup time; carry it onto the User as-is.
+	license = None
+	if verification.get("professional_license_number"):
+		license = {
+			"license_type": verification.license_type,
+			"license_state": verification.license_state,
+			"professional_license_number": verification.professional_license_number,
+		}
 
 	# Race: someone signed up with the same email through another path between
 	# `start_ppt_signup` and clicking the link. Just send them to /login.
@@ -3367,12 +3435,12 @@ def _consume_ppt_signup_token(token: str) -> str:
 	try:
 		plan_name, plan_price_id = _validate_signup_target(target_type, target_slug, intent)
 	except frappe.ValidationError:
-		_create_signup_user(email, full_name, password, None, None)
+		_create_signup_user(email, full_name, password, None, None, license=license)
 		frappe.db.commit()
 		frappe.local.login_manager.login_as(email)
 		return "/lms?signup_target_expired=1"
 
-	_create_signup_user(email, full_name, password, target_type, target_slug)
+	_create_signup_user(email, full_name, password, target_type, target_slug, license=license)
 	frappe.db.commit()
 	frappe.local.login_manager.login_as(email)
 
@@ -3392,7 +3460,7 @@ def _consume_ppt_signup_token(token: str) -> str:
 	return result.get("checkout_url") or result.get("redirect_to") or "/lms"
 
 
-def _start_ppt_signup_verification(email, password, full_name, target_type, target_slug, intent):
+def _start_ppt_signup_verification(email, password, full_name, target_type, target_slug, intent, license=None):
 	"""Hold a pending PPT-domain signup until the user proves email ownership.
 
 	The User row is NOT created here — only after the user clicks the verification
@@ -3417,6 +3485,8 @@ def _start_ppt_signup_verification(email, password, full_name, target_type, targ
 		"target_type": target_type or "",
 		"target_slug": target_slug or "",
 		"intent": intent or "",
+		# Held here (already validated) so the User gets it once the link is clicked.
+		**(license or {}),
 	})
 	verification.flags.ignore_permissions = True
 	verification.insert()
@@ -3450,6 +3520,9 @@ def signup_and_enroll(
 	target_type: str | None = None,
 	target_slug: str | None = None,
 	intent: str | None = None,
+	license_type: str | None = None,
+	license_state: str | None = None,
+	professional_license_number: str | None = None,
 ):
 	"""Public signup. Creates a free LMS Student, logs them in, then either
 	enrolls them in `target_slug` or returns a Stripe checkout URL.
@@ -3457,12 +3530,23 @@ def signup_and_enroll(
 	`target_type`: 'course' | 'event' | 'resource' | None
 	`intent`: 'free' | 'paid' | f'membership:{plan_name}' | None
 
+	The three license fields are mandatory when the target is CEU-bearing
+	(see lms.lms.license.license_required_for_target): every event, any paid
+	or CEU-hour course, and membership purchases. Resource claims and bare
+	signups ignore them.
+
 	For non-PPT emails: uses `login_as` so the freshly-created session skips
 	a 2FA reprompt. For @ppt4ed.com / @ppt4kids.com emails: routes through an
 	email-verification gate (no User row until the link in the email is clicked)
 	so an ex-employee with a dead inbox can't mint themselves a PPT Employee
 	membership.
 	"""
+	from lms.lms.license import (
+		license_required_for_intent,
+		license_required_for_target,
+		normalize_license,
+	)
+
 	email, full_name = _validate_signup_inputs(email, password, full_name)
 
 	if frappe.db.exists("User", email):
@@ -3470,6 +3554,14 @@ def signup_and_enroll(
 		return {"status": "exists"}
 
 	plan_name, plan_price_id = _validate_signup_target(target_type, target_slug, intent)
+
+	license = None
+	if license_required_for_target(target_type, target_slug) or license_required_for_intent(intent):
+		license = normalize_license(license_type, license_state, professional_license_number)
+	elif (professional_license_number or "").strip():
+		# Not required for this target, but the visitor offered it: keep it,
+		# as long as it is a complete triple.
+		license = normalize_license(license_type, license_state, professional_license_number)
 
 	if _is_ppt_employee_email(email):
 		return _start_ppt_signup_verification(
@@ -3479,9 +3571,10 @@ def signup_and_enroll(
 			target_type=target_type,
 			target_slug=target_slug,
 			intent=intent,
+			license=license,
 		)
 
-	_create_signup_user(email, full_name, password, target_type, target_slug)
+	_create_signup_user(email, full_name, password, target_type, target_slug, license=license)
 	frappe.db.commit()
 	frappe.local.login_manager.login_as(email)
 

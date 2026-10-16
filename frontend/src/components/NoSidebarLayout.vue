@@ -6,6 +6,7 @@
 					class="flex w-full flex-col overflow-auto"
 					id="scrollContainer"
 				>
+					<LicenseBanner />
 					<div class="flex-1">
 						<slot />
 					</div>
@@ -17,4 +18,5 @@
 </template>
 <script setup>
 import AppFooter from '@/components/AppFooter.vue'
+import LicenseBanner from '@/components/LicenseBanner.vue'
 </script>

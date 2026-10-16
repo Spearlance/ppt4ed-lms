@@ -105,6 +105,11 @@ const routes = [
 				component: () => import('@/pages/ProfileCertificates.vue'),
 			},
 			{
+				name: 'ProfilePurchases',
+				path: 'purchases',
+				component: () => import('@/pages/ProfilePurchases.vue'),
+			},
+			{
 				name: 'ProfileRoles',
 				path: 'roles',
 				component: () => import('@/pages/ProfileRoles.vue'),
