@@ -50,6 +50,7 @@ class LMSCourse(WebsiteGenerator):
 		self.validate_video_link()
 		self.validate_status()
 		self.validate_amount_and_currency()
+		self.validate_certificate_signers()
 		self.image = validate_image(self.image)
 		self.validate_card_gradient()
 		ensure_instructors_have_moderator_role([row.instructor for row in self.instructors or []])
@@ -104,6 +105,23 @@ class LMSCourse(WebsiteGenerator):
 	def validate_amount_and_currency(self):
 		if self.paid_course and (cint(self.course_price) < 0 or not self.currency):
 			frappe.throw(_("Amount and currency are required for paid courses."))
+
+	def validate_certificate_signers(self):
+		"""At most two Certificate Signers per course (one per discipline).
+		More than two signature blocks push the CE-hours footer off the
+		certificate page. Uses .get() because the field is a Custom Field that
+		may not exist yet on a site mid-migration."""
+		signers = [row.signer for row in (self.get("certificate_signers") or []) if row.signer]
+		if len(signers) > 2:
+			frappe.throw(
+				_(
+					"A course can have at most 2 certificate signers (one per discipline). "
+					"Remove {0} and save again; other presenters are still listed on the certificate."
+				).format(len(signers) - 2),
+				title=_("Too many certificate signers"),
+			)
+		if len(set(signers)) != len(signers):
+			frappe.throw(_("Each certificate signer can only be listed once."))
 
 	def validate_card_gradient(self):
 		if not self.image and not self.card_gradient:
