@@ -552,6 +552,12 @@ const props = defineProps({
 		type: Object,
 		default: () => ({}),
 	},
+	// Extra filters for the attempt counter, e.g. { event_name } so an event
+	// quiz only counts attempts made from that event, not a reused course copy.
+	attemptFilters: {
+		type: Object,
+		default: () => ({}),
+	},
 })
 
 const emit = defineEmits(['submitted'])
@@ -569,14 +575,14 @@ onUnmounted(() => {
 const handlePageHide = () => {
 	if (activeQuestion.value > 0 && !quizSubmission.data) {
 		const params = new URLSearchParams({
+			...props.submitExtraParams,
 			quiz: quiz.data.name,
 			results: localStorage.getItem(props.quizName),
 		})
 
-		navigator.sendBeacon(
-			'/api/method/lms.lms.doctype.lms_quiz.lms_quiz.submit_quiz?' +
-				params.toString()
-		)
+		// Same endpoint the normal submit uses, so an event survey/quiz that
+		// gets abandoned mid-way still lands against the event.
+		navigator.sendBeacon(`/api/method/${props.submitUrl}?` + params.toString())
 	}
 }
 
@@ -683,6 +689,8 @@ const attempts = createResource({
 			filters: {
 				member: user.data?.name,
 				quiz: quiz.data?.name,
+				entered_by_admin: 0,
+				...props.attemptFilters,
 			},
 			fields: [
 				'name',

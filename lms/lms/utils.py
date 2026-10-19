@@ -1580,6 +1580,9 @@ def get_event_details(batch: str):
 			"venue",
 			"credit_hours",
 			"survey_quiz",
+			"credit_verification",
+			"credit_quiz",
+			"credit_passing_percentage",
 			"route",
 		],
 		as_dict=True,
@@ -1648,24 +1651,42 @@ def get_event_details(batch: str):
 		)
 	)
 
+	# CEU credit verification (survey only / online quiz / in-person quiz).
+	from lms.lms.doctype.lms_event.lms_event import (
+		get_credit_quiz_status,
+		get_credit_verification,
+		requires_credit_quiz,
+	)
+
+	event_details.credit_verification = get_credit_verification(event_details)
+	event_details.credit_quiz_required = requires_credit_quiz(event_details)
+	event_details.credit_quiz_open = bool(
+		event_details.credit_quiz_required
+		and event_details.credit_verification == "Online Quiz"
+		and compute_event_window_open(event_details)
+	)
+	if is_student_enrolled:
+		event_details.credit_status = get_credit_quiz_status(event_details, frappe.session.user)
+		event_details.certificate = frappe.db.get_value(
+			"LMS Certificate",
+			{"event_name": batch, "member": frappe.session.user},
+			"name",
+		)
+	else:
+		event_details.credit_status = None
+		event_details.certificate = None
+
 	return event_details
 
 
 SURVEY_OPEN_OFFSET_MINUTES = 30
 
 
-def compute_event_survey_open(event_details):
-	"""Return True when the post-event survey window has opened.
-
-	Window opens `SURVEY_OPEN_OFFSET_MINUTES` before the final scheduled
-	`event_day.end_time` (falling back to top-level `end_date` + `end_time`
-	for events that pre-date the event_days child table). The offset gives
-	presenters room to show the QR code before they actually wrap, since
-	they often end a few minutes early. Requires certification + a configured
-	survey_quiz.
-	"""
-	if not event_details.get("certification") or not event_details.get("survey_quiz"):
-		return False
+def compute_event_window_open(event_details):
+	"""True once the post-event window has opened: `SURVEY_OPEN_OFFSET_MINUTES`
+	before the final scheduled `event_day.end_time` (falling back to top-level
+	`end_date` + `end_time` for events that pre-date the event_days child
+	table). Shared by the feedback survey and the online credit quiz."""
 	days = event_details.get("event_days") or []
 	if days:
 		last_day = days[-1]
@@ -1678,6 +1699,18 @@ def compute_event_survey_open(event_details):
 		return False
 	end_dt = get_datetime(f"{date_str} {time_str}")
 	return now_datetime() >= end_dt - timedelta(minutes=SURVEY_OPEN_OFFSET_MINUTES)
+
+
+def compute_event_survey_open(event_details):
+	"""Return True when the post-event survey window has opened.
+
+	The offset gives presenters room to show the QR code before they actually
+	wrap, since they often end a few minutes early. Requires certification +
+	a configured survey_quiz.
+	"""
+	if not event_details.get("certification") or not event_details.get("survey_quiz"):
+		return False
+	return compute_event_window_open(event_details)
 
 
 def categorize_batches(batches: list) -> dict:
