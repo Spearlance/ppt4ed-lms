@@ -91,6 +91,7 @@
 </template>
 <script setup>
 import {
+	ClipboardCheck,
 	ClipboardList,
 	ClipboardPen,
 	EllipsisVertical,
@@ -121,6 +122,7 @@ import EventOverview from '@/pages/Events/EventOverview.vue'
 import Announcements from '@/pages/Events/components/Announcements.vue'
 import AnnouncementModal from '@/pages/Events/components/AnnouncementModal.vue'
 import EventSurvey from '@/pages/Events/components/EventSurvey.vue'
+import EventQuiz from '@/pages/Events/components/EventQuiz.vue'
 import EventSurveyQRModal from '@/pages/Events/components/EventSurveyQRModal.vue'
 import EventForm from '@/pages/Events/EventForm.vue'
 import BulkCertificates from '@/pages/Events/components/BulkCertificates.vue'
@@ -222,6 +224,13 @@ const updateTabs = () => {
 		(isAdmin.value || (isStudent.value && batch.data?.survey_open))
 	) {
 		addToTabs('Survey', markRaw(EventSurvey), ClipboardList)
+	}
+	if (
+		batch.data?.credit_verification === 'Online Quiz' &&
+		batch.data?.credit_quiz &&
+		(isAdmin.value || (isStudent.value && batch.data?.credit_quiz_open))
+	) {
+		addToTabs('Quiz', markRaw(EventQuiz), ClipboardCheck)
 	}
 	if (isAdmin.value) {
 		addToTabs('Settings', markRaw(EventForm), Settings2)

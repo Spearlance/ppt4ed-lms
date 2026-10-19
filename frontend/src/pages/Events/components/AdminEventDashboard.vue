@@ -112,6 +112,53 @@
 										<div v-if="column.key == 'creation'">
 											{{ dayjs(row[column.key]).format('DD MMM YYYY') }}
 										</div>
+										<div v-else-if="column.key == 'survey'">
+											<Badge
+												:theme="creditFor(row.member)?.survey_submitted ? 'green' : 'gray'"
+											>
+												{{
+													creditFor(row.member)?.survey_submitted
+														? __('Submitted')
+														: __('Pending')
+												}}
+											</Badge>
+										</div>
+										<div
+											v-else-if="column.key == 'quiz'"
+											class="flex items-center justify-end gap-2"
+										>
+											<Badge
+												:theme="quizBadge(row.member).theme"
+												:title="creditFor(row.member)?.admin_note || ''"
+											>
+												{{ quizBadge(row.member).label }}
+											</Badge>
+											<Button
+												size="sm"
+												variant="ghost"
+												:aria-label="
+													__('Record quiz score for {0}').format(
+														row.member_name || row.member
+													)
+												"
+												@click.stop="openScoreDialog([row])"
+											>
+												<template #icon>
+													<PencilLine class="size-4 stroke-1.5" />
+												</template>
+											</Button>
+										</div>
+										<div v-else-if="column.key == 'certificate'">
+											<Badge
+												:theme="creditFor(row.member)?.certificate ? 'green' : 'gray'"
+											>
+												{{
+													creditFor(row.member)?.certificate
+														? __('Issued')
+														: __('Pending')
+												}}
+											</Badge>
+										</div>
 										<div
 											v-else-if="column.key == 'progress'"
 											class="text-xs !mx-0 w-5"
@@ -140,6 +187,18 @@
 						</ListRows>
 						<ListSelectBanner class="!min-w-0 sm:!min-w-[596px]">
 							<template #actions="{ unselectAll, selections }">
+								<Button
+									v-if="creditQuizRequired"
+									variant="ghost"
+									@click="openScoreDialogForSelection(selections, unselectAll)"
+								>
+									<template #prefix>
+										<ClipboardCheck class="size-4 stroke-1.5" />
+									</template>
+									<span class="sr-only sm:not-sr-only">
+										{{ __('Record quiz scores') }}
+									</span>
+								</Button>
 								<Button
 									variant="ghost"
 									theme="red"
@@ -204,6 +263,72 @@
 		:event="event"
 		:students="students"
 	/>
+	<Dialog
+		v-model="scoreDialog.open"
+		:options="{
+			title: scoreDialogTitle,
+			actions: [
+				{
+					label: __('Save score'),
+					variant: 'solid',
+					loading: recordScores.loading,
+					onClick: ({ close }) => saveScores(close),
+				},
+			],
+		}"
+	>
+		<template #body-content>
+			<div class="space-y-4 text-sm">
+				<p class="text-ink-gray-7 leading-5">
+					<template v-if="creditMode === 'In-Person Quiz'">
+						{{
+							__(
+								'Enter the score from the in-person quiz. {0}% or higher counts as a pass and issues the certificate once the feedback survey is in.'
+							).format(passingPercentage)
+						}}
+					</template>
+					<template v-else>
+						{{
+							__(
+								'This overrides the online quiz result. {0}% or higher counts as a pass and issues the certificate once the feedback survey is in. The override is logged on the event.'
+							).format(passingPercentage)
+						}}
+					</template>
+				</p>
+				<div
+					v-if="scoreDialog.rows.length > 1"
+					class="rounded-md bg-surface-gray-2 px-3 py-2 text-ink-gray-7"
+				>
+					{{
+						__('Applying the same score to {0} attendees.').format(
+							scoreDialog.rows.length
+						)
+					}}
+				</div>
+				<FormControl
+					v-model="scoreDialog.percentage"
+					type="number"
+					:label="__('Score (%)')"
+					min="0"
+					max="100"
+					:required="true"
+				/>
+				<FormControl
+					v-model="scoreDialog.note"
+					type="textarea"
+					:rows="2"
+					:label="__('Note (optional)')"
+					:placeholder="__('e.g. paper retake on 10/18')"
+				/>
+				<div
+					v-if="scoreDialog.error"
+					class="text-ink-red-3"
+				>
+					{{ scoreDialog.error }}
+				</div>
+			</div>
+		</template>
+	</Dialog>
 </template>
 <script setup lang="ts">
 import {
@@ -220,12 +345,20 @@ import {
 	ListRowItem,
 	ListSelectBanner,
 	Avatar,
+	Badge,
 	Button,
+	Dialog,
 	toast,
 } from 'frappe-ui'
-import { computed, getCurrentInstance, ref, watch } from 'vue'
+import { computed, getCurrentInstance, reactive, ref, watch } from 'vue'
 import { formatAmount } from '@/utils'
-import { Download, Plus, UserMinus } from 'lucide-vue-next'
+import {
+	ClipboardCheck,
+	Download,
+	PencilLine,
+	Plus,
+	UserMinus,
+} from 'lucide-vue-next'
 import NumberChartGraph from '@/components/NumberChartGraph.vue'
 import StudentModal from '@/components/Modals/StudentModal.vue'
 
@@ -329,6 +462,190 @@ const removeRegistrations = createResource({
 	url: 'lms.lms.ceu_event_admin.remove_event_registrations',
 })
 
+// --- CEU credit verification (survey / quiz / certificate per attendee) ---
+
+const creditMode = computed<string>(
+	() => props.batch?.data?.credit_verification || 'Survey Only'
+)
+const creditQuizRequired = computed<boolean>(
+	() => Boolean(props.batch?.data?.credit_quiz_required)
+)
+const creditStatus = createResource({
+	url: 'lms.lms.ceu_event_admin.get_event_credit_status',
+	cache: ['event_credit_status', props.batch?.data?.name],
+	params: { event: props.batch?.data?.name },
+	auto: Boolean(props.batch?.data?.certification),
+})
+const passingPercentage = computed(
+	() =>
+		creditStatus.data?.passing_percentage ??
+		props.batch?.data?.credit_passing_percentage ??
+		80
+)
+
+function creditFor(member: string) {
+	return creditStatus.data?.members?.[member] || null
+}
+
+function quizBadge(member: string): { theme: string; label: string } {
+	const s = creditFor(member)
+	if (!s) return { theme: 'gray', label: __('—') }
+	const best =
+		s.best_percentage !== null && s.best_percentage !== undefined
+			? Math.round(s.best_percentage)
+			: null
+	if (s.passed) {
+		const suffix = best !== null ? ` ${best}%` : ''
+		return {
+			theme: 'green',
+			label: (s.entered_by_admin ? __('Passed (admin)') : __('Passed')) + suffix,
+		}
+	}
+	if (best !== null) {
+		return {
+			theme: 'red',
+			label: __('{0}% (below {1}%)').format(best, passingPercentage.value),
+		}
+	}
+	if (creditMode.value === 'In-Person Quiz') {
+		return { theme: 'gray', label: __('Not recorded') }
+	}
+	return { theme: 'gray', label: __('Not attempted') }
+}
+
+const scoreDialog = reactive<{
+	open: boolean
+	rows: Array<{ member: string; member_name?: string }>
+	percentage: number | string
+	note: string
+	error: string
+	unselectAll: null | (() => void)
+}>({
+	open: false,
+	rows: [],
+	percentage: 100,
+	note: '',
+	error: '',
+	unselectAll: null,
+})
+
+const scoreDialogTitle = computed(() => {
+	if (scoreDialog.rows.length === 1) {
+		const r = scoreDialog.rows[0]
+		return __('Record quiz score for {0}').format(r.member_name || r.member)
+	}
+	return __('Record quiz scores')
+})
+
+function openScoreDialog(
+	rows: Array<{ member: string; member_name?: string }>,
+	unselectAll: null | (() => void) = null
+) {
+	if (!creditQuizRequired.value) {
+		toast.info(
+			__(
+				'Set Credit Verification to Online Quiz or In-Person Quiz in Settings to record scores.'
+			)
+		)
+		return
+	}
+	scoreDialog.rows = rows
+	scoreDialog.percentage = 100
+	scoreDialog.note = ''
+	scoreDialog.error = ''
+	scoreDialog.unselectAll = unselectAll
+	scoreDialog.open = true
+}
+
+function openScoreDialogForSelection(
+	selections: Set<string>,
+	unselectAll: () => void
+) {
+	const names = Array.from(selections || [])
+	const rows = (students.data || []).filter((row: any) =>
+		names.includes(row.name)
+	)
+	if (!rows.length) {
+		toast.info(__('Select at least one attendee'))
+		return
+	}
+	openScoreDialog(rows, unselectAll)
+}
+
+const recordScores = createResource({
+	url: 'lms.lms.ceu_event_admin.record_event_quiz_results',
+})
+
+function saveScores(close: () => void) {
+	const pct = Number(scoreDialog.percentage)
+	if (Number.isNaN(pct) || pct < 0 || pct > 100) {
+		scoreDialog.error = __('Enter a score between 0 and 100.')
+		return
+	}
+	scoreDialog.error = ''
+	recordScores
+		.submit({
+			event: props.batch?.data?.name,
+			entries: scoreDialog.rows.map((r) => ({
+				member: r.member,
+				percentage: pct,
+				note: scoreDialog.note,
+			})),
+		})
+		.then((res: any) => {
+			const recorded = res?.recorded || []
+			const passed = recorded.filter((r: any) => r.passed)
+			const minted = recorded.filter((r: any) => r.certificate)
+			const awaitingSurvey = passed.filter(
+				(r: any) => !r.certificate && !r.survey_submitted
+			)
+			if (recorded.length === 1) {
+				const r = recorded[0]
+				if (r.certificate) {
+					toast.success(
+						__('{0} passed — certificate issued').format(r.member_name)
+					)
+				} else if (r.passed) {
+					toast.success(
+						__('{0} passed — certificate will issue once their survey is in').format(
+							r.member_name
+						)
+					)
+				} else {
+					toast.warning(
+						__('{0} scored {1}%, below the {2}% needed').format(
+							r.member_name,
+							Math.round(r.percentage),
+							Math.round(res.passing_percentage)
+						)
+					)
+				}
+			} else {
+				toast.success(
+					__('Recorded {0} scores: {1} passed, {2} certificates issued').format(
+						recorded.length,
+						passed.length,
+						minted.length
+					)
+				)
+				if (awaitingSurvey.length) {
+					toast.info(
+						__('{0} passed but still need to submit the survey').format(
+							awaitingSurvey.length
+						)
+					)
+				}
+			}
+			scoreDialog.unselectAll?.()
+			close()
+			creditStatus.reload()
+			certificationCount.reload()
+		})
+		.catch((e: any) => {
+			scoreDialog.error = e?.messages?.[0] || __('Could not record the score')
+		})
+}
+
 function confirmRemoval(selections: Set<string>, unselectAll: () => void) {
 	const names = Array.from(selections || [])
 	if (!names.length) {
@@ -419,18 +736,28 @@ watch(searchFilter, () => {
 })
 
 const studentColumns = computed(() => {
-	return [
+	const columns: Array<Record<string, any>> = [
 		{
 			label: __('Name'),
 			key: 'member_name',
 			width: '40%',
 		},
-		{
-			label: __('Enrolled On'),
-			key: 'creation',
-			align: 'right',
-		},
 	]
+	if (props.batch?.data?.certification) {
+		if (props.batch?.data?.survey_quiz) {
+			columns.push({ label: __('Survey'), key: 'survey', align: 'right' })
+		}
+		if (creditQuizRequired.value) {
+			columns.push({ label: __('Quiz'), key: 'quiz', align: 'right' })
+		}
+		columns.push({ label: __('Certificate'), key: 'certificate', align: 'right' })
+	}
+	columns.push({
+		label: __('Enrolled On'),
+		key: 'creation',
+		align: 'right',
+	})
+	return columns
 })
 
 const showProgressChart = computed(

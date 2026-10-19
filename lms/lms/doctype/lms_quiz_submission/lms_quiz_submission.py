@@ -18,12 +18,22 @@ class LMSQuizSubmission(Document):
 		self.notify_member()
 
 	def validate_if_max_attempts_exceeded(self):
+		# Admin-recorded results (in-person quiz scores, overrides) never count
+		# against the member's attempt limit and may have no quiz at all.
+		if self.entered_by_admin or not self.quiz:
+			return
+
 		max_attempts = frappe.db.get_value("LMS Quiz", self.quiz, ["max_attempts"])
-		if max_attempts == 0:
+		if not max_attempts:
 			return
 
 		current_user_submission_count = frappe.db.count(
-			self.doctype, filters={"quiz": self.quiz, "member": frappe.session.user}
+			self.doctype,
+			filters={
+				"quiz": self.quiz,
+				"member": self.member or frappe.session.user,
+				"entered_by_admin": 0,
+			},
 		)
 		if current_user_submission_count >= max_attempts:
 			frappe.throw(
@@ -34,6 +44,9 @@ class LMSQuizSubmission(Document):
 			)
 
 	def validate_marks(self):
+		if self.entered_by_admin and not self.result:
+			# Score was keyed in by an admin; there are no answer rows to sum.
+			return
 		self.score = 0
 		for row in self.result:
 			if cint(row.marks) > cint(row.marks_out_of):
@@ -50,6 +63,11 @@ class LMSQuizSubmission(Document):
 			self.percentage = (self.score / self.score_out_of) * 100
 
 	def notify_member(self):
+		if self.entered_by_admin:
+			# The certificate email (or the admin's own follow-up) is the real
+			# notification for an in-person score; the generic quiz alert would
+			# name a quiz the member never opened.
+			return
 		if self.score != 0 and self.has_value_changed("score"):
 			notification = frappe._dict(
 				{
