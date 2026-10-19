@@ -71,8 +71,18 @@ async function insert(page: Page, doc: Record<string, unknown>) {
 	return api(page, 'frappe.client.insert', { doc: JSON.stringify(doc) })
 }
 
+const leftovers: string[] = []
+
+/**
+ * Best-effort cleanup. Moderator has no delete on LMS Quiz Submission, so
+ * the submissions (and therefore the events linked to them) can survive a
+ * run; they are reported at the end so they can be swept server-side:
+ *   bench console → delete LMS Event where title like 'E2E Credit Verify%'
+ */
 async function tryDelete(page: Page, doctype: string, name: string) {
-	await api(page, 'frappe.client.delete', { doctype, name }).catch(() => {})
+	await api(page, 'frappe.client.delete', { doctype, name }).catch(() => {
+		leftovers.push(`${doctype}: ${name}`)
+	})
 }
 
 async function listNames(page: Page, doctype: string, filters: Record<string, unknown>) {
@@ -205,6 +215,12 @@ test.describe('Event CEU credit verification', () => {
 		if (ctx.creditQuiz) await tryDelete(page, 'LMS Quiz', ctx.creditQuiz)
 		if (ctx.question) await tryDelete(page, 'LMS Question', ctx.question)
 		await page.close()
+		if (leftovers.length) {
+			console.warn(
+				`event-credit-verification: ${leftovers.length} fixture(s) could not be deleted (Moderator lacks delete on LMS Quiz Submission). Sweep on dev:\n  ` +
+					leftovers.join('\n  ')
+			)
+		}
 	})
 
 	test('in-person: survey alone does not certify; admin-recorded score does', async ({
