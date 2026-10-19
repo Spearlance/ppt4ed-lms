@@ -9,7 +9,11 @@ import { test, expect, Page } from '@playwright/test'
  *   - In-Person Quiz — survey + an admin records the score from the Dashboard
  *
  * Dev setup these tests assume:
- *   - global-admin@test.com / TestUser@2026! has System Manager perms
+ *   - moderator-smoke@test.com / TestUser@2026! has the Moderator role
+ *     (seeds and cleans up fixtures — Global Admin has no create perms on
+ *     LMS Question / LMS Quiz / LMS Event)
+ *   - global-admin@test.com / TestUser@2026! is a Global Admin (the real
+ *     PPT admin role; exercises the Dashboard score-recording UI)
  *   - pro@test.com / TestUser@2026! is a plain learner
  *   - The shared "Course Survey" quiz (is_survey=1) exists
  *
@@ -19,6 +23,7 @@ import { test, expect, Page } from '@playwright/test'
  */
 
 const PASSWORD = 'TestUser@2026!'
+const SEED_EMAIL = 'moderator-smoke@test.com'
 const ADMIN_EMAIL = 'global-admin@test.com'
 const STUDENT_EMAIL = 'pro@test.com'
 const STAMP = Date.now().toString(36)
@@ -99,7 +104,7 @@ async function makeEvent(page: Page, suffix: string, extra: Record<string, unkno
 		timezone: 'America/New_York',
 		description: 'E2E credit verification event',
 		event_details: '<p>E2E credit verification event</p>',
-		instructors: [{ instructor: ADMIN_EMAIL }],
+		instructors: [{ instructor: SEED_EMAIL }],
 		certification: 1,
 		credit_hours: 1,
 		survey_quiz: ctx.surveyQuiz,
@@ -143,7 +148,7 @@ async function submitSurveyViaApi(page: Page, event: string) {
 test.describe('Event CEU credit verification', () => {
 	test.beforeAll(async ({ browser }) => {
 		const page = await browser.newPage()
-		await login(page, ADMIN_EMAIL)
+		await login(page, SEED_EMAIL)
 
 		const surveys = await listNames(page, 'LMS Quiz', { is_survey: 1, title: 'Course Survey' })
 		if (!surveys.length) throw new Error('Shared "Course Survey" quiz not found on dev')
@@ -184,7 +189,7 @@ test.describe('Event CEU credit verification', () => {
 
 	test.afterAll(async ({ browser }) => {
 		const page = await browser.newPage()
-		await login(page, ADMIN_EMAIL)
+		await login(page, SEED_EMAIL)
 		const events = [ctx.inPersonEvent, ctx.onlineEvent].filter(Boolean) as string[]
 		for (const event of events) {
 			for (const doctype of ['LMS Certificate', 'LMS Quiz Submission']) {
@@ -204,6 +209,7 @@ test.describe('Event CEU credit verification', () => {
 
 	test('in-person: survey alone does not certify; admin-recorded score does', async ({
 		page,
+		browser,
 	}) => {
 		await login(page, STUDENT_EMAIL)
 		await page.goto(`/lms/events/${ctx.inPersonEvent}#dashboard`)
@@ -218,33 +224,41 @@ test.describe('Event CEU credit verification', () => {
 
 		await page.reload()
 		await expect(progress).toContainText('Submitted')
-		await logout(page)
 
-		await login(page, ADMIN_EMAIL)
-		await page.goto(`/lms/events/${ctx.inPersonEvent}#dashboard`)
-		const recordBtn = page
+		// Admin half in its own context: a GET logout leaves the SPA session
+		// cached, so /login would just bounce back to the student's home.
+		const adminContext = await browser.newContext()
+		const admin = await adminContext.newPage()
+		await login(admin, ADMIN_EMAIL)
+		await admin.goto(`/lms/events/${ctx.inPersonEvent}#dashboard`)
+		const recordBtn = admin
 			.getByRole('button', { name: /Record quiz score for/i })
 			.first()
 		await recordBtn.waitFor({ timeout: 15000 })
 		await recordBtn.click()
 
-		const dialog = page.getByRole('dialog')
+		const dialog = admin.getByRole('dialog')
 		await expect(dialog).toBeVisible()
 		const score = dialog.locator('input[type="number"]')
 		await score.fill('85')
 		await dialog.getByRole('button', { name: 'Save score' }).click()
 
-		await expect(page.getByText(/passed — certificate issued/i)).toBeVisible({
+		await expect(admin.getByText(/passed — certificate issued/i)).toBeVisible({
 			timeout: 15000,
 		})
-		await expect(page.getByText('Issued').first()).toBeVisible()
-		await expect(page.getByText(/Passed \(admin\) 85%/)).toBeVisible()
+		await expect(admin.getByText('Issued').first()).toBeVisible()
+		await expect(admin.getByText(/Passed \(admin\) 85%/)).toBeVisible()
 
+		// Student sees it too.
+		await page.reload()
+		await expect(progress).toContainText('Issued', { timeout: 15000 })
 		const certs = await listNames(page, 'LMS Certificate', {
 			event_name: ctx.inPersonEvent,
 			member: STUDENT_EMAIL,
 		})
 		expect(certs.length).toBe(1)
+
+		await adminContext.close()
 		await logout(page)
 	})
 

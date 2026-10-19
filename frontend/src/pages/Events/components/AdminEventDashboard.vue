@@ -136,7 +136,7 @@
 											<Button
 												size="sm"
 												variant="ghost"
-												:aria-label="
+												:label="
 													__('Record quiz score for {0}').format(
 														row.member_name || row.member
 													)
