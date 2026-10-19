@@ -231,8 +231,11 @@ test.describe('Event CEU credit verification', () => {
 		const admin = await adminContext.newPage()
 		await login(admin, ADMIN_EMAIL)
 		await admin.goto(`/lms/events/${ctx.inPersonEvent}#dashboard`)
+		// frappe-ui wraps each ListRow in a <button>, so getByRole would match
+		// the row (its accessible name includes the pencil's label). Target
+		// the pencil's own aria-label instead.
 		const recordBtn = admin
-			.getByRole('button', { name: /Record quiz score for/i })
+			.locator('button[aria-label^="Record quiz score for"]')
 			.first()
 		await recordBtn.waitFor({ timeout: 15000 })
 		await recordBtn.click()
@@ -243,11 +246,12 @@ test.describe('Event CEU credit verification', () => {
 		await score.fill('85')
 		await dialog.getByRole('button', { name: 'Save score' }).click()
 
-		await expect(admin.getByText(/passed — certificate issued/i)).toBeVisible({
-			timeout: 15000,
-		})
+		// The toast is mirrored into an aria-live region, so pick the visible copy.
+		await expect(
+			admin.getByText(/passed — certificate issued/i).filter({ visible: true }).first()
+		).toBeVisible({ timeout: 15000 })
 		await expect(admin.getByText('Issued').first()).toBeVisible()
-		await expect(admin.getByText(/Passed \(admin\) 85%/)).toBeVisible()
+		await expect(admin.getByText(/Passed \(admin\) 85%/).first()).toBeVisible()
 
 		// Student sees it too.
 		await page.reload()
