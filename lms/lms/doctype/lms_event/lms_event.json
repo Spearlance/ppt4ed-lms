@@ -463,13 +463,13 @@
    "options": "LMS Quiz"
   },
   {
-   "default": "Survey Only",
+   "default": "Manual",
    "depends_on": "certification",
-   "description": "How attendees earn this event's CEU credit. Survey Only: the feedback survey alone issues the certificate. Online Quiz: attendees must also pass the linked quiz on the event page. In-Person Quiz: an admin records each attendee's score from the Dashboard.",
+   "description": "How attendees earn this event's CEU credit. Manual: nothing issues automatically; an admin issues certificates to selected attendees from the Dashboard (e.g. after a Google Forms quiz). Survey Only: the feedback survey alone issues the certificate. Online Quiz: attendees must also pass the linked quiz on the event page. In-Person Quiz: an admin records each attendee's score from the Dashboard.",
    "fieldname": "credit_verification",
    "fieldtype": "Select",
    "label": "Credit Verification",
-   "options": "Survey Only\nOnline Quiz\nIn-Person Quiz"
+   "options": "Manual\nSurvey Only\nOnline Quiz\nIn-Person Quiz"
   },
   {
    "depends_on": "eval:doc.certification && doc.credit_verification=='Online Quiz'",

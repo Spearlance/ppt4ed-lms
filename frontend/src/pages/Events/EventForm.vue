@@ -752,6 +752,7 @@ const conferencingOptions = computed(() => {
 
 const creditVerificationOptions = computed(() => {
 	return [
+		{ label: __('Manual (issued by admin)'), value: 'Manual' },
 		{ label: __('Survey Only'), value: 'Survey Only' },
 		{ label: __('Online Quiz'), value: 'Online Quiz' },
 		{ label: __('In-Person Quiz'), value: 'In-Person Quiz' },
@@ -760,6 +761,11 @@ const creditVerificationOptions = computed(() => {
 
 const creditVerificationHelp = computed(() => {
 	const mode = batchDetail.doc?.credit_verification
+	if (mode === 'Manual') {
+		return __(
+			'Nothing issues automatically. After the event, select attendees on the Dashboard and click Issue certificate (e.g. once their Google Forms quiz is in).'
+		)
+	}
 	if (mode === 'Online Quiz') {
 		return __(
 			'Attendees submit the feedback survey and pass the linked quiz on the event page. The certificate issues automatically once both are in.'

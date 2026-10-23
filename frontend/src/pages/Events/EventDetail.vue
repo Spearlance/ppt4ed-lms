@@ -70,11 +70,6 @@
 			</div>
 		</div>
 	</div>
-	<BulkCertificates
-		v-if="batch.data"
-		v-model="openCertificateDialog"
-		:batch="batch.data"
-	/>
 	<AnnouncementModal
 		v-if="batch.data"
 		v-model="showAnnouncementModal"
@@ -125,7 +120,6 @@ import EventSurvey from '@/pages/Events/components/EventSurvey.vue'
 import EventQuiz from '@/pages/Events/components/EventQuiz.vue'
 import EventSurveyQRModal from '@/pages/Events/components/EventSurveyQRModal.vue'
 import EventForm from '@/pages/Events/EventForm.vue'
-import BulkCertificates from '@/pages/Events/components/BulkCertificates.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -135,7 +129,6 @@ const childRef = ref(null)
 const announcementsRef = ref(null)
 const tabIndex = ref(0)
 const tabs = ref([])
-const openCertificateDialog = ref(false)
 const showAnnouncementModal = ref(false)
 const showSurveyQRModal = ref(false)
 const readOnlyMode = window.read_only_mode
@@ -269,21 +262,12 @@ const canMakeAnnouncement = () => {
 }
 
 const batchMenu = computed(() => {
-	if (
-		!batch.data?.certification &&
-		!canMakeAnnouncement() &&
-		!batch.data?.survey_quiz
-	) {
+	// Certificates are issued per attendee from the Dashboard ("Issue
+	// certificate" on the selection banner), not from this menu.
+	if (!canMakeAnnouncement() && !batch.data?.survey_quiz) {
 		return []
 	}
 	let options = [
-		{
-			label: __('Generate Certificates'),
-			onClick() {
-				openCertificateDialog.value = true
-			},
-			condition: () => batch.data?.certification,
-		},
 		{
 			label: __('Make an Announcement'),
 			onClick() {

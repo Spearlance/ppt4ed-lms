@@ -72,6 +72,11 @@ const quizStillNeeded = computed(() => {
 
 const submittedMessage = computed(() => {
 	const data = props.batch.data
+	if (data?.credit_verification === 'Manual' && !data?.certificate) {
+		return __(
+			'Thanks for your feedback! Your certificate will be issued by the event organizer after the event.'
+		)
+	}
 	if (!quizStillNeeded.value || data?.certificate) {
 		return __(
 			"Thanks for your feedback! Your certificate has been issued — you'll find it in your account."

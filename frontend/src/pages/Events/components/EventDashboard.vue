@@ -60,9 +60,9 @@
 						</div>
 						<div class="text-sm text-ink-gray-7">
 							{{
-								__(
-									'Submit your feedback to receive your certificate.'
-								)
+								batch.data?.credit_verification === 'Manual'
+									? __('Let us know how the event went.')
+									: __('Submit your feedback to receive your certificate.')
 							}}
 						</div>
 					</div>
@@ -147,7 +147,17 @@
 							>
 								<Badge theme="green">{{ __('Issued') }}</Badge>
 							</router-link>
-							<Badge v-else theme="gray">{{ __('Pending') }}</Badge>
+							<Badge
+								v-else
+								theme="gray"
+								:title="
+									batch.data?.credit_verification === 'Manual'
+										? __('Issued by the event organizer after the event.')
+										: ''
+								"
+							>
+								{{ __('Pending') }}
+							</Badge>
 						</div>
 					</div>
 				</div>
