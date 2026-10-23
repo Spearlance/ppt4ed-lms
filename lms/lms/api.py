@@ -1152,6 +1152,99 @@ def submit_event_survey(event: str, results, quiz: str = None):
 
 
 @frappe.whitelist()
+def submit_event_quiz(event: str, results, quiz: str = None):
+	"""Submit a scored attempt at an event's credit quiz (Online Quiz mode).
+
+	Mirrors `submit_quiz` but keys the submission to the event so the credit
+	gate can find it, and never touches course progress. Attempt limits come
+	from the quiz's `max_attempts` (enforced by the submission controller).
+	On a passing score, auto-mints the certificate if the survey is already
+	in; otherwise the cert mints when the survey lands. The `quiz` arg is
+	accepted (and ignored) so the shared Quiz component can pass its standard
+	params — the credit quiz is always derived from the event.
+	"""
+	from lms.lms.doctype.lms_event.lms_event import (
+		CREDIT_VERIFICATION_ONLINE,
+		get_credit_event_doc,
+		get_credit_verification,
+		maybe_auto_mint_event_certificate,
+	)
+	from lms.lms.doctype.lms_quiz.lms_quiz import create_submission, process_results
+
+	if isinstance(results, str):
+		results = json.loads(results)
+
+	event_doc = get_credit_event_doc(event)
+	if not event_doc:
+		frappe.throw(_("Event not found."))
+	if (
+		not event_doc.certification
+		or get_credit_verification(event_doc) != CREDIT_VERIFICATION_ONLINE
+		or not event_doc.credit_quiz
+	):
+		frappe.throw(_("This event does not have an online credit quiz."))
+
+	user = frappe.session.user
+	if user == "Guest":
+		frappe.throw(_("You must be logged in to take the quiz."), frappe.PermissionError)
+
+	if not frappe.db.exists("LMS Event Registration", {"event": event, "member": user}):
+		frappe.throw(_("You are not enrolled in this event."), frappe.PermissionError)
+
+	details = get_event_details(event)
+	if not details.get("credit_quiz_open"):
+		frappe.throw(_("The quiz is not yet available for this event."))
+
+	quiz_details = frappe.db.get_value(
+		"LMS Quiz",
+		event_doc.credit_quiz,
+		[
+			"name",
+			"total_marks",
+			"passing_percentage",
+			"lesson",
+			"course",
+			"enable_negative_marking",
+			"marks_to_cut",
+			"is_survey",
+		],
+		as_dict=1,
+	)
+	if not quiz_details or quiz_details.is_survey:
+		frappe.throw(_("Credit quiz misconfigured."))
+
+	data = process_results(results, quiz_details)
+	score = data["score"]
+	score_out_of = quiz_details.total_marks
+	percentage = (score / score_out_of) * 100 if score_out_of else 0
+
+	submission = create_submission(
+		event_doc.credit_quiz,
+		data["results"],
+		score_out_of,
+		quiz_details.passing_percentage,
+	)
+	submission.db_set("event_name", event, update_modified=False)
+	# A quiz reused from a course carries course via fetch_from; clear it so
+	# nothing downstream mistakes this for lesson progress.
+	submission.db_set("course", None, update_modified=False)
+
+	passed = percentage >= (quiz_details.passing_percentage or 0)
+	cert_name = maybe_auto_mint_event_certificate(user, event) if passed else None
+
+	return {
+		"score": score,
+		"score_out_of": score_out_of,
+		"submission": submission.name,
+		"pass": passed,
+		"percentage": percentage,
+		"is_open_ended": data.get("is_open_ended", False),
+		"is_survey": False,
+		"certificate": cert_name,
+	}
+
+
+@frappe.whitelist()
 def get_event_survey_qr(event: str):
 	"""Return a base64 PNG QR code that points at the event detail page.
 	Restricted to instructors/admins (anyone who can_modify_event)."""

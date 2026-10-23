@@ -767,30 +767,188 @@ def send_starting_in_15_minutes_mail(event, student):
 	)
 
 
-def maybe_auto_mint_event_certificate(member, event):
-	"""Mint an event certificate for `member` if one doesn't already exist.
+CREDIT_VERIFICATION_MANUAL = "Manual"
+CREDIT_VERIFICATION_SURVEY = "Survey Only"
+CREDIT_VERIFICATION_ONLINE = "Online Quiz"
+CREDIT_VERIFICATION_IN_PERSON = "In-Person Quiz"
+DEFAULT_CREDIT_PASSING_PERCENTAGE = 80
 
-	Caller is expected to have just recorded a survey submission. We re-check
-	the survey gate here so the helper is safe to call from any path.
+CREDIT_EVENT_FIELDS = [
+	"name",
+	"title",
+	"certification",
+	"survey_quiz",
+	"credit_verification",
+	"credit_quiz",
+	"credit_passing_percentage",
+]
+
+
+def get_credit_event_doc(event):
+	"""Fetch the event fields the CEU credit gate needs. Returns None if missing."""
+	return frappe.db.get_value("LMS Event", event, CREDIT_EVENT_FIELDS, as_dict=True)
+
+
+def get_credit_verification(event_doc) -> str:
+	"""Events created before the field existed have NULL; treat as Survey Only.
+
+	New events default to Manual (doctype default): live events hand out
+	certificates by hand after an external quiz, so nothing mints on its own."""
+	return event_doc.get("credit_verification") or CREDIT_VERIFICATION_SURVEY
+
+
+def is_manual_credit(event_doc) -> bool:
+	"""Manual mode: no survey or quiz ever mints; an admin issues from the Dashboard."""
+	return get_credit_verification(event_doc) == CREDIT_VERIFICATION_MANUAL
+
+
+def requires_credit_quiz(event_doc) -> bool:
+	"""True when a scored quiz result (online or admin-recorded) gates the cert."""
+	if not event_doc.get("certification"):
+		return False
+	mode = get_credit_verification(event_doc)
+	if mode == CREDIT_VERIFICATION_ONLINE:
+		return bool(event_doc.get("credit_quiz"))
+	return mode == CREDIT_VERIFICATION_IN_PERSON
+
+
+def get_credit_passing_percentage(event_doc) -> float:
+	"""Threshold for admin-recorded scores. Online quizzes carry their own."""
+	if event_doc.get("credit_quiz"):
+		value = frappe.db.get_value("LMS Quiz", event_doc.credit_quiz, "passing_percentage")
+		if value is not None:
+			return float(value)
+	value = event_doc.get("credit_passing_percentage")
+	return float(value) if value is not None else float(DEFAULT_CREDIT_PASSING_PERCENTAGE)
+
+
+def get_credit_quiz_submissions(event_doc, member) -> list:
+	"""Scored submissions that count toward this event's credit check for
+	`member`: online attempts at the credit quiz plus anything an admin
+	recorded. Survey submissions are excluded."""
+	rows = frappe.get_all(
+		"LMS Quiz Submission",
+		filters={"event_name": event_doc.name, "member": member},
+		fields=[
+			"name",
+			"quiz",
+			"percentage",
+			"passing_percentage",
+			"entered_by_admin",
+			"graded_by",
+			"admin_note",
+			"creation",
+		],
+		order_by="creation asc",
+	)
+	credit_quiz = event_doc.get("credit_quiz")
+	return [
+		row
+		for row in rows
+		if row.entered_by_admin or (credit_quiz and row.quiz == credit_quiz)
+	]
+
+
+def _submission_passed(row, fallback_threshold: float) -> bool:
+	threshold = row.passing_percentage
+	if threshold is None:
+		threshold = fallback_threshold
+	return float(row.percentage or 0) >= float(threshold)
+
+
+def get_credit_quiz_status(event_doc, member) -> dict:
+	"""Per-member summary of the credit quiz used by both dashboards."""
+	threshold = get_credit_passing_percentage(event_doc)
+	rows = get_credit_quiz_submissions(event_doc, member)
+	online_attempts = [r for r in rows if not r.entered_by_admin]
+	best = max((float(r.percentage or 0) for r in rows), default=None)
+	passed_rows = [r for r in rows if _submission_passed(r, threshold)]
+	latest = rows[-1] if rows else None
+	max_attempts = 0
+	if event_doc.get("credit_quiz"):
+		max_attempts = cint(frappe.db.get_value("LMS Quiz", event_doc.credit_quiz, "max_attempts"))
+	return frappe._dict(
+		{
+			"required": requires_credit_quiz(event_doc),
+			"mode": get_credit_verification(event_doc),
+			"passing_percentage": threshold,
+			"attempts": len(online_attempts),
+			"max_attempts": max_attempts,
+			"attempts_exhausted": bool(max_attempts and len(online_attempts) >= max_attempts),
+			"best_percentage": best,
+			"passed": bool(passed_rows),
+			"entered_by_admin": bool(latest and latest.entered_by_admin),
+			"graded_by": latest.graded_by if latest else None,
+			"admin_note": latest.admin_note if latest else None,
+			"last_recorded": latest.creation if latest else None,
+		}
+	)
+
+
+def has_passed_credit_quiz(event_doc, member) -> bool:
+	if not requires_credit_quiz(event_doc):
+		return True
+	threshold = get_credit_passing_percentage(event_doc)
+	return any(
+		_submission_passed(row, threshold)
+		for row in get_credit_quiz_submissions(event_doc, member)
+	)
+
+
+def has_submitted_event_survey(event_doc, member) -> bool:
+	if not event_doc.get("survey_quiz"):
+		return True
+	return bool(
+		frappe.db.exists(
+			"LMS Quiz Submission",
+			{"event_name": event_doc.name, "member": member, "quiz": event_doc.survey_quiz},
+		)
+	)
+
+
+def maybe_auto_mint_event_certificate(member, event):
+	"""Mint an event certificate for `member` once every credit gate is met.
+
+	Gates: the event certifies, the member has no cert yet, the feedback
+	survey is submitted (when one is configured), and the credit quiz is
+	passed (online attempt or admin-recorded score) when the event's
+	credit_verification requires one. Safe to call from any path: survey
+	submit, online quiz submit, or admin score entry, whichever lands last.
 	Returns the new certificate name, or None if not minted.
 	"""
-	event_doc = frappe.db.get_value(
-		"LMS Event",
-		event,
-		["name", "title", "certification", "survey_quiz"],
-		as_dict=True,
-	)
+	event_doc = get_credit_event_doc(event)
 	if not event_doc or not event_doc.certification:
+		return None
+
+	# Manual events never mint on their own; see issue_event_certificate.
+	if is_manual_credit(event_doc):
 		return None
 
 	if frappe.db.exists("LMS Certificate", {"member": member, "event_name": event}):
 		return None
 
-	if event_doc.survey_quiz and not frappe.db.exists(
-		"LMS Quiz Submission",
-		{"event_name": event, "member": member, "quiz": event_doc.survey_quiz},
-	):
+	if not has_submitted_event_survey(event_doc, member):
 		return None
+
+	if not has_passed_credit_quiz(event_doc, member):
+		return None
+
+	return issue_event_certificate(member, event)
+
+
+def issue_event_certificate(member, event):
+	"""Mint and publish the event certificate for `member`, or return the
+	existing one's name. No gates: callers decide whether the attendee has
+	earned it (the auto-mint path above, or an admin issuing by hand).
+
+	Published so it lists on the certified participants page, like course
+	certificates do. The certificate email goes out from after_insert.
+	"""
+	existing = frappe.db.get_value(
+		"LMS Certificate", {"member": member, "event_name": event}, "name"
+	)
+	if existing:
+		return existing
 
 	template = frappe.db.get_value(
 		"Property Setter",
@@ -805,13 +963,14 @@ def maybe_auto_mint_event_certificate(member, event):
 			"event_name": event,
 			"issue_date": nowdate(),
 			"template": template,
+			"published": 1,
 		}
 	)
 	cert.insert(ignore_permissions=True)
 	return cert.name
 
 
-def send_event_survey_open_announcements():
+def send_event_survey_open_announcements(only=None):
 	"""Hourly. For each certified event whose survey window has opened
 	(now >= last event_day.end_time - SURVEY_OPEN_OFFSET_MINUTES) and whose
 	survey announcement has not yet been sent, fire an announcement pointing
@@ -819,23 +978,33 @@ def send_event_survey_open_announcements():
 
 	Hourly (not daily) so the email/in-app announcement lands close to when
 	the QR-code-on-slides window actually opens — presenters who end early
-	want attendees to see the announcement around the same time."""
+	want attendees to see the announcement around the same time.
+
+	`only` restricts the sweep to those event names (tests)."""
 	from lms.lms.utils import SURVEY_OPEN_OFFSET_MINUTES
 
 	now = now_datetime()
 
+	filters = {
+		"published": 1,
+		"certification": 1,
+		"survey_announcement_sent": 0,
+	}
+	if only:
+		filters["name"] = ["in", list(only)]
+
 	events = frappe.get_all(
 		"LMS Event",
-		filters={
-			"published": 1,
-			"certification": 1,
-			"survey_announcement_sent": 0,
-		},
-		fields=["name", "title", "end_date", "end_time", "survey_quiz"],
+		filters=filters,
+		fields=["name", "title", "end_date", "end_time", "survey_quiz", "credit_verification"],
 	)
 
 	for event in events:
 		if not event.survey_quiz:
+			continue
+		# The announcement promises "submitting it will issue your certificate",
+		# which is false for events certified by hand.
+		if is_manual_credit(event):
 			continue
 
 		days = frappe.get_all(

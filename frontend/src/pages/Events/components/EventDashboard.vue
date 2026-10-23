@@ -60,9 +60,9 @@
 						</div>
 						<div class="text-sm text-ink-gray-7">
 							{{
-								__(
-									'Submit your feedback to receive your certificate.'
-								)
+								batch.data?.credit_verification === 'Manual'
+									? __('Let us know how the event went.')
+									: __('Submit your feedback to receive your certificate.')
 							}}
 						</div>
 					</div>
@@ -77,6 +77,89 @@
 							{{ __('Take Survey') }}
 						</Button>
 					</router-link>
+				</div>
+				<div
+					v-if="
+						batch.data?.credit_verification === 'Online Quiz' &&
+						batch.data?.credit_quiz &&
+						batch.data?.credit_quiz_open &&
+						!batch.data?.credit_status?.passed &&
+						!batch.data?.credit_status?.attempts_exhausted
+					"
+					class="mb-8 flex items-center justify-between gap-4 rounded-lg border border-outline-gray-2 bg-surface-blue-2 p-4"
+				>
+					<div>
+						<div class="text-base font-semibold text-ink-gray-9">
+							{{ __('Credit quiz is open') }}
+						</div>
+						<div class="text-sm text-ink-gray-7">
+							{{
+								__('Score {0}% or higher to earn your CEU certificate.').format(
+									batch.data?.credit_status?.passing_percentage || ''
+								)
+							}}
+						</div>
+					</div>
+					<router-link :to="{ hash: '#quiz' }" replace>
+						<Button variant="solid">
+							<template #prefix>
+								<ClipboardCheck class="size-4 stroke-1.5" />
+							</template>
+							{{ __('Take Quiz') }}
+						</Button>
+					</router-link>
+				</div>
+				<div
+					v-if="showCreditProgress"
+					class="mb-8 rounded-lg border border-outline-gray-2 p-4"
+					data-testid="credit-progress"
+				>
+					<div class="text-base font-semibold text-ink-gray-9 mb-3">
+						{{ __('Certificate progress') }}
+					</div>
+					<div class="space-y-2 text-sm">
+						<div
+							v-if="batch.data?.survey_quiz"
+							class="flex items-center justify-between gap-4"
+						>
+							<span class="text-ink-gray-7">{{ __('Feedback survey') }}</span>
+							<Badge :theme="batch.data?.survey_submitted ? 'green' : 'gray'">
+								{{ batch.data?.survey_submitted ? __('Submitted') : __('Pending') }}
+							</Badge>
+						</div>
+						<div
+							v-if="batch.data?.credit_quiz_required"
+							class="flex items-center justify-between gap-4"
+						>
+							<span class="text-ink-gray-7">{{ __('Credit quiz') }}</span>
+							<Badge :theme="creditQuizBadge.theme">
+								{{ creditQuizBadge.label }}
+							</Badge>
+						</div>
+						<div class="flex items-center justify-between gap-4">
+							<span class="text-ink-gray-7">{{ __('Certificate') }}</span>
+							<router-link
+								v-if="batch.data?.certificate"
+								:to="{
+									name: 'ProfileCertificates',
+									params: { username: user.data?.username },
+								}"
+							>
+								<Badge theme="green">{{ __('Issued') }}</Badge>
+							</router-link>
+							<Badge
+								v-else
+								theme="gray"
+								:title="
+									batch.data?.credit_verification === 'Manual'
+										? __('Issued by the event organizer after the event.')
+										: ''
+								"
+							>
+								{{ __('Pending') }}
+							</Badge>
+						</div>
+					</div>
 				</div>
 				<div class="mb-8 space-y-2">
 					<div class="text-lg text-ink-gray-9 font-semibold">
@@ -154,7 +237,7 @@ import {
 	ListRow,
 	ListRowItem,
 } from 'frappe-ui'
-import { ClipboardList, Clock, Video } from 'lucide-vue-next'
+import { ClipboardCheck, ClipboardList, Clock, Video } from 'lucide-vue-next'
 import { formatTime } from '@/utils'
 
 const user = inject('$user')
@@ -168,6 +251,49 @@ const props = defineProps({
 		type: Boolean,
 		default: false,
 	},
+})
+
+const showCreditProgress = computed(() => {
+	const data = props.batch.data
+	if (!data?.certification) return false
+	return Boolean(data.survey_quiz || data.credit_quiz_required)
+})
+
+const creditQuizBadge = computed(() => {
+	const data = props.batch.data
+	const status = data?.credit_status
+	if (status?.passed) {
+		const pct =
+			status.best_percentage !== null && status.best_percentage !== undefined
+				? ` (${Math.round(status.best_percentage)}%)`
+				: ''
+		return { theme: 'green', label: __('Passed') + pct }
+	}
+	if (data?.credit_verification === 'In-Person Quiz') {
+		if (status?.best_percentage !== null && status?.best_percentage !== undefined) {
+			return {
+				theme: 'red',
+				label: __('{0}% recorded, below {1}%').format(
+					Math.round(status.best_percentage),
+					status.passing_percentage
+				),
+			}
+		}
+		return { theme: 'gray', label: __('Scored in person by your instructor') }
+	}
+	if (status?.attempts_exhausted) {
+		return { theme: 'red', label: __('No attempts left') }
+	}
+	if (status?.attempts) {
+		return {
+			theme: 'orange',
+			label: __('Best {0}%, need {1}%').format(
+				Math.round(status.best_percentage || 0),
+				status.passing_percentage
+			),
+		}
+	}
+	return { theme: 'gray', label: data?.credit_quiz_open ? __('Open now') : __('Not yet open') }
 })
 
 const progressList = createListResource({

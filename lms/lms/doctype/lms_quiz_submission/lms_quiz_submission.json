@@ -19,7 +19,12 @@
   "percentage",
   "passing_percentage",
   "section_break_6",
-  "result"
+  "result",
+  "section_break_admin_entry",
+  "entered_by_admin",
+  "graded_by",
+  "column_break_admin_entry",
+  "admin_note"
  ],
  "fields": [
   {
@@ -119,13 +124,47 @@
    "fieldtype": "Data",
    "label": "Quiz Title",
    "read_only": 1
+  },
+  {
+   "collapsible": 1,
+   "depends_on": "entered_by_admin",
+   "fieldname": "section_break_admin_entry",
+   "fieldtype": "Section Break",
+   "label": "Admin Entry"
+  },
+  {
+   "default": "0",
+   "description": "Set when an LMS admin recorded this result (in-person quiz score or override) instead of the member answering online.",
+   "fieldname": "entered_by_admin",
+   "fieldtype": "Check",
+   "label": "Entered by Admin",
+   "read_only": 1
+  },
+  {
+   "depends_on": "entered_by_admin",
+   "fieldname": "graded_by",
+   "fieldtype": "Link",
+   "label": "Graded By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_admin_entry",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "entered_by_admin",
+   "fieldname": "admin_note",
+   "fieldtype": "Small Text",
+   "label": "Admin Note",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
  "in_create": 1,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-02-25 12:36:40.110346",
+ "modified": "2026-10-19 14:16:31.668833",
  "modified_by": "Administrator",
  "module": "LMS",
  "name": "LMS Quiz Submission",

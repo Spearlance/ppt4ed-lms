@@ -136,13 +136,51 @@
 								class="mb-4"
 							/>
 						</div>
-						<div>
+						<div class="flex flex-col space-y-5">
 							<Switch
 								size="sm"
 								v-model="batchDetail.doc.certification"
 								:label="__('Certification')"
 								:description="__('Issue certificates to event participants.')"
 							/>
+							<template v-if="batchDetail.doc.certification">
+								<FormControl
+									v-model="batchDetail.doc.credit_verification"
+									type="select"
+									:options="creditVerificationOptions"
+									:label="__('Credit Verification')"
+									:description="creditVerificationHelp"
+								/>
+								<Link
+									v-if="batchDetail.doc.credit_verification === 'Online Quiz'"
+									doctype="LMS Quiz"
+									:filters="{ is_survey: 0 }"
+									:label="__('Credit Quiz')"
+									v-model="batchDetail.doc.credit_quiz"
+									:description="
+										__(
+											'Attendees must pass this quiz on the event page after the final session. Its passing percentage and attempt limit apply.'
+										)
+									"
+									:onCreate="
+										(value, close) => {
+											if (close) close()
+											router.push({ name: 'QuizForm', params: { quizID: 'new' } })
+										}
+									"
+								/>
+								<FormControl
+									v-if="batchDetail.doc.credit_verification === 'In-Person Quiz'"
+									v-model="batchDetail.doc.credit_passing_percentage"
+									:label="__('Passing Percentage')"
+									type="number"
+									:description="
+										__(
+											'Scores you record from the Dashboard at or above this count as a pass.'
+										)
+									"
+								/>
+							</template>
 						</div>
 					</div>
 				</div>
@@ -581,6 +619,17 @@ const updateBatchData = () => {
 			},
 		]
 	}
+	// Events created before credit verification existed store NULL; the
+	// backend treats that as Survey Only, so show it that way.
+	if (!batchDetail.doc.credit_verification) {
+		batchDetail.doc.credit_verification = 'Survey Only'
+	}
+	if (
+		batchDetail.doc.credit_passing_percentage === null ||
+		batchDetail.doc.credit_passing_percentage === undefined
+	) {
+		batchDetail.doc.credit_passing_percentage = 80
+	}
 	let checkboxes = [
 		'published',
 		'paid_event',
@@ -699,6 +748,37 @@ const conferencingOptions = computed(() => {
 			value: 'Google Meet',
 		},
 	]
+})
+
+const creditVerificationOptions = computed(() => {
+	return [
+		{ label: __('Manual (issued by admin)'), value: 'Manual' },
+		{ label: __('Survey Only'), value: 'Survey Only' },
+		{ label: __('Online Quiz'), value: 'Online Quiz' },
+		{ label: __('In-Person Quiz'), value: 'In-Person Quiz' },
+	]
+})
+
+const creditVerificationHelp = computed(() => {
+	const mode = batchDetail.doc?.credit_verification
+	if (mode === 'Manual') {
+		return __(
+			'Nothing issues automatically. After the event, select attendees on the Dashboard and click Issue certificate (e.g. once their Google Forms quiz is in).'
+		)
+	}
+	if (mode === 'Online Quiz') {
+		return __(
+			'Attendees submit the feedback survey and pass the linked quiz on the event page. The certificate issues automatically once both are in.'
+		)
+	}
+	if (mode === 'In-Person Quiz') {
+		return __(
+			'Attendees submit the feedback survey; you record each quiz score from the Dashboard. The certificate issues once both are in.'
+		)
+	}
+	return __(
+		'The feedback survey alone issues the certificate. Pick a quiz mode to require a passing score.'
+	)
 })
 
 const eventTypeOptions = computed(() => {

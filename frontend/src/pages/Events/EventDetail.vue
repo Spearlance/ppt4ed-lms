@@ -70,11 +70,6 @@
 			</div>
 		</div>
 	</div>
-	<BulkCertificates
-		v-if="batch.data"
-		v-model="openCertificateDialog"
-		:batch="batch.data"
-	/>
 	<AnnouncementModal
 		v-if="batch.data"
 		v-model="showAnnouncementModal"
@@ -91,6 +86,7 @@
 </template>
 <script setup>
 import {
+	ClipboardCheck,
 	ClipboardList,
 	ClipboardPen,
 	EllipsisVertical,
@@ -121,9 +117,9 @@ import EventOverview from '@/pages/Events/EventOverview.vue'
 import Announcements from '@/pages/Events/components/Announcements.vue'
 import AnnouncementModal from '@/pages/Events/components/AnnouncementModal.vue'
 import EventSurvey from '@/pages/Events/components/EventSurvey.vue'
+import EventQuiz from '@/pages/Events/components/EventQuiz.vue'
 import EventSurveyQRModal from '@/pages/Events/components/EventSurveyQRModal.vue'
 import EventForm from '@/pages/Events/EventForm.vue'
-import BulkCertificates from '@/pages/Events/components/BulkCertificates.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -133,7 +129,6 @@ const childRef = ref(null)
 const announcementsRef = ref(null)
 const tabIndex = ref(0)
 const tabs = ref([])
-const openCertificateDialog = ref(false)
 const showAnnouncementModal = ref(false)
 const showSurveyQRModal = ref(false)
 const readOnlyMode = window.read_only_mode
@@ -223,6 +218,13 @@ const updateTabs = () => {
 	) {
 		addToTabs('Survey', markRaw(EventSurvey), ClipboardList)
 	}
+	if (
+		batch.data?.credit_verification === 'Online Quiz' &&
+		batch.data?.credit_quiz &&
+		(isAdmin.value || (isStudent.value && batch.data?.credit_quiz_open))
+	) {
+		addToTabs('Quiz', markRaw(EventQuiz), ClipboardCheck)
+	}
 	if (isAdmin.value) {
 		addToTabs('Settings', markRaw(EventForm), Settings2)
 	}
@@ -260,21 +262,12 @@ const canMakeAnnouncement = () => {
 }
 
 const batchMenu = computed(() => {
-	if (
-		!batch.data?.certification &&
-		!canMakeAnnouncement() &&
-		!batch.data?.survey_quiz
-	) {
+	// Certificates are issued per attendee from the Dashboard ("Issue
+	// certificate" on the selection banner), not from this menu.
+	if (!canMakeAnnouncement() && !batch.data?.survey_quiz) {
 		return []
 	}
 	let options = [
-		{
-			label: __('Generate Certificates'),
-			onClick() {
-				openCertificateDialog.value = true
-			},
-			condition: () => batch.data?.certification,
-		},
 		{
 			label: __('Make an Announcement'),
 			onClick() {
