@@ -418,7 +418,8 @@ def get_transactions_report(
             t.item,
             COALESCE(t.item_title, t.description) AS item_title,
             t.stripe_invoice_id,
-            t.stripe_subscription_id
+            t.stripe_subscription_id,
+            t.stripe_payment_intent_id
         FROM `tabCEU Transaction` t
         LEFT JOIN `tabUser` u ON u.name = t.member
         WHERE {where}
