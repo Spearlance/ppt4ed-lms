@@ -80,6 +80,11 @@ def _item_title(item_type: str | None, item: str | None) -> str | None:
 def _classify_from_lms_payment(charge: dict) -> dict | None:
     intent = charge.get("payment_intent")
     session_id = (charge.get("metadata") or {}).get("checkout_session_id")
+    # An order bump puts two LMS Payment rows on one charge (same intent and
+    # session). Frappe's default ordering would return the newest row, which
+    # is the add-on, and the charge would be labelled with the upsell instead
+    # of what the buyer actually set out to buy. Prefer the primary purchase.
+    primary_first = "is_upsell asc, creation asc"
     payment = None
     if intent:
         payment = frappe.db.get_value(
@@ -87,6 +92,7 @@ def _classify_from_lms_payment(charge: dict) -> dict | None:
             {"stripe_payment_intent_id": intent},
             ["name", "member", "payment_for_document_type", "payment_for_document"],
             as_dict=True,
+            order_by=primary_first,
         )
     if not payment and session_id:
         payment = frappe.db.get_value(
@@ -94,6 +100,7 @@ def _classify_from_lms_payment(charge: dict) -> dict | None:
             {"stripe_session_id": session_id},
             ["name", "member", "payment_for_document_type", "payment_for_document"],
             as_dict=True,
+            order_by=primary_first,
         )
     if not payment or not payment.payment_for_document_type:
         return None
