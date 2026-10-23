@@ -188,6 +188,20 @@
 						<ListSelectBanner class="!min-w-0 sm:!min-w-[596px]">
 							<template #actions="{ unselectAll, selections }">
 								<Button
+									v-if="batch?.data?.certification"
+									variant="ghost"
+									:loading="issueCertificates.loading"
+									data-testid="issue-certificate-action"
+									@click="confirmIssue(selections, unselectAll)"
+								>
+									<template #prefix>
+										<Award class="size-4 stroke-1.5" />
+									</template>
+									<span class="sr-only sm:not-sr-only">
+										{{ __('Issue certificate') }}
+									</span>
+								</Button>
+								<Button
 									v-if="creditQuizRequired"
 									variant="ghost"
 									@click="openScoreDialogForSelection(selections, unselectAll)"
@@ -353,6 +367,7 @@ import {
 import { computed, getCurrentInstance, reactive, ref, watch } from 'vue'
 import { formatAmount } from '@/utils'
 import {
+	Award,
 	ClipboardCheck,
 	Download,
 	PencilLine,
@@ -644,6 +659,77 @@ function saveScores(close: () => void) {
 		.catch((e: any) => {
 			scoreDialog.error = e?.messages?.[0] || __('Could not record the score')
 		})
+}
+
+const issueCertificates = createResource({
+	url: 'lms.lms.ceu_event_admin.issue_event_certificates',
+})
+
+function confirmIssue(selections: Set<string>, unselectAll: () => void) {
+	const names = Array.from(selections || [])
+	const selected = (students.data || []).filter((row: any) =>
+		names.includes(row.name)
+	)
+	if (!selected.length) {
+		toast.info(__('Select at least one attendee to certify'))
+		return
+	}
+	const who =
+		selected.length === 1
+			? selected[0].member_name || selected[0].member
+			: __('{0} attendees').format(selected.length)
+	const alreadyIssued = selected.filter(
+		(row: any) => creditFor(row.member)?.certificate
+	).length
+	let message = __(
+		'Each attendee gets the event certificate right away and is emailed a copy. No survey or quiz result is checked.'
+	)
+	if (alreadyIssued) {
+		message +=
+			' ' +
+			__('{0} of them already have one and will be skipped.').format(alreadyIssued)
+	}
+
+	$dialog({
+		title: __('Issue certificate to {0}?').format(who),
+		message,
+		actions: [
+			{
+				label: __('Issue certificate'),
+				variant: 'solid',
+				onClick({ close }: { close: () => void }) {
+					issueCertificates
+						.submit({
+							event: props.batch?.data?.name,
+							members: selected.map((row: any) => row.member),
+						})
+						.then((res: any) => {
+							const issued = res?.issued || []
+							const skipped = res?.skipped || []
+							if (issued.length === 1) {
+								toast.success(
+									__('Certificate issued to {0}').format(issued[0].member_name)
+								)
+							} else if (issued.length) {
+								toast.success(__('Issued {0} certificates').format(issued.length))
+							}
+							if (skipped.length) {
+								toast.info(
+									__('{0} already certified, skipped').format(skipped.length)
+								)
+							}
+							unselectAll()
+							close()
+							creditStatus.reload()
+							certificationCount.reload()
+						})
+						.catch((e: any) => {
+							toast.error(e?.messages?.[0] || __('Could not issue certificates'))
+						})
+				},
+			},
+		],
+	})
 }
 
 function confirmRemoval(selections: Set<string>, unselectAll: () => void) {

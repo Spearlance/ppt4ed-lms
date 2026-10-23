@@ -382,3 +382,140 @@ class TestEventCreditVerification(UnitTestCase):
 		self.assertTrue(first)
 		self.assertIsNone(maybe_auto_mint_event_certificate(self.member, event))
 		self.assertEqual(frappe.db.count("LMS Certificate", {"event_name": event, "member": self.member}), 1)
+
+	def test_auto_minted_certificate_is_published(self):
+		event = self._make_event("Survey Only", "Published")
+		self._register(event, self.member)
+		cert = self._submit_survey(event, self.member)["certificate"]
+		self.assertEqual(frappe.db.get_value("LMS Certificate", cert, "published"), 1)
+
+	# ------------------------------------------------------------------ manual (issued by admin)
+
+	def test_manual_is_the_default_for_new_events(self):
+		day = add_days(today(), -1)
+		event = frappe.get_doc(
+			{
+				"doctype": "LMS Event",
+				"title": f"{TITLE_PREFIX} Default",
+				"start_date": day,
+				"end_date": day,
+				"start_time": "09:00:00",
+				"end_time": "11:00:00",
+				"timezone": "America/New_York",
+				"description": "Default mode test event.",
+				"event_details": "Default mode test event.",
+				"instructors": [{"instructor": "Administrator"}],
+				"certification": 1,
+				"survey_quiz": self.survey_quiz.name,
+				"published": 0,
+			}
+		)
+		event.insert(ignore_permissions=True)
+		self.assertEqual(event.credit_verification, "Manual")
+		self.assertFalse(get_credit_quiz_status(get_credit_event_doc(event.name), self.member).required)
+
+	def test_manual_mode_never_mints_on_survey(self):
+		event = self._make_event("Manual", "Manual")
+		self._register(event, self.member)
+
+		result = self._submit_survey(event, self.member)
+
+		self.assertIsNone(result["certificate"])
+		self.assertIsNone(self._cert(event, self.member))
+		self.assertIsNone(maybe_auto_mint_event_certificate(self.member, event))
+
+		status = get_event_credit_status(event)
+		self.assertEqual(status["mode"], "Manual")
+		self.assertFalse(status["credit_quiz_required"])
+		self.assertTrue(status["members"][self.member]["survey_submitted"])
+		self.assertIsNone(status["members"][self.member]["certificate"])
+
+	def test_manual_mode_rejects_score_recording(self):
+		event = self._make_event("Manual", "ManualScore")
+		self._register(event, self.member)
+		with self.assertRaises(frappe.ValidationError):
+			record_event_quiz_results(event, [{"member": self.member, "percentage": 100}])
+
+	def test_admin_issues_certificates_to_selected_attendees(self):
+		from lms.lms.ceu_event_admin import issue_event_certificates
+
+		event = self._make_event("Manual", "Issue")
+		self._register(event, self.member)
+		self._register(event, self.other)
+
+		result = issue_event_certificates(event, [self.member])
+
+		self.assertEqual([r["member"] for r in result["issued"]], [self.member])
+		self.assertEqual(result["skipped"], [])
+		cert = self._cert(event, self.member)
+		self.assertEqual(result["issued"][0]["certificate"], cert)
+		self.assertEqual(frappe.db.get_value("LMS Certificate", cert, "published"), 1)
+		self.assertIsNone(self._cert(event, self.other))
+		self.assertEqual(get_event_credit_status(event)["members"][self.member]["certificate"], cert)
+
+		# Logged on the event for auditing.
+		comments = frappe.get_all(
+			"Comment",
+			filters={"reference_doctype": "LMS Event", "reference_name": event, "comment_type": "Info"},
+			pluck="content",
+		)
+		self.assertTrue(any("issued the certificate" in c for c in comments))
+
+		# Issuing again skips, never duplicates.
+		again = issue_event_certificates(event, json.dumps([self.member, self.other]))
+		self.assertEqual([r["member"] for r in again["skipped"]], [self.member])
+		self.assertEqual([r["member"] for r in again["issued"]], [self.other])
+		self.assertEqual(frappe.db.count("LMS Certificate", {"event_name": event}), 2)
+
+	def test_manual_issue_overrides_the_survey_gate_in_other_modes(self):
+		from lms.lms.ceu_event_admin import issue_event_certificates
+
+		# Survey Only event, survey never submitted: auto-mint would refuse.
+		event = self._make_event("Survey Only", "Override")
+		self._register(event, self.member)
+		self.assertIsNone(maybe_auto_mint_event_certificate(self.member, event))
+
+		issue_event_certificates(event, [self.member])
+		self.assertTrue(self._cert(event, self.member))
+
+	def test_manual_issue_validation_and_permissions(self):
+		from lms.lms.ceu_event_admin import issue_event_certificates
+
+		event = self._make_event("Manual", "IssueGuard")
+		self._register(event, self.member)
+
+		with self.assertRaises(frappe.ValidationError):
+			issue_event_certificates(event, [])
+		with self.assertRaises(frappe.ValidationError):
+			issue_event_certificates(event, [self.other])  # not registered
+
+		frappe.db.set_value("LMS Event", event, "certification", 0, update_modified=False)
+		with self.assertRaises(frappe.ValidationError):
+			issue_event_certificates(event, [self.member])
+		frappe.db.set_value("LMS Event", event, "certification", 1, update_modified=False)
+
+		frappe.set_user(self.other)
+		try:
+			with self.assertRaises(frappe.PermissionError):
+				issue_event_certificates(event, [self.member])
+		finally:
+			frappe.set_user("Administrator")
+		self.assertIsNone(self._cert(event, self.member))
+
+	def test_survey_open_announcement_skips_manual_events(self):
+		from lms.lms.doctype.lms_event.lms_event import send_event_survey_open_announcements
+
+		manual = self._make_event("Manual", "AnnounceManual")
+		survey_only = self._make_event("Survey Only", "AnnounceSurvey")
+		for event in (manual, survey_only):
+			frappe.db.set_value("LMS Event", event, "published", 1, update_modified=False)
+
+		with patch(
+			"lms.lms.doctype.lms_event.lms_event._send_survey_open_announcement"
+		) as send:
+			send_event_survey_open_announcements(only=[manual, survey_only])
+
+		announced = {call.args[0] for call in send.call_args_list}
+		self.assertEqual(announced, {survey_only})
+		self.assertEqual(frappe.db.get_value("LMS Event", manual, "survey_announcement_sent"), 0)
+		self.assertEqual(frappe.db.get_value("LMS Event", survey_only, "survey_announcement_sent"), 1)

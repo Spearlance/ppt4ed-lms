@@ -324,6 +324,66 @@ def record_event_quiz_results(event: str, entries) -> dict:
 
 
 @frappe.whitelist()
+def issue_event_certificates(event: str, members) -> dict:
+	"""Issue the event certificate to selected attendees, by hand.
+
+	This is how Manual events certify (after an external quiz such as a
+	Google Form), and it works as an override in every other mode: no survey
+	or quiz gate is checked. Attendees who already hold the certificate are
+	skipped, not duplicated. Each issue is logged as a comment on the event
+	so it is auditable, and the certificate email goes out as usual.
+
+	`members` is a list of member emails (JSON string or list).
+	"""
+	from lms.lms.doctype.lms_event.lms_event import issue_event_certificate
+
+	_require_event_scorer(event)
+
+	event_doc = frappe.db.get_value(
+		"LMS Event", event, ["name", "title", "certification"], as_dict=True
+	)
+	if not event_doc:
+		frappe.throw(_("Event {0} not found.").format(event))
+	if not event_doc.certification:
+		frappe.throw(
+			_("Turn on Certification in the event settings before issuing certificates.")
+		)
+
+	names = _parse_names(members)
+	if not names:
+		frappe.throw(_("Select at least one attendee to certify."))
+
+	registered = set(
+		frappe.get_all(
+			"LMS Event Registration",
+			filters={"event": event, "member": ["in", names]},
+			pluck="member",
+		)
+	)
+	not_registered = [m for m in names if m not in registered]
+	if not_registered:
+		frappe.throw(_("Not registered for this event: {0}").format(", ".join(not_registered)))
+
+	actor_name = frappe.utils.get_fullname(frappe.session.user)
+	event_ref = frappe.get_doc("LMS Event", event)
+	issued, skipped = [], []
+
+	for member in names:
+		member_name = frappe.utils.get_fullname(member)
+		if frappe.db.exists("LMS Certificate", {"member": member, "event_name": event}):
+			skipped.append({"member": member, "member_name": member_name})
+			continue
+		certificate = issue_event_certificate(member, event)
+		event_ref.add_comment(
+			"Info",
+			_("{0} issued the certificate to {1} ({2}).").format(actor_name, member_name, member),
+		)
+		issued.append({"member": member, "member_name": member_name, "certificate": certificate})
+
+	return {"issued": issued, "skipped": skipped}
+
+
+@frappe.whitelist()
 def get_event_credit_status(event: str) -> dict:
 	"""Per-attendee credit progress for the admin dashboard: survey in?,
 	best quiz score, passed?, certificate issued?. Keyed by member email."""

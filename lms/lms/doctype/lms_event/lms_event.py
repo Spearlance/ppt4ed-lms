@@ -767,6 +767,7 @@ def send_starting_in_15_minutes_mail(event, student):
 	)
 
 
+CREDIT_VERIFICATION_MANUAL = "Manual"
 CREDIT_VERIFICATION_SURVEY = "Survey Only"
 CREDIT_VERIFICATION_ONLINE = "Online Quiz"
 CREDIT_VERIFICATION_IN_PERSON = "In-Person Quiz"
@@ -789,8 +790,16 @@ def get_credit_event_doc(event):
 
 
 def get_credit_verification(event_doc) -> str:
-	"""Events created before the field existed have NULL; treat as Survey Only."""
+	"""Events created before the field existed have NULL; treat as Survey Only.
+
+	New events default to Manual (doctype default): live events hand out
+	certificates by hand after an external quiz, so nothing mints on its own."""
 	return event_doc.get("credit_verification") or CREDIT_VERIFICATION_SURVEY
+
+
+def is_manual_credit(event_doc) -> bool:
+	"""Manual mode: no survey or quiz ever mints; an admin issues from the Dashboard."""
+	return get_credit_verification(event_doc) == CREDIT_VERIFICATION_MANUAL
 
 
 def requires_credit_quiz(event_doc) -> bool:
@@ -911,6 +920,10 @@ def maybe_auto_mint_event_certificate(member, event):
 	if not event_doc or not event_doc.certification:
 		return None
 
+	# Manual events never mint on their own; see issue_event_certificate.
+	if is_manual_credit(event_doc):
+		return None
+
 	if frappe.db.exists("LMS Certificate", {"member": member, "event_name": event}):
 		return None
 
@@ -919,6 +932,23 @@ def maybe_auto_mint_event_certificate(member, event):
 
 	if not has_passed_credit_quiz(event_doc, member):
 		return None
+
+	return issue_event_certificate(member, event)
+
+
+def issue_event_certificate(member, event):
+	"""Mint and publish the event certificate for `member`, or return the
+	existing one's name. No gates: callers decide whether the attendee has
+	earned it (the auto-mint path above, or an admin issuing by hand).
+
+	Published so it lists on the certified participants page, like course
+	certificates do. The certificate email goes out from after_insert.
+	"""
+	existing = frappe.db.get_value(
+		"LMS Certificate", {"member": member, "event_name": event}, "name"
+	)
+	if existing:
+		return existing
 
 	template = frappe.db.get_value(
 		"Property Setter",
@@ -933,13 +963,14 @@ def maybe_auto_mint_event_certificate(member, event):
 			"event_name": event,
 			"issue_date": nowdate(),
 			"template": template,
+			"published": 1,
 		}
 	)
 	cert.insert(ignore_permissions=True)
 	return cert.name
 
 
-def send_event_survey_open_announcements():
+def send_event_survey_open_announcements(only=None):
 	"""Hourly. For each certified event whose survey window has opened
 	(now >= last event_day.end_time - SURVEY_OPEN_OFFSET_MINUTES) and whose
 	survey announcement has not yet been sent, fire an announcement pointing
@@ -947,23 +978,33 @@ def send_event_survey_open_announcements():
 
 	Hourly (not daily) so the email/in-app announcement lands close to when
 	the QR-code-on-slides window actually opens — presenters who end early
-	want attendees to see the announcement around the same time."""
+	want attendees to see the announcement around the same time.
+
+	`only` restricts the sweep to those event names (tests)."""
 	from lms.lms.utils import SURVEY_OPEN_OFFSET_MINUTES
 
 	now = now_datetime()
 
+	filters = {
+		"published": 1,
+		"certification": 1,
+		"survey_announcement_sent": 0,
+	}
+	if only:
+		filters["name"] = ["in", list(only)]
+
 	events = frappe.get_all(
 		"LMS Event",
-		filters={
-			"published": 1,
-			"certification": 1,
-			"survey_announcement_sent": 0,
-		},
-		fields=["name", "title", "end_date", "end_time", "survey_quiz"],
+		filters=filters,
+		fields=["name", "title", "end_date", "end_time", "survey_quiz", "credit_verification"],
 	)
 
 	for event in events:
 		if not event.survey_quiz:
+			continue
+		# The announcement promises "submitting it will issue your certificate",
+		# which is false for events certified by hand.
+		if is_manual_credit(event):
 			continue
 
 		days = frappe.get_all(
