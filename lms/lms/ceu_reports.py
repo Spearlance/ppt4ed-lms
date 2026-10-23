@@ -114,11 +114,262 @@ def get_money_summary(from_date=None, to_date=None):
     }
 
 
+UPSELL_ACCEPTED = "Accepted"
+UPSELL_DECLINED = "Declined"
+UPSELL_NOT_OFFERED = "Not offered"
+
+ITEM_TYPES = ("LMS Course", "LMS Event")
+
+
+def _attach_order_lines(rows):
+    """Add the order's line items and upsell status to CEU Transaction rows.
+
+    A charge is one Stripe payment intent. An order bump puts two LMS Payment
+    rows on that intent (the primary purchase and the add-on), so the
+    transaction's own single `item` can only name one of them. Here every
+    row gets:
+
+      line_items    every LMS Payment on the charge, primary first
+      item_title    re-pointed at the primary (non-upsell) purchase
+      upsell_status Accepted / Declined / Not offered, read only from
+                    `LMS Upsell Offer` rows for the order's Checkout Session,
+                    so two separate purchases of related courses never count
+                    as an accepted upsell
+      upsell_detail what was offered or bought, for the tooltip/CSV
+
+    A post-purchase add-on is charged separately (its own intent and row);
+    that row is flagged `is_upsell_charge` and shows which order it rode on.
+    """
+    intents = {r.stripe_payment_intent_id for r in rows if r.get("stripe_payment_intent_id")}
+    payments = []
+    if intents:
+        payments = frappe.db.sql("""
+            SELECT
+                p.name,
+                p.stripe_payment_intent_id,
+                p.stripe_session_id,
+                p.parent_session_id,
+                p.payment_for_document_type AS item_type,
+                p.payment_for_document AS item,
+                p.amount,
+                p.is_upsell,
+                p.upsell_type,
+                COALESCE(c.title, e.title, p.payment_for_document) AS title
+            FROM `tabLMS Payment` p
+            LEFT JOIN `tabLMS Course` c
+                ON c.name = p.payment_for_document AND p.payment_for_document_type = 'LMS Course'
+            LEFT JOIN `tabLMS Event` e
+                ON e.name = p.payment_for_document AND p.payment_for_document_type = 'LMS Event'
+            WHERE p.stripe_payment_intent_id IN %(intents)s
+              AND p.payment_received = 1
+            ORDER BY p.is_upsell ASC, p.creation ASC
+        """, {"intents": tuple(intents)}, as_dict=True)
+
+    by_intent = {}
+    for p in payments:
+        by_intent.setdefault(p.stripe_payment_intent_id, []).append(p)
+
+    sessions = {
+        p.stripe_session_id for p in payments if p.stripe_session_id and not p.is_upsell
+    }
+    parent_sessions = {p.parent_session_id for p in payments if p.is_upsell and p.parent_session_id}
+    offers_by_session = {}
+    if sessions or parent_sessions:
+        offers = frappe.db.sql("""
+            SELECT o.parent_session_id, o.upsell_type, o.status, o.offer_price,
+                   COALESCE(c.title, o.upsell_course) AS upsell_title
+            FROM `tabLMS Upsell Offer` o
+            LEFT JOIN `tabLMS Course` c ON c.name = o.upsell_course
+            WHERE o.parent_session_id IN %(sessions)s
+            ORDER BY o.creation ASC
+        """, {"sessions": tuple(sessions | parent_sessions)}, as_dict=True)
+        for o in offers:
+            offers_by_session.setdefault(o.parent_session_id, []).append(o)
+
+    parent_titles = {}
+    if parent_sessions:
+        for p in frappe.db.sql("""
+            SELECT p.stripe_session_id,
+                   COALESCE(c.title, e.title, p.payment_for_document) AS title
+            FROM `tabLMS Payment` p
+            LEFT JOIN `tabLMS Course` c
+                ON c.name = p.payment_for_document AND p.payment_for_document_type = 'LMS Course'
+            LEFT JOIN `tabLMS Event` e
+                ON e.name = p.payment_for_document AND p.payment_for_document_type = 'LMS Event'
+            WHERE p.stripe_session_id IN %(sessions)s AND p.is_upsell = 0
+        """, {"sessions": tuple(parent_sessions)}, as_dict=True):
+            parent_titles[p.stripe_session_id] = p.title
+
+    for row in rows:
+        lines = by_intent.get(row.get("stripe_payment_intent_id"), [])
+        row["line_items"] = [
+            {
+                "title": p.title,
+                "item_type": p.item_type,
+                "item": p.item,
+                "amount": flt(p.amount),
+                "is_upsell": cint(p.is_upsell),
+                "upsell_type": p.upsell_type,
+            }
+            for p in lines
+        ]
+        primary = next((p for p in lines if not p.is_upsell), None)
+        row["is_upsell_charge"] = bool(lines) and primary is None
+        row["has_upsell_line"] = any(p.is_upsell for p in lines)
+        row["upsell_status"] = UPSELL_NOT_OFFERED
+        row["upsell_detail"] = None
+
+        if primary:
+            row["item_type"] = primary.item_type
+            row["item"] = primary.item
+            row["item_title"] = primary.title
+            session_offers = offers_by_session.get(primary.stripe_session_id, [])
+            paid = [o for o in session_offers if o.status == "Paid"]
+            if paid:
+                row["upsell_status"] = UPSELL_ACCEPTED
+                row["upsell_detail"] = "; ".join(
+                    f"{o.upsell_type}: {o.upsell_title} ({fmt_usd(o.offer_price)})" for o in paid
+                )
+            elif session_offers:
+                row["upsell_status"] = UPSELL_DECLINED
+                row["upsell_detail"] = "; ".join(
+                    f"{o.upsell_type}: {o.upsell_title} ({o.status})" for o in session_offers
+                )
+        elif lines:
+            # The whole charge is an add-on bought after another order.
+            addon = lines[0]
+            row["item_type"] = addon.item_type
+            row["item"] = addon.item
+            row["item_title"] = addon.title
+            row["upsell_status"] = UPSELL_ACCEPTED
+            parent_title = parent_titles.get(addon.parent_session_id)
+            row["upsell_detail"] = (
+                f"{addon.upsell_type or 'Upsell'} add-on to {parent_title}"
+                if parent_title
+                else f"{addon.upsell_type or 'Upsell'} add-on"
+            )
+
+    return rows
+
+
+def fmt_usd(value):
+    return f"${flt(value):,.2f}"
+
+
+def _item_filter_sql(params, item_type, item):
+    """Rows whose charge paid for `item`, either as the primary purchase or an
+    add-on. The payment join is checked first because a synced transaction
+    may still carry the add-on as its `item` (see _classify_from_lms_payment)."""
+    params["item_type"] = item_type
+    params["item"] = item
+    return """(
+        EXISTS (
+            SELECT 1 FROM `tabLMS Payment` p
+            WHERE p.stripe_payment_intent_id = t.stripe_payment_intent_id
+              AND p.payment_for_document_type = %(item_type)s
+              AND p.payment_for_document = %(item)s
+              AND p.payment_received = 1
+        )
+        OR (t.item_type = %(item_type)s AND t.item = %(item)s)
+    )"""
+
+
+def _upsell_summary_for_item(item_type, item, from_date, to_date):
+    """Upsell outcomes for orders of one course or event in the date window.
+
+    Only offers whose order was actually paid count: an order-bump offer row is
+    written when Checkout opens, so an abandoned checkout would otherwise show
+    up as a decline. "Offered" is therefore "paid for the item with an upsell
+    in front of them"; accepted + declined = offered.
+    """
+    if item_type not in ITEM_TYPES:
+        return None
+    original_field = "original_course" if item_type == "LMS Course" else "original_event"
+    params = {"item": item, "start": from_date, "end": to_date}
+
+    offers = frappe.db.sql(f"""
+        SELECT
+            COUNT(*) AS offered,
+            COALESCE(SUM(o.status = 'Paid'), 0) AS accepted,
+            COALESCE(SUM(o.status != 'Paid'), 0) AS declined,
+            COALESCE(SUM(CASE WHEN o.status = 'Paid' THEN o.offer_price ELSE 0 END), 0) AS revenue
+        FROM `tabLMS Upsell Offer` o
+        WHERE o.{original_field} = %(item)s
+          AND DATE(o.creation) BETWEEN %(start)s AND %(end)s
+          AND EXISTS (
+            SELECT 1 FROM `tabLMS Payment` p
+            WHERE p.stripe_session_id = o.parent_session_id
+              AND p.payment_for_document = %(item)s
+              AND p.payment_received = 1
+          )
+    """, params, as_dict=True)[0]
+
+    orders = frappe.db.sql("""
+        SELECT COUNT(*) AS orders, COALESCE(SUM(amount), 0) AS revenue
+        FROM `tabLMS Payment`
+        WHERE payment_for_document_type = %(item_type)s
+          AND payment_for_document = %(item)s
+          AND payment_received = 1
+          AND is_upsell = 0
+          AND DATE(creation) BETWEEN %(start)s AND %(end)s
+    """, {**params, "item_type": item_type}, as_dict=True)[0]
+
+    offered = cint(offers.offered)
+    accepted = cint(offers.accepted)
+    return {
+        "item_type": item_type,
+        "item": item,
+        "title": frappe.db.get_value(item_type, item, "title") or item,
+        "orders": cint(orders.orders),
+        "item_revenue": flt(orders.revenue),
+        "offered": offered,
+        "accepted": accepted,
+        "declined": cint(offers.declined),
+        "acceptance_pct": round(accepted * 100 / offered, 1) if offered else 0,
+        "upsell_revenue": flt(offers.revenue),
+    }
+
+
+@frappe.whitelist()
+def get_transaction_items():
+    """Courses and events that have ever been paid for, for the report's item picker."""
+    _require_admin()
+    rows = frappe.db.sql("""
+        SELECT DISTINCT
+            p.payment_for_document_type AS item_type,
+            p.payment_for_document AS item,
+            COALESCE(c.title, e.title, p.payment_for_document) AS title
+        FROM `tabLMS Payment` p
+        LEFT JOIN `tabLMS Course` c
+            ON c.name = p.payment_for_document AND p.payment_for_document_type = 'LMS Course'
+        LEFT JOIN `tabLMS Event` e
+            ON e.name = p.payment_for_document AND p.payment_for_document_type = 'LMS Event'
+        WHERE p.payment_received = 1
+          AND p.payment_for_document_type IN ('LMS Course', 'LMS Event')
+          AND COALESCE(p.payment_for_document, '') != ''
+        ORDER BY item_type, title
+    """, as_dict=True)
+    return rows
+
+
 @frappe.whitelist()
 def get_transactions_report(
-    from_date=None, to_date=None, transaction_type=None, search=None, limit=200, start=0
+    from_date=None,
+    to_date=None,
+    transaction_type=None,
+    search=None,
+    limit=200,
+    start=0,
+    item_type=None,
+    item=None,
 ):
-    """Individual Stripe transactions with the member and what they bought."""
+    """Individual Stripe transactions with the member and what they bought.
+
+    Each row is one charge and carries every line item on it (primary purchase
+    plus any order-bump add-on) and an upsell status; see _attach_order_lines.
+    Passing `item_type` + `item` narrows to orders of that course or event and
+    adds `upsell_summary` (offers shown, accepted, declined, upsell revenue).
+    """
     _require_admin()
     from_date, to_date = _date_window(from_date, to_date)
 
@@ -133,6 +384,11 @@ def get_transactions_report(
     if transaction_type and transaction_type != "All":
         conditions.append("t.transaction_type = %(transaction_type)s")
         params["transaction_type"] = transaction_type
+
+    if item_type and item and item_type in ITEM_TYPES:
+        conditions.append(_item_filter_sql(params, item_type, item))
+    else:
+        item_type = item = None
 
     if search:
         conditions.append("""(
@@ -176,12 +432,17 @@ def get_transactions_report(
         WHERE {where}
     """, params, as_dict=True)
 
+    _attach_order_lines(rows)
+
     return {
         "rows": rows,
         "total_count": total[0].count if total else 0,
         "total_net": total[0].net if total else 0,
         "from_date": str(from_date),
         "to_date": str(to_date),
+        "upsell_summary": (
+            _upsell_summary_for_item(item_type, item, from_date, to_date) if item else None
+        ),
     }
 
 
@@ -206,10 +467,12 @@ def get_member_purchase_detail(member):
         fields=[
             "name as stripe_id", "transaction_date", "transaction_type", "status",
             "gross_amount", "refunded_amount", "net_amount", "currency", "item_title",
+            "stripe_payment_intent_id",
         ],
         order_by="transaction_date desc",
         limit=200,
     )
+    _attach_order_lines(transactions)
 
     enrollments = frappe.db.sql("""
         SELECT

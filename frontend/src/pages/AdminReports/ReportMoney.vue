@@ -175,10 +175,66 @@
 					:placeholder="__('Search name, email or item')"
 					class="w-64"
 				/>
+				<FormControl
+					v-model="selectedItem"
+					type="select"
+					:options="itemOptions"
+					class="w-72"
+					data-testid="transactions-item-filter"
+				/>
 				<span v-if="transactions.data" class="text-sm text-ink-gray-5">
 					{{ transactions.data.total_count }} {{ __('transactions') }} ·
 					{{ money(transactions.data.total_net) }} {{ __('net') }}
 				</span>
+			</div>
+
+			<!-- Upsell summary for the selected course or event -->
+			<div
+				v-if="upsellSummary"
+				class="mb-4 rounded-lg border border-outline-gray-2 p-4"
+				data-testid="upsell-summary"
+			>
+				<div class="mb-3 text-sm text-ink-gray-7">
+					<span class="font-semibold text-ink-gray-9">{{ upsellSummary.title }}</span>
+					·
+					{{ __('{0} paid orders in this range').format(upsellSummary.orders) }}
+				</div>
+				<div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+					<div>
+						<div class="text-xs text-ink-gray-5">{{ __('Upsell offers shown') }}</div>
+						<div class="mt-1 text-xl font-semibold text-ink-gray-9">
+							{{ upsellSummary.offered }}
+						</div>
+					</div>
+					<div>
+						<div class="text-xs text-ink-gray-5">{{ __('Accepted') }}</div>
+						<div class="mt-1 text-xl font-semibold text-ink-gray-9">
+							{{ upsellSummary.accepted }}
+							<span class="text-sm font-normal text-ink-gray-5">
+								({{ upsellSummary.acceptance_pct }}%)
+							</span>
+						</div>
+					</div>
+					<div>
+						<div class="text-xs text-ink-gray-5">{{ __('Declined') }}</div>
+						<div class="mt-1 text-xl font-semibold text-ink-gray-9">
+							{{ upsellSummary.declined }}
+						</div>
+					</div>
+					<div>
+						<div class="text-xs text-ink-gray-5">{{ __('Upsell revenue') }}</div>
+						<div class="mt-1 text-xl font-semibold text-ink-gray-9">
+							{{ money(upsellSummary.upsell_revenue) }}
+						</div>
+					</div>
+				</div>
+				<p class="mt-3 text-xs text-ink-gray-5">
+					{{
+						__(
+							'Only orders that paid for this item count. Courses bought on their own, outside the upsell offer, are never counted as accepted.'
+						)
+					}}
+				</p>
 			</div>
 
 			<div class="overflow-x-auto">
@@ -208,8 +264,50 @@
 							<td class="py-2 pr-4 font-medium text-ink-gray-9">
 								{{ row.member_full_name || row.customer_email || '—' }}
 							</td>
-							<td class="py-2 pr-4 text-ink-gray-7">{{ row.item_title || '—' }}</td>
+							<td class="py-2 pr-4 text-ink-gray-7" data-testid="transaction-item">
+								<template v-if="row.line_items?.length > 1">
+									<div
+										v-for="line in row.line_items"
+										:key="`${row.stripe_id}-${line.item}`"
+										class="flex justify-between gap-3"
+										:class="line.is_upsell ? 'text-xs text-ink-gray-5' : 'text-ink-gray-9'"
+									>
+										<span>
+											<template v-if="line.is_upsell">+ {{ __('Add-on') }}: </template>
+											{{ line.title }}
+										</span>
+										<span class="font-mono">{{ money(line.amount) }}</span>
+									</div>
+								</template>
+								<template v-else>
+									{{ row.item_title || '—' }}
+									<span
+										v-if="row.is_upsell_charge"
+										class="ml-1 text-xs text-ink-gray-5"
+										:title="row.upsell_detail || ''"
+									>
+										({{ __('add-on') }})
+									</span>
+								</template>
+							</td>
 							<td class="py-2 pr-4 text-ink-gray-5">{{ row.transaction_type }}</td>
+							<td class="py-2 pr-4" data-testid="transaction-upsell">
+								<Badge
+									v-if="row.upsell_status === 'Accepted'"
+									theme="green"
+									:title="row.upsell_detail || ''"
+								>
+									{{ __('Accepted') }}
+								</Badge>
+								<Badge
+									v-else-if="row.upsell_status === 'Declined'"
+									theme="gray"
+									:title="row.upsell_detail || ''"
+								>
+									{{ __('Declined') }}
+								</Badge>
+								<span v-else class="text-ink-gray-4">{{ __('Not offered') }}</span>
+							</td>
 							<td class="py-2 pr-4 text-right text-ink-gray-7">{{ money(row.gross_amount) }}</td>
 							<td class="py-2 pr-4 text-right text-ink-gray-7">
 								{{ row.refunded_amount ? money(row.refunded_amount) : '—' }}
@@ -217,7 +315,7 @@
 							<td class="py-2 text-right font-mono text-ink-gray-9">{{ money(row.net_amount) }}</td>
 						</tr>
 						<tr v-if="!sortedRows.length && !transactions.loading">
-							<td class="py-6 text-center text-ink-gray-5" colspan="7">
+							<td class="py-6 text-center text-ink-gray-5" colspan="8">
 								{{ __('No transactions match this range and filter.') }}
 							</td>
 						</tr>
@@ -289,7 +387,16 @@
 									class="border-b last:border-0"
 								>
 									<td class="py-1.5 pr-3 text-ink-gray-7">{{ shortDate(t.transaction_date) }}</td>
-									<td class="py-1.5 pr-3 text-ink-gray-9">{{ t.item_title || t.transaction_type }}</td>
+									<td class="py-1.5 pr-3 text-ink-gray-9">
+										{{ t.item_title || t.transaction_type }}
+										<div
+											v-for="line in (t.line_items || []).filter((l) => l.is_upsell)"
+											:key="`${t.stripe_id}-${line.item}`"
+											class="text-xs text-ink-gray-5"
+										>
+											+ {{ __('Add-on') }}: {{ line.title }} ({{ money(line.amount) }})
+										</div>
+									</td>
 									<td class="py-1.5 text-right font-mono text-ink-gray-9">{{ money(t.net_amount) }}</td>
 								</tr>
 								<tr v-if="!memberDetail.data.transactions?.length">
@@ -346,14 +453,15 @@
 
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { Button, Dialog, FormControl, createResource, toast } from 'frappe-ui'
+import { Badge, Button, Dialog, FormControl, createResource, toast } from 'frappe-ui'
 
 const columns = [
 	{ key: 'transaction_date', label: 'Date' },
 	{ key: 'member_full_name', label: 'Member' },
 	{ key: 'item_title', label: 'Item' },
 	{ key: 'transaction_type', label: 'Type' },
-	{ key: 'gross_amount', label: 'Gross', align: 'right' },
+	{ key: 'upsell_status', label: 'Upsell' },
+	{ key: 'gross_amount', label: 'Order total', align: 'right' },
 	{ key: 'refunded_amount', label: 'Refunded', align: 'right' },
 	{ key: 'net_amount', label: 'Net', align: 'right' },
 ]
@@ -408,6 +516,29 @@ const summary = createResource({
 	auto: true,
 })
 
+// Item picker: "type|name" so one select covers courses and events.
+const selectedItem = ref('')
+const selectedItemParts = computed(() => {
+	const [item_type, ...rest] = (selectedItem.value || '').split('|')
+	const item = rest.join('|')
+	return item_type && item ? { item_type, item } : { item_type: null, item: null }
+})
+
+const items = createResource({
+	url: 'lms.lms.ceu_reports.get_transaction_items',
+	auto: true,
+})
+
+const itemOptions = computed(() => {
+	const rows = items.data || []
+	const label = (row) =>
+		`${row.item_type === 'LMS Event' ? __('Event') : __('Course')}: ${row.title}`
+	return [
+		{ label: __('All courses and events'), value: '' },
+		...rows.map((row) => ({ label: label(row), value: `${row.item_type}|${row.item}` })),
+	]
+})
+
 const transactions = createResource({
 	url: 'lms.lms.ceu_reports.get_transactions_report',
 	makeParams: () => ({
@@ -416,9 +547,12 @@ const transactions = createResource({
 		transaction_type: transactionType.value,
 		search: search.value,
 		limit: 500,
+		...selectedItemParts.value,
 	}),
 	auto: true,
 })
+
+const upsellSummary = computed(() => transactions.data?.upsell_summary || null)
 
 const syncStatus = createResource({
 	url: 'lms.lms.ceu_transactions.get_sync_status',
@@ -439,7 +573,7 @@ const sync = createResource({
 const runSync = () => sync.submit()
 
 let reloadTimer = null
-watch([fromDate, toDate, transactionType, search], () => {
+watch([fromDate, toDate, transactionType, search, selectedItem], () => {
 	clearTimeout(reloadTimer)
 	reloadTimer = setTimeout(() => {
 		summary.reload()
@@ -520,8 +654,11 @@ const downloadCsv = () => {
 		'Member',
 		'Email',
 		'Item',
+		'Line items',
 		'Type',
-		'Gross',
+		'Upsell',
+		'Upsell detail',
+		'Order total',
 		'Refunded',
 		'Net',
 		'Currency',
@@ -531,6 +668,10 @@ const downloadCsv = () => {
 		const text = value === null || value === undefined ? '' : String(value)
 		return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text
 	}
+	const lineItems = (row) =>
+		(row.line_items || [])
+			.map((line) => `${line.is_upsell ? 'Add-on: ' : ''}${line.title} ${money(line.amount)}`)
+			.join(' | ')
 	const lines = [header.join(',')]
 	rows.forEach((row) => {
 		lines.push(
@@ -539,7 +680,10 @@ const downloadCsv = () => {
 				row.member_full_name,
 				row.customer_email,
 				row.item_title,
+				lineItems(row),
 				row.transaction_type,
+				row.upsell_status,
+				row.upsell_detail,
 				row.gross_amount,
 				row.refunded_amount,
 				row.net_amount,
