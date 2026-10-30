@@ -68,6 +68,7 @@ class LMSEvent(WebsiteGenerator):
 		self.validate_timetable()
 		self.validate_evaluation_end_date()
 		self.validate_conferencing_provider()
+		self.validate_certificate_signers()
 		ensure_instructors_have_moderator_role([row.instructor for row in self.instructors or []])
 
 	def on_update(self):
@@ -77,6 +78,22 @@ class LMSEvent(WebsiteGenerator):
 	def autoname(self):
 		if not self.name:
 			self.name = generate_slug(self.title, "LMS Event")
+
+	def validate_certificate_signers(self):
+		"""At most two Certificate Signers per event (one per discipline).
+		More than two signature blocks push the CE-hours footer off the
+		certificate page. Mirrors LMSCourse.validate_certificate_signers."""
+		signers = [row.signer for row in (self.get("certificate_signers") or []) if row.signer]
+		if len(signers) > 2:
+			frappe.throw(
+				_(
+					"An event can have at most 2 certificate signers (one per discipline). "
+					"Remove {0} and save again."
+				).format(len(signers) - 2),
+				title=_("Too many certificate signers"),
+			)
+		if len(set(signers)) != len(signers):
+			frappe.throw(_("Each certificate signer can only be listed once."))
 
 	def validate_event_end_date(self):
 		if self.end_date < self.start_date:
