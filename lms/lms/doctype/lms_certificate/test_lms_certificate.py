@@ -382,6 +382,70 @@ class TestCertificatePrintFormat(BaseTestUtils):
 			self._signature_names(html), ["Presenter Number1, PT, DPT", "Presenter Number2"]
 		)
 
+	def _mint_event_cert(self, event):
+		self._create_batch_enrollment(self.student.email, event.name)
+		cert = frappe.new_doc("LMS Certificate")
+		cert.update(
+			{
+				"event_name": event.name,
+				"member": self.student.email,
+				"issue_date": nowdate(),
+				"template": get_default_certificate_template(),
+				"published": 1,
+			}
+		)
+		cert.insert()
+		self.cleanup_items.append(("LMS Certificate", cert.name))
+		return cert.name
+
+	def test_event_signers_override_instructor_order(self):
+		event = self._make_event("Cert Format Event Signers", self.presenters[:3])
+		cert_name = self._mint_event_cert(event)
+
+		html = self._render(cert_name)
+		self.assertEqual(self._signature_names(html), ["Presenter Number1", "Presenter Number2"])
+
+		event.reload()
+		event.set(
+			"certificate_signers",
+			[{"signer": self.presenters[2].email}, {"signer": self.outsider.email}],
+		)
+		event.save()
+		html = self._render(cert_name)
+		self.assertEqual(self._signature_names(html), ["Presenter Number3", "Outside Signer"])
+		# Events still do not list non-signing instructors.
+		self.assertIsNone(self._additional_line(html))
+
+	def test_event_credentials_print_only_when_toggle_is_on(self):
+		frappe.db.set_value("User", self.presenters[0].email, "credentials", "OTR/L")
+		frappe.db.set_value("User", self.presenters[1].email, "credentials", "")
+		event = self._make_event("Cert Format Event Credentials", self.presenters[:2])
+		cert_name = self._mint_event_cert(event)
+
+		html = self._render(cert_name)
+		self.assertEqual(self._signature_names(html), ["Presenter Number1", "Presenter Number2"])
+
+		frappe.db.set_value("LMS Event", event.name, "show_signer_credentials", 1)
+		html = self._render(cert_name)
+		self.assertEqual(
+			self._signature_names(html), ["Presenter Number1, OTR/L", "Presenter Number2"]
+		)
+
+	def test_event_more_than_two_signers_is_rejected(self):
+		event = self._make_event("Cert Format Event Too Many", self.presenters[:3])
+		event.reload()
+		event.set("certificate_signers", [{"signer": u.email} for u in self.presenters[:3]])
+		self.assertRaises(frappe.ValidationError, event.save)
+
+	def test_event_duplicate_signer_is_rejected(self):
+		event = self._make_event("Cert Format Event Duplicate", self.presenters[:2])
+		event.reload()
+		event.set(
+			"certificate_signers",
+			[{"signer": self.presenters[0].email}, {"signer": self.presenters[0].email}],
+		)
+		self.assertRaises(frappe.ValidationError, event.save)
+
 	def test_event_certificate_ignores_course_level_settings(self):
 		self._set_signers(self.outsider.email)
 		frappe.db.set_value("LMS Course", self.course.name, "course_format", "On-Demand")
