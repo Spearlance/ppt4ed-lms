@@ -37,6 +37,8 @@
   "credit_verification",
   "credit_quiz",
   "credit_passing_percentage",
+  "certificate_signers",
+  "show_signer_credentials",
   "survey_announcement_sent",
   "section_break_6",
   "description",
@@ -490,6 +492,22 @@
    "non_negative": 1
   },
   {
+   "depends_on": "certification",
+   "description": "Up to two users (one per discipline) whose signatures print on this event's certificate. Leave blank to sign with the first two instructors.",
+   "fieldname": "certificate_signers",
+   "fieldtype": "Table MultiSelect",
+   "label": "Certificate Signers",
+   "options": "Certificate Signer"
+  },
+  {
+   "default": "0",
+   "depends_on": "certification",
+   "description": "Print each signer's credentials (from their User profile) after their name on certificates.",
+   "fieldname": "show_signer_credentials",
+   "fieldtype": "Check",
+   "label": "Show Signer Credentials"
+  },
+  {
    "default": "0",
    "fieldname": "survey_announcement_sent",
    "fieldtype": "Check",
@@ -604,7 +622,7 @@
    "link_fieldname": "payment_for_document"
   }
  ],
- "modified": "2026-10-19 14:16:31.668833",
+ "modified": "2026-10-30 09:00:00.000000",
  "modified_by": "Administrator",
  "module": "LMS",
  "name": "LMS Event",

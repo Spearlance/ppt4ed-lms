@@ -180,6 +180,41 @@
 										)
 									"
 								/>
+								<div>
+									<MultiSelect
+										v-model="certificateSigners"
+										doctype="User"
+										:label="__('Certificate Signers')"
+										url="lms.lms.api.search_users_by_role"
+										:searchParams="{
+											roles: JSON.stringify(['Moderator', 'LMS Student']),
+										}"
+										:validate="() => certificateSigners.length < 2"
+										:errorMessage="
+											() =>
+												__(
+													'An event can have at most 2 certificate signers (one per discipline).'
+												)
+										"
+									/>
+									<div class="mt-1.5 text-xs text-ink-gray-5">
+										{{
+											__(
+												'Up to two signatures, one per discipline. Leave blank to sign with the first two instructors.'
+											)
+										}}
+									</div>
+								</div>
+								<Switch
+									size="sm"
+									v-model="batchDetail.doc.show_signer_credentials"
+									:label="__('Show Signer Credentials')"
+									:description="
+										__(
+											'Print the credentials from each signer profile after their name on the certificate.'
+										)
+									"
+								/>
 							</template>
 						</div>
 					</div>
@@ -478,6 +513,7 @@ const user = inject('$user')
 const instructors = ref([])
 const categories = ref([])
 const relatedCourses = ref([])
+const certificateSigners = ref([])
 const eventDays = ref([])
 const app = getCurrentInstance()
 
@@ -596,6 +632,10 @@ const updateBatchData = () => {
 			relatedCourses.value = (batchDetail.doc.related_courses || []).map(
 				(row) => row.course
 			)
+		} else if (key == 'certificate_signers') {
+			certificateSigners.value = (batchDetail.doc.certificate_signers || []).map(
+				(row) => row.signer
+			)
 		} else if (key == 'categories') {
 			categories.value = (batchDetail.doc.categories || []).map(
 				(row) => row.category
@@ -636,6 +676,7 @@ const updateBatchData = () => {
 		'allow_self_enrollment',
 		'certification',
 		'evaluation',
+		'show_signer_credentials',
 	]
 	for (let idx in checkboxes) {
 		let key = checkboxes[idx]
@@ -672,6 +713,7 @@ const updateEvent = () => {
 		})),
 		categories: categories.value.map((category) => ({ category })),
 		related_courses: relatedCourses.value.map((course) => ({ course })),
+		certificate_signers: certificateSigners.value.map((signer) => ({ signer })),
 		event_days: eventDays.value.map((day) => ({
 			date: day.date,
 			start_time: day.start_time,
