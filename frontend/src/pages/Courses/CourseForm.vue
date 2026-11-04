@@ -360,6 +360,7 @@
 									)
 								}}
 							</div>
+							<SignerCredentials :signers="certificate_signers" />
 						</div>
 					</div>
 
@@ -434,6 +435,7 @@ import Link from '@/components/Controls/Link.vue'
 import CategoryMultiPicker from '@/components/Controls/CategoryMultiPicker.vue'
 import CourseOutline from '@/components/CourseOutline.vue'
 import MultiSelect from '@/components/Controls/MultiSelect.vue'
+import SignerCredentials from '@/components/SignerCredentials.vue'
 import ColorSwatches from '@/components/Controls/ColorSwatches.vue'
 import Uploader from '@/components/Controls/Uploader.vue'
 import NewMemberModal from '@/components/Modals/NewMemberModal.vue'

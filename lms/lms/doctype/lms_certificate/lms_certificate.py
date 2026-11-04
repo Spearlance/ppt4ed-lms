@@ -418,7 +418,7 @@ def validate_certification_eligibility(course):
 def has_permission(doc, ptype="read", user=None):
 	user = user or frappe.session.user
 	roles = frappe.get_roles(user)
-	if "Moderator" in roles:
+	if "Moderator" in roles or "Global Admin" in roles:
 		return True
 	if doc.owner == user:
 		return True
@@ -430,6 +430,6 @@ def has_permission(doc, ptype="read", user=None):
 def get_permission_query_conditions(user):
 	user = user or frappe.session.user
 	roles = frappe.get_roles(user)
-	if "Moderator" in roles:
+	if "Moderator" in roles or "Global Admin" in roles:
 		return None
 	return """(`tabLMS Certificate`.published = 1)"""

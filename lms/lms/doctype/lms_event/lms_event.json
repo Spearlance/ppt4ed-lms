@@ -34,6 +34,7 @@
   "column_break_wfkz",
   "certification",
   "survey_quiz",
+  "require_survey_for_credit",
   "credit_verification",
   "credit_quiz",
   "credit_passing_percentage",
@@ -465,6 +466,14 @@
    "options": "LMS Quiz"
   },
   {
+   "default": "0",
+   "depends_on": "eval:doc.certification && doc.credit_verification!='Manual'",
+   "description": "Attendees must submit the Survey Quiz (in addition to passing any credit quiz) before the certificate issues. Survey Only mode always requires it.",
+   "fieldname": "require_survey_for_credit",
+   "fieldtype": "Check",
+   "label": "Require survey for course credit"
+  },
+  {
    "default": "Manual",
    "depends_on": "certification",
    "description": "How attendees earn this event's CEU credit. Manual: nothing issues automatically; an admin issues certificates to selected attendees from the Dashboard (e.g. after a Google Forms quiz). Survey Only: the feedback survey alone issues the certificate. Online Quiz: attendees must also pass the linked quiz on the event page. In-Person Quiz: an admin records each attendee's score from the Dashboard.",
@@ -622,7 +631,7 @@
    "link_fieldname": "payment_for_document"
   }
  ],
- "modified": "2026-10-30 09:00:00.000000",
+ "modified": "2026-11-04 09:00:00.000000",
  "modified_by": "Administrator",
  "module": "LMS",
  "name": "LMS Event",

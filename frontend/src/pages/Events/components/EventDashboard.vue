@@ -59,11 +59,7 @@
 							{{ __('Feedback survey is open') }}
 						</div>
 						<div class="text-sm text-ink-gray-7">
-							{{
-								batch.data?.credit_verification === 'Manual'
-									? __('Let us know how the event went.')
-									: __('Submit your feedback to receive your certificate.')
-							}}
+							{{ surveyBannerText }}
 						</div>
 					</div>
 					<router-link
@@ -122,7 +118,13 @@
 							v-if="batch.data?.survey_quiz"
 							class="flex items-center justify-between gap-4"
 						>
-							<span class="text-ink-gray-7">{{ __('Feedback survey') }}</span>
+							<span class="text-ink-gray-7">
+								{{
+									batch.data?.survey_required
+										? __('Feedback survey')
+										: __('Feedback survey (optional)')
+								}}
+							</span>
 							<Badge :theme="batch.data?.survey_submitted ? 'green' : 'gray'">
 								{{ batch.data?.survey_submitted ? __('Submitted') : __('Pending') }}
 							</Badge>
@@ -257,6 +259,17 @@ const showCreditProgress = computed(() => {
 	const data = props.batch.data
 	if (!data?.certification) return false
 	return Boolean(data.survey_quiz || data.credit_quiz_required)
+})
+
+const surveyBannerText = computed(() => {
+	const data = props.batch.data
+	if (!data?.survey_required) {
+		return __('Let us know how the event went.')
+	}
+	if (data?.credit_quiz_required && !data?.credit_status?.passed) {
+		return __('Submit your feedback and pass the credit quiz to receive your certificate.')
+	}
+	return __('Submit your feedback to receive your certificate.')
 })
 
 const creditQuizBadge = computed(() => {

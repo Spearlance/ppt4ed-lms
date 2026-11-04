@@ -120,6 +120,19 @@ test.describe('Certificate PDF render — one page guarantee', () => {
 		}
 	})
 
+	test('admin sample preview of the event renders to one page', async ({ page }) => {
+		await loginAsAdmin(page)
+		const res = await page.request.get(
+			`/api/method/lms.lms.ceu_event_admin.preview_event_certificate_pdf?event=${encodeURIComponent(EVENT_NAME)}`,
+		)
+		expect(res.ok(), await res.text().catch(() => '')).toBeTruthy()
+		const buf = await res.body()
+		expect(buf.subarray(0, 5).toString()).toBe('%PDF-')
+		const pdfText = buf.toString('latin1')
+		const matches = pdfText.match(/\/Type\s*\/Page(?![a-zA-Z])/g) ?? []
+		expect(matches.length).toBe(1)
+	})
+
 	test('minimal variant: no license, no ceu, 1 instructor', async ({ page }) => {
 		await loginAsAdmin(page)
 		const csrf = await getCsrfToken(page)

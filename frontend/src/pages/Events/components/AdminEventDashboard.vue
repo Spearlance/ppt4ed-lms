@@ -55,6 +55,20 @@
 							</template>
 							{{ __('Survey CSV') }}
 						</Button>
+						<router-link
+							v-if="batch?.data?.certification"
+							:to="{
+								name: 'EventCertificatePreview',
+								params: { eventName: batch?.data?.name },
+							}"
+						>
+							<Button :label="__('Preview certificate')">
+								<template #prefix>
+									<Award class="size-4 stroke-1.5" />
+								</template>
+								{{ __('Preview certificate') }}
+							</Button>
+						</router-link>
 						<Button @click="showEnrollmentModal = true">
 							<template #prefix>
 								<Plus class="size-4 stroke-1.5" />
@@ -297,14 +311,14 @@
 					<template v-if="creditMode === 'In-Person Quiz'">
 						{{
 							__(
-								'Enter the score from the in-person quiz. {0}% or higher counts as a pass and issues the certificate once the feedback survey is in.'
+								'Enter the score from the in-person quiz. {0}% or higher counts as a pass and issues the certificate (once the feedback survey is in, when it is required).'
 							).format(passingPercentage)
 						}}
 					</template>
 					<template v-else>
 						{{
 							__(
-								'This overrides the online quiz result. {0}% or higher counts as a pass and issues the certificate once the feedback survey is in. The override is logged on the event.'
+								'This overrides the online quiz result. {0}% or higher counts as a pass and issues the certificate (once the feedback survey is in, when it is required). The override is logged on the event.'
 							).format(passingPercentage)
 						}}
 					</template>
@@ -831,7 +845,13 @@ const studentColumns = computed(() => {
 	]
 	if (props.batch?.data?.certification) {
 		if (props.batch?.data?.survey_quiz) {
-			columns.push({ label: __('Survey'), key: 'survey', align: 'right' })
+			columns.push({
+				label: props.batch?.data?.survey_required
+					? __('Survey')
+					: __('Survey (optional)'),
+				key: 'survey',
+				align: 'right',
+			})
 		}
 		if (creditQuizRequired.value) {
 			columns.push({ label: __('Quiz'), key: 'quiz', align: 'right' })

@@ -5,6 +5,20 @@ and using the writeup below as the briefing.
 
 ---
 
+## Queued — Event quiz + survey certification (Teresa, 2026-11-04 meeting)
+
+**Status:** planned, not started. Branch `feat/event-quiz-survey-certification` from `develop`.
+
+**Full plan:** `docs/plans/2026-11-04-event-quiz-survey-certification.md`
+
+**One-line summary:** most of the brief already ships (quiz+survey gate, signers,
+credentials toggle, idempotent mint). New code = explicit "Require survey for
+course credit" flag + backfill patch, sample certificate preview endpoint/UI,
+signer-credentials admin edit, Live-format/event-date lines on the cert, tests.
+Turtlebrace event lives on prod (not dev); read-only verification checklist in §5.
+
+---
+
 ## Parked — Certificate render redesign (Chromium + vector frame)
 
 **Status:** designed, awaiting go-ahead from user. Not started.
