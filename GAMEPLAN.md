@@ -7,9 +7,8 @@ and using the writeup below as the briefing.
 
 ## Queued — Event quiz + survey certification (Teresa, 2026-11-04 meeting)
 
-**Status:** PR #240 open against `develop` (2026-11-04), deployed to dev for review.
-Dev bind-mount is checked out on `feat/event-quiz-survey-certification`; after merge,
-`git checkout develop` on the host before `/deploy-dev`.
+**Status:** PR #240 MERGED to `develop` (70360faf) and deployed to dev on 2026-11-04. Not on prod.
+Dev bind-mount is back on `develop`. Next: `/deploy-prod` once Teresa signs off on the dev walkthrough.
 
 **Full plan:** `docs/plans/2026-11-04-event-quiz-survey-certification.md`
 

@@ -107,6 +107,10 @@ class LMSEvent(WebsiteGenerator):
 				_("Survey Quiz must be a survey (an LMS Quiz with Is Survey checked)."),
 				title=_("Invalid survey"),
 			)
+		if mode == CREDIT_VERIFICATION_MANUAL:
+			# Nothing mints on its own in Manual mode, so the survey/quiz
+			# requirements do not apply (and the form hides the switch).
+			return
 		if self.require_survey_for_credit and not self.survey_quiz:
 			frappe.throw(
 				_(
@@ -115,7 +119,10 @@ class LMSEvent(WebsiteGenerator):
 				),
 				title=_("Survey required but missing"),
 			)
-		if mode == CREDIT_VERIFICATION_SURVEY and not self.survey_quiz:
+		# Only an explicit Survey Only choice is checked: events that pre-date
+		# credit_verification store NULL (treated as Survey Only at runtime)
+		# and must stay editable without first attaching a survey.
+		if self.credit_verification == CREDIT_VERIFICATION_SURVEY and not self.survey_quiz:
 			frappe.throw(
 				_("Survey Only credit verification needs a Survey Quiz attached."),
 				title=_("Survey required but missing"),
@@ -966,14 +973,32 @@ def has_passed_credit_quiz(event_doc, member) -> bool:
 	)
 
 
-def has_submitted_event_survey(event_doc, member) -> bool:
-	if not is_survey_required(event_doc):
-		return True
+def has_survey_submission(event_doc, member) -> bool:
+	"""Raw fact: has `member` submitted this event's survey? (No gate semantics.)"""
+	if not event_doc.get("survey_quiz"):
+		return False
 	return bool(
 		frappe.db.exists(
 			"LMS Quiz Submission",
 			{"event_name": event_doc.name, "member": member, "quiz": event_doc.survey_quiz},
 		)
+	)
+
+
+def has_submitted_event_survey(event_doc, member) -> bool:
+	"""Gate: True when the survey is not required, or it is and it is in."""
+	if not is_survey_required(event_doc):
+		return True
+	return has_survey_submission(event_doc, member)
+
+
+def get_existing_event_certificate(member, event, lock: bool = False):
+	"""Name of `member`'s certificate for `event`, or None. With `lock=True`
+	this is a locking read (SELECT ... FOR UPDATE), which under REPEATABLE
+	READ sees the latest committed row instead of the transaction's snapshot,
+	so a concurrent mint that just committed is visible."""
+	return frappe.db.get_value(
+		"LMS Certificate", {"member": member, "event_name": event}, "name", for_update=lock
 	)
 
 
@@ -996,12 +1021,14 @@ def maybe_auto_mint_event_certificate(member, event):
 		return None
 
 	# Serialise concurrent callers (survey submit racing a quiz submit) on
-	# the registration row so the second one sees the first one's cert.
+	# the registration row, then check for an existing certificate with a
+	# locking read so the second caller sees the first one's commit rather
+	# than its own earlier snapshot.
 	frappe.db.get_value(
 		"LMS Event Registration", {"event": event, "member": member}, "name", for_update=True
 	)
 
-	if frappe.db.exists("LMS Certificate", {"member": member, "event_name": event}):
+	if get_existing_event_certificate(member, event, lock=True):
 		return None
 
 	if not has_submitted_event_survey(event_doc, member):
@@ -1021,9 +1048,7 @@ def issue_event_certificate(member, event):
 	Published so it lists on the certified participants page, like course
 	certificates do. The certificate email goes out from after_insert.
 	"""
-	existing = frappe.db.get_value(
-		"LMS Certificate", {"member": member, "event_name": event}, "name"
-	)
+	existing = get_existing_event_certificate(member, event, lock=True)
 	if existing:
 		return existing
 

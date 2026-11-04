@@ -220,7 +220,7 @@ def record_event_quiz_results(event: str, entries) -> dict:
 		get_credit_event_doc,
 		get_credit_passing_percentage,
 		get_credit_quiz_status,
-		has_submitted_event_survey,
+		has_survey_submission,
 		maybe_auto_mint_event_certificate,
 		requires_credit_quiz,
 	)
@@ -315,7 +315,7 @@ def record_event_quiz_results(event: str, entries) -> dict:
 				"percentage": percentage,
 				"passed": passed,
 				"certificate": certificate,
-				"survey_submitted": has_submitted_event_survey(event_doc, member),
+				"survey_submitted": has_survey_submission(event_doc, member),
 				"status": get_credit_quiz_status(event_doc, member),
 			}
 		)
@@ -497,6 +497,7 @@ def _build_sample_certificate(event: str):
 	would be (CEU hours, disciplines, template) plus a sample participant.
 	Never inserted: no certificate, credit, completion or email results."""
 	from lms.lms.doctype.lms_certificate.lms_certificate import (
+		compute_ceu_fields,
 		get_default_certificate_template,
 	)
 
@@ -523,15 +524,10 @@ def _build_sample_certificate(event: str):
 	# looks at doc.owner; neither is persisted because the doc is never saved.
 	doc.name = f"SAMPLE-{event}"
 	doc.owner = frappe.session.user
-	# Mirror LMSCertificate.populate_ceu_fields without its db_set calls.
-	doc.ceu_hours = event_doc.credit_hours
-	doc.ceu_disciplines = ", ".join(
-		frappe.get_all(
-			"CEU Discipline Link",
-			filters={"parent": event, "parenttype": "LMS Event"},
-			pluck="discipline",
-		)
-	)
+	# Same computation as LMSCertificate.populate_ceu_fields, without the db_set.
+	ceu = compute_ceu_fields(event_name=event) or {"ceu_hours": None, "ceu_disciplines": ""}
+	doc.ceu_hours = ceu["ceu_hours"]
+	doc.ceu_disciplines = ceu["ceu_disciplines"]
 	doc.license_info = SAMPLE_LICENSE_INFO
 	# The print format watermarks the page and swaps in the sample name
 	# when this attribute is present; the earned path never sets it.
@@ -611,7 +607,7 @@ def get_signer_profiles(users) -> list[dict]:
 	return frappe.get_all(
 		"User",
 		filters={"name": ["in", names]},
-		fields=["name", "full_name", "credentials", "signature_text"],
+		fields=["name", "full_name", "credentials"],
 	)
 
 

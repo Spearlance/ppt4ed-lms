@@ -631,6 +631,45 @@ class TestEventCreditVerification(UnitTestCase):
 		event.survey_quiz = None
 		event.save(ignore_permissions=True)
 
+	def test_manual_mode_ignores_stale_require_flag(self):
+		# Online Quiz + required survey, then the admin moves to Manual and
+		# drops the survey: the flag is hidden in the form and must not block.
+		event = frappe.get_doc(
+			"LMS Event",
+			self._make_event("Online Quiz", "RS-Manual", credit_quiz=self.credit_quiz.name),
+		)
+		event.credit_verification = "Manual"
+		event.survey_quiz = None
+		event.save(ignore_permissions=True)
+		self.assertEqual(event.require_survey_for_credit, 1)
+		from lms.lms.doctype.lms_event.lms_event import is_survey_required
+
+		self.assertFalse(is_survey_required(get_credit_event_doc(event.name)))
+
+	def test_legacy_null_mode_without_survey_stays_editable(self):
+		# Pre-#230 events store NULL (runtime: Survey Only). Editing the title
+		# must not demand a survey they never had.
+		event = self._make_event("Manual", "RS-Legacy")
+		frappe.db.set_value(
+			"LMS Event",
+			event,
+			{"credit_verification": None, "survey_quiz": None},
+			update_modified=False,
+		)
+		doc = frappe.get_doc("LMS Event", event)
+		doc.title = f"{TITLE_PREFIX} RS-Legacy renamed"
+		doc.save(ignore_permissions=True)
+		self.assertIsNone(frappe.db.get_value("LMS Event", event, "credit_verification"))
+
+	def test_recorded_score_reports_raw_survey_fact(self):
+		event = self._make_event("In-Person Quiz", "RS-RawSurvey", require_survey=False)
+		self._register(event, self.member)
+
+		result = record_event_quiz_results(event, [{"member": self.member, "percentage": 95}])
+		row = result["recorded"][0]
+		self.assertTrue(row["certificate"], "optional survey never gates")
+		self.assertFalse(row["survey_submitted"], "survey_submitted reports the fact, not the gate")
+
 	def test_invalid_quiz_roles_rejected(self):
 		event = frappe.get_doc(
 			"LMS Event",

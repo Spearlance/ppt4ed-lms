@@ -165,7 +165,7 @@
 								<Switch
 									v-if="batchDetail.doc.credit_verification !== 'Manual'"
 									size="sm"
-									v-model="batchDetail.doc.require_survey_for_credit"
+									v-model="requireSurveyForCredit"
 									:label="__('Require survey for course credit')"
 									:description="requireSurveyHelp"
 									:disabled="batchDetail.doc.credit_verification === 'Survey Only'"
@@ -823,16 +823,18 @@ const creditVerificationOptions = computed(() => {
 	]
 })
 
-// Survey Only mode always gates on the survey; keep the switch in step so
-// what the admin sees matches what the server enforces.
-watch(
-	() => batchDetail.doc?.credit_verification,
-	(mode) => {
-		if (mode === 'Survey Only' && batchDetail.doc) {
-			batchDetail.doc.require_survey_for_credit = true
-		}
-	}
-)
+// Survey Only mode always gates on the survey, so the switch reads as on
+// there without mutating the stored flag; the admin's own choice survives a
+// round-trip through Survey Only back to a quiz mode.
+const requireSurveyForCredit = computed({
+	get() {
+		if (batchDetail.doc?.credit_verification === 'Survey Only') return true
+		return Boolean(batchDetail.doc?.require_survey_for_credit)
+	},
+	set(value) {
+		if (batchDetail.doc) batchDetail.doc.require_survey_for_credit = Boolean(value)
+	},
+})
 
 const requireSurveyHelp = computed(() => {
 	const mode = batchDetail.doc?.credit_verification
