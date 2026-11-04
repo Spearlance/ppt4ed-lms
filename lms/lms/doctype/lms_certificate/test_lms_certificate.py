@@ -476,12 +476,14 @@ class TestCertificatePrintFormat(BaseTestUtils):
 		self.cleanup_items.append(("LMS Certificate", cert.name))
 
 		html = self._render(cert.name)
-		# Events keep the pre-change behaviour: first two instructors sign,
-		# nobody else is listed, no format line, no compact spacing.
+		# Events ignore course-level settings: first two instructors sign,
+		# nobody else is listed, no On-Demand line. The Live Course line is
+		# the event's own, and it turns on compact spacing.
 		self.assertEqual(self._signature_names(html), ["Presenter Number1", "Presenter Number2"])
 		self.assertIsNone(self._additional_line(html))
 		self.assertNotIn("On-Demand Course", html)
-		self.assertNotIn("cert-page--compact", html)
+		self.assertIn('<div class="cert-format">Live Course</div>', html)
+		self.assertIn("cert-page--compact", html)
 
 	# ------------------------------------------------------------------ event format, date, long names, sample
 
@@ -494,15 +496,21 @@ class TestCertificatePrintFormat(BaseTestUtils):
 		html = self._render(cert_name)
 		self.assertIn('<div class="cert-format">Live Course</div>', html)
 		self.assertNotIn("On-Demand Course", html)
-		# Event certificates carry the event date (a range for multi-day events), not the issue date.
+		# Event certificates carry the event date, not the issue date. (The
+		# event validator derives end_date from the schedule, so set the dates
+		# directly to exercise both the single-day and multi-day lines.)
+		start = event.start_date
+		frappe.db.set_value("LMS Event", event.name, "end_date", start, update_modified=False)
+		html = self._render(cert_name)
+		self.assertEqual(self._date_line(html), format_date(start, "medium"))
+
+		end = add_days(start, 1)
+		frappe.db.set_value("LMS Event", event.name, "end_date", end, update_modified=False)
+		html = self._render(cert_name)
 		self.assertEqual(
 			self._date_line(html),
-			f"{format_date(event.start_date, 'medium')} – {format_date(event.end_date, 'medium')}",
+			f"{format_date(start, 'medium')} – {format_date(end, 'medium')}",
 		)
-
-		frappe.db.set_value("LMS Event", event.name, "end_date", event.start_date, update_modified=False)
-		html = self._render(cert_name)
-		self.assertEqual(self._date_line(html), format_date(event.start_date, "medium"))
 
 	def test_course_certificate_keeps_issue_date_and_format_rules(self):
 		from frappe.utils import format_date, nowdate
