@@ -3,36 +3,68 @@
 		<header
 			class="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-2 border-b bg-surface-white px-3 py-2.5 sm:px-5"
 		>
-			<Breadcrumbs
-				class="h-7"
-				:items="[
-					{ label: __('Certificate Preview'), route: { name: 'CertificatePreview', params: { certName } } },
-				]"
-			/>
-			<div class="flex items-center gap-2">
-				<input
-					v-model="certNameInput"
-					:placeholder="__('LMS Certificate name')"
-					class="rounded border px-2 py-1 text-sm"
-					@keydown.enter="loadCertificate"
+			<Breadcrumbs class="h-7" :items="breadcrumbs" />
+			<div class="flex flex-wrap items-center gap-2">
+				<template v-if="!isSampleMode">
+					<input
+						v-model="certNameInput"
+						:placeholder="__('LMS Certificate name')"
+						class="rounded border px-2 py-1 text-sm"
+						@keydown.enter="loadCertificate"
+					/>
+					<Button :label="__('Load')" @click="loadCertificate" />
+				</template>
+				<Button
+					v-else
+					:label="__('Refresh')"
+					:loading="samplePreview.loading"
+					@click="samplePreview.reload()"
 				/>
-				<Button :label="__('Load')" @click="loadCertificate" />
 				<Button
 					variant="solid"
 					:label="__('Download PDF')"
-					:disabled="!certName"
+					:disabled="!canDownload"
 					@click="downloadPdf"
 				/>
 			</div>
 		</header>
 
 		<div class="p-5">
-			<div v-if="!certName" class="text-ink-gray-6">
+			<div
+				v-if="isSampleMode"
+				class="mb-4 rounded-lg border border-outline-gray-2 bg-surface-amber-1 p-3 text-sm text-ink-gray-8"
+				data-testid="sample-preview-banner"
+			>
+				<span class="font-semibold">{{ __('Sample certificate.') }}</span>
+				{{
+					__(
+						'Rendered with the same template, signers, credentials, hours, date and format an attendee would receive. Nothing is issued, recorded or emailed by opening this page.'
+					)
+				}}
+				<span v-if="samplePreview.data?.event_title">
+					{{ __('Event: {0}').format(samplePreview.data.event_title) }}
+				</span>
+			</div>
+
+			<div v-if="samplePreview.error" class="text-ink-red-4 text-sm" data-testid="sample-preview-error">
+				{{ samplePreview.error?.messages?.[0] || __('Could not render the sample certificate.') }}
+			</div>
+
+			<div v-else-if="!isSampleMode && !certName" class="text-ink-gray-6">
 				{{ __('Enter an LMS Certificate document name to preview it.') }}
 			</div>
 
 			<div v-else class="cert-stage">
 				<iframe
+					v-if="isSampleMode"
+					ref="printIframe"
+					:srcdoc="samplePreview.data?.html || ''"
+					class="cert-iframe"
+					:title="__('Sample certificate preview')"
+					data-testid="sample-preview-frame"
+				></iframe>
+				<iframe
+					v-else
 					ref="printIframe"
 					:src="printViewUrl"
 					class="cert-iframe"
@@ -46,10 +78,11 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { Breadcrumbs, Button, usePageMeta } from 'frappe-ui'
+import { Breadcrumbs, Button, createResource, usePageMeta } from 'frappe-ui'
 
 const props = defineProps({
 	certName: { type: String, default: '' },
+	eventName: { type: String, default: '' },
 })
 
 const router = useRouter()
@@ -57,6 +90,38 @@ const certNameInput = ref(props.certName || '')
 const printIframe = ref(null)
 
 usePageMeta({ title: 'Certificate Preview' })
+
+const isSampleMode = computed(() => Boolean(props.eventName))
+
+const samplePreview = createResource({
+	url: 'lms.lms.ceu_event_admin.preview_event_certificate',
+	makeParams() {
+		return { event: props.eventName }
+	},
+})
+
+const breadcrumbs = computed(() => {
+	if (isSampleMode.value) {
+		return [
+			{ label: __('Events'), route: { name: 'Events' } },
+			{
+				label: samplePreview.data?.event_title || props.eventName,
+				route: { name: 'EventDetail', params: { eventName: props.eventName } },
+			},
+			{ label: __('Sample certificate') },
+		]
+	}
+	return [
+		{
+			label: __('Certificate Preview'),
+			route: { name: 'CertificatePreview', params: { certName: props.certName } },
+		},
+	]
+})
+
+const canDownload = computed(() =>
+	isSampleMode.value ? Boolean(samplePreview.data?.html) : Boolean(props.certName)
+)
 
 const printViewUrl = computed(() => {
 	if (!props.certName) return ''
@@ -76,6 +141,14 @@ const loadCertificate = () => {
 }
 
 const downloadPdf = () => {
+	if (isSampleMode.value) {
+		const params = new URLSearchParams({ event: props.eventName })
+		window.open(
+			`/api/method/lms.lms.ceu_event_admin.preview_event_certificate_pdf?${params.toString()}`,
+			'_blank'
+		)
+		return
+	}
 	if (!props.certName) return
 	const params = new URLSearchParams({
 		doctype: 'LMS Certificate',
@@ -91,7 +164,15 @@ watch(
 	() => props.certName,
 	(next) => {
 		certNameInput.value = next || ''
+	}
+)
+
+watch(
+	() => props.eventName,
+	(next) => {
+		if (next) samplePreview.reload()
 	},
+	{ immediate: true }
 )
 </script>
 
