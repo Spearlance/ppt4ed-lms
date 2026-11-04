@@ -549,9 +549,21 @@ def preview_event_certificate(event: str) -> dict:
 	Moderators / Global Admins only. Read-only: nothing is inserted, no
 	credit is awarded, no completion changes and no email is queued.
 	"""
+	from frappe.www.printview import get_print_style, get_rendered_template
+
 	_require_event_admin()
 	doc, template = _build_sample_certificate(event)
-	html = frappe.get_print("LMS Certificate", doc.name, template, doc=doc, no_letterhead=1)
+	# Same renderer the printview page / PDF use, minus the page chrome
+	# (toolbar, gutter) so it sits cleanly inside the admin preview frame.
+	print_format = frappe.get_doc("Print Format", template)
+	body = get_rendered_template(doc, print_format=print_format, no_letterhead=1)
+	style = get_print_style(print_format=print_format)
+	html = (
+		'<!doctype html><html lang="en"><head><meta charset="utf-8">'
+		"<title>Sample certificate</title>"
+		f"<style>{style}</style></head>"
+		f'<body style="margin:0;background:#fff"><div class="print-format">{body}</div></body></html>'
+	)
 	return {
 		"html": html,
 		"template": template,
