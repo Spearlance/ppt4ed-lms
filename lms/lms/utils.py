@@ -1583,6 +1583,7 @@ def get_event_details(batch: str):
 			"credit_verification",
 			"credit_quiz",
 			"credit_passing_percentage",
+			"require_survey_for_credit",
 			"route",
 		],
 		as_dict=True,
