@@ -7,7 +7,9 @@ and using the writeup below as the briefing.
 
 ## Queued — Event quiz + survey certification (Teresa, 2026-11-04 meeting)
 
-**Status:** planned, not started. Branch `feat/event-quiz-survey-certification` from `develop`.
+**Status:** PR #240 open against `develop` (2026-11-04), deployed to dev for review.
+Dev bind-mount is checked out on `feat/event-quiz-survey-certification`; after merge,
+`git checkout develop` on the host before `/deploy-dev`.
 
 **Full plan:** `docs/plans/2026-11-04-event-quiz-survey-certification.md`
 
