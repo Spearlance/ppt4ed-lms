@@ -649,7 +649,9 @@ class TestEventCreditVerification(UnitTestCase):
 	def test_legacy_null_mode_without_survey_stays_editable(self):
 		# Pre-#230 events store NULL (runtime: Survey Only). Editing the title
 		# must not demand a survey they never had.
-		event = self._make_event("Manual", "RS-Legacy")
+		# Legacy rows never had the flag (the backfill only sets it when a
+		# survey is attached), so the fixture must not carry it either.
+		event = self._make_event("Manual", "RS-Legacy", require_survey=False)
 		frappe.db.set_value(
 			"LMS Event",
 			event,
