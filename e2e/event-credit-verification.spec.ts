@@ -118,6 +118,7 @@ async function makeEvent(page: Page, suffix: string, extra: Record<string, unkno
 		certification: 1,
 		credit_hours: 1,
 		survey_quiz: ctx.surveyQuiz,
+		require_survey_for_credit: 1,
 		published: 1,
 		...extra,
 	})

@@ -1583,6 +1583,7 @@ def get_event_details(batch: str):
 			"credit_verification",
 			"credit_quiz",
 			"credit_passing_percentage",
+			"require_survey_for_credit",
 			"route",
 		],
 		as_dict=True,
@@ -1655,11 +1656,13 @@ def get_event_details(batch: str):
 	from lms.lms.doctype.lms_event.lms_event import (
 		get_credit_quiz_status,
 		get_credit_verification,
+		is_survey_required,
 		requires_credit_quiz,
 	)
 
 	event_details.credit_verification = get_credit_verification(event_details)
 	event_details.credit_quiz_required = requires_credit_quiz(event_details)
+	event_details.survey_required = is_survey_required(event_details)
 	event_details.credit_quiz_open = bool(
 		event_details.credit_quiz_required
 		and event_details.credit_verification == "Online Quiz"

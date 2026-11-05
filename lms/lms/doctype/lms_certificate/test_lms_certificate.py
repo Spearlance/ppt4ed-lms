@@ -267,10 +267,19 @@ class TestCertificatePrintFormat(BaseTestUtils):
 
 	@staticmethod
 	def _render(cert_name):
+		return TestCertificatePrintFormat._render_doc(frappe.get_doc("LMS Certificate", cert_name))
+
+	@staticmethod
+	def _render_doc(doc):
 		path = frappe.get_app_path("lms", "lms", "print_format", "certificate", "certificate.json")
 		with open(path, encoding="utf-8") as f:
 			html = json.load(f)["html"]
-		return frappe.render_template(html, {"doc": frappe.get_doc("LMS Certificate", cert_name)})
+		return frappe.render_template(html, {"doc": doc})
+
+	@staticmethod
+	def _date_line(html):
+		match = re.search(r"<div>Date: (.*?)</div>", html)
+		return match.group(1) if match else None
 
 	@staticmethod
 	def _signature_names(html):
@@ -467,9 +476,72 @@ class TestCertificatePrintFormat(BaseTestUtils):
 		self.cleanup_items.append(("LMS Certificate", cert.name))
 
 		html = self._render(cert.name)
-		# Events keep the pre-change behaviour: first two instructors sign,
-		# nobody else is listed, no format line, no compact spacing.
+		# Events ignore course-level settings: first two instructors sign,
+		# nobody else is listed, no On-Demand line. The Live Course line is
+		# the event's own, and it turns on compact spacing.
 		self.assertEqual(self._signature_names(html), ["Presenter Number1", "Presenter Number2"])
 		self.assertIsNone(self._additional_line(html))
 		self.assertNotIn("On-Demand Course", html)
-		self.assertNotIn("cert-page--compact", html)
+		self.assertIn('<div class="cert-format">Live Course</div>', html)
+		self.assertIn("cert-page--compact", html)
+
+	# ------------------------------------------------------------------ event format, date, long names, sample
+
+	def test_event_prints_live_format_and_event_date(self):
+		from frappe.utils import format_date
+
+		event = self._make_event("Cert Format Event Live", self.presenters[:2])
+		cert_name = self._mint_event_cert(event)
+
+		html = self._render(cert_name)
+		self.assertIn('<div class="cert-format">Live Course</div>', html)
+		self.assertNotIn("On-Demand Course", html)
+		# Event certificates carry the event date, not the issue date. (The
+		# event validator derives end_date from the schedule, so set the dates
+		# directly to exercise both the single-day and multi-day lines.)
+		start = event.start_date
+		frappe.db.set_value("LMS Event", event.name, "end_date", start, update_modified=False)
+		html = self._render(cert_name)
+		self.assertEqual(self._date_line(html), format_date(start, "medium"))
+
+		end = add_days(start, 1)
+		frappe.db.set_value("LMS Event", event.name, "end_date", end, update_modified=False)
+		html = self._render(cert_name)
+		self.assertEqual(
+			self._date_line(html),
+			f"{format_date(start, 'medium')} – {format_date(end, 'medium')}",
+		)
+
+	def test_course_certificate_keeps_issue_date_and_format_rules(self):
+		from frappe.utils import format_date, nowdate
+
+		html = self._render(self.cert_name)
+		self.assertEqual(self._date_line(html), format_date(nowdate(), "medium"))
+		self.assertNotIn("Live Course", html)
+
+	def test_long_signer_name_gets_long_class(self):
+		frappe.db.set_value("User", self.presenters[0].email, "credentials", "PT, DPT, PCS, C/NDT")
+		frappe.db.set_value("User", self.presenters[1].email, "credentials", "OT")
+		frappe.db.set_value("LMS Course", self.course.name, "show_signer_credentials", 1)
+
+		html = self._render(self.cert_name)
+		self.assertIn('class="cert-sig-name cert-sig-name--long">Presenter Number1, PT, DPT, PCS, C/NDT<', html)
+		self.assertIn('class="cert-sig-name">Presenter Number2, OT<', html)
+
+	def test_sample_preview_marks_page_and_hides_real_member(self):
+		from lms.lms.ceu_event_admin import SAMPLE_PARTICIPANT_NAME, _build_sample_certificate
+
+		event = self._make_event("Cert Format Event Sample", self.presenters[:2])
+		frappe.db.set_value("LMS Event", event.name, "credit_hours", 1.5, update_modified=False)
+		doc, _template = _build_sample_certificate(event.name)
+
+		html = self._render_doc(doc)
+		self.assertIn("cert-page--sample", html)
+		self.assertIn("cert-sample-watermark", html)
+		recipient = re.search(r'class="cert-recipient-name">(.*?)</div>', html).group(1)
+		self.assertEqual(recipient, SAMPLE_PARTICIPANT_NAME)
+		self.assertIn("1.5 CE Hours", html)
+		self.assertEqual(self._signature_names(html), ["Presenter Number1", "Presenter Number2"])
+		# An earned certificate from the same event is never watermarked.
+		cert_name = self._mint_event_cert(event)
+		self.assertNotIn("cert-sample-watermark", self._render(cert_name))

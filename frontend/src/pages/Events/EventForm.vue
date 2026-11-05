@@ -152,6 +152,25 @@
 									:description="creditVerificationHelp"
 								/>
 								<Link
+									doctype="LMS Quiz"
+									:filters="{ is_survey: 1 }"
+									:label="__('Survey Quiz')"
+									v-model="batchDetail.doc.survey_quiz"
+									:description="
+										__(
+											'The ungraded course evaluation attendees fill in after the final session. It is never scored.'
+										)
+									"
+								/>
+								<Switch
+									v-if="batchDetail.doc.credit_verification !== 'Manual'"
+									size="sm"
+									v-model="requireSurveyForCredit"
+									:label="__('Require survey for course credit')"
+									:description="requireSurveyHelp"
+									:disabled="batchDetail.doc.credit_verification === 'Survey Only'"
+								/>
+								<Link
 									v-if="batchDetail.doc.credit_verification === 'Online Quiz'"
 									doctype="LMS Quiz"
 									:filters="{ is_survey: 0 }"
@@ -204,6 +223,7 @@
 											)
 										}}
 									</div>
+									<SignerCredentials :signers="certificateSigners" />
 								</div>
 								<Switch
 									size="sm"
@@ -507,6 +527,7 @@ import MultiSelect from '@/components/Controls/MultiSelect.vue'
 import Link from '@/components/Controls/Link.vue'
 import NewMemberModal from '@/components/Modals/NewMemberModal.vue'
 import EmailTemplateModal from '@/components/Modals/EmailTemplateModal.vue'
+import SignerCredentials from '@/components/SignerCredentials.vue'
 
 const router = useRouter()
 const user = inject('$user')
@@ -677,6 +698,7 @@ const updateBatchData = () => {
 		'certification',
 		'evaluation',
 		'show_signer_credentials',
+		'require_survey_for_credit',
 	]
 	for (let idx in checkboxes) {
 		let key = checkboxes[idx]
@@ -801,6 +823,29 @@ const creditVerificationOptions = computed(() => {
 	]
 })
 
+// Survey Only mode always gates on the survey, so the switch reads as on
+// there without mutating the stored flag; the admin's own choice survives a
+// round-trip through Survey Only back to a quiz mode.
+const requireSurveyForCredit = computed({
+	get() {
+		if (batchDetail.doc?.credit_verification === 'Survey Only') return true
+		return Boolean(batchDetail.doc?.require_survey_for_credit)
+	},
+	set(value) {
+		if (batchDetail.doc) batchDetail.doc.require_survey_for_credit = Boolean(value)
+	},
+})
+
+const requireSurveyHelp = computed(() => {
+	const mode = batchDetail.doc?.credit_verification
+	if (mode === 'Survey Only') {
+		return __('Always on in Survey Only mode: the survey is what issues the certificate.')
+	}
+	return __(
+		'When on, the certificate waits until the attendee has submitted the survey as well as passed the quiz. When off, the survey is optional feedback.'
+	)
+})
+
 const creditVerificationHelp = computed(() => {
 	const mode = batchDetail.doc?.credit_verification
 	if (mode === 'Manual') {
@@ -810,12 +855,12 @@ const creditVerificationHelp = computed(() => {
 	}
 	if (mode === 'Online Quiz') {
 		return __(
-			'Attendees submit the feedback survey and pass the linked quiz on the event page. The certificate issues automatically once both are in.'
+			'Attendees pass the linked quiz on the event page (and submit the survey when it is required below). The certificate issues automatically once everything is in.'
 		)
 	}
 	if (mode === 'In-Person Quiz') {
 		return __(
-			'Attendees submit the feedback survey; you record each quiz score from the Dashboard. The certificate issues once both are in.'
+			'You record each quiz score from the Dashboard (and attendees submit the survey when it is required below). The certificate issues once everything is in.'
 		)
 	}
 	return __(

@@ -69,6 +69,7 @@ class LMSEvent(WebsiteGenerator):
 		self.validate_evaluation_end_date()
 		self.validate_conferencing_provider()
 		self.validate_certificate_signers()
+		self.validate_credit_settings()
 		ensure_instructors_have_moderator_role([row.instructor for row in self.instructors or []])
 
 	def on_update(self):
@@ -94,6 +95,49 @@ class LMSEvent(WebsiteGenerator):
 			)
 		if len(set(signers)) != len(signers):
 			frappe.throw(_("Each certificate signer can only be listed once."))
+
+	def validate_credit_settings(self):
+		"""Reject certificate configurations that could never issue, or that
+		would grade a survey / treat a graded quiz as a survey."""
+		if not self.certification:
+			return
+		mode = get_credit_verification(self)
+		if self.survey_quiz and not frappe.db.get_value("LMS Quiz", self.survey_quiz, "is_survey"):
+			frappe.throw(
+				_("Survey Quiz must be a survey (an LMS Quiz with Is Survey checked)."),
+				title=_("Invalid survey"),
+			)
+		if mode == CREDIT_VERIFICATION_MANUAL:
+			# Nothing mints on its own in Manual mode, so the survey/quiz
+			# requirements do not apply (and the form hides the switch).
+			return
+		if self.require_survey_for_credit and not self.survey_quiz:
+			frappe.throw(
+				_(
+					"Require survey for course credit is on, but no Survey Quiz is attached. "
+					"Attach a survey or turn the requirement off."
+				),
+				title=_("Survey required but missing"),
+			)
+		# Only an explicit Survey Only choice is checked: events that pre-date
+		# credit_verification store NULL (treated as Survey Only at runtime)
+		# and must stay editable without first attaching a survey.
+		if self.credit_verification == CREDIT_VERIFICATION_SURVEY and not self.survey_quiz:
+			frappe.throw(
+				_("Survey Only credit verification needs a Survey Quiz attached."),
+				title=_("Survey required but missing"),
+			)
+		if mode == CREDIT_VERIFICATION_ONLINE:
+			if not self.credit_quiz:
+				frappe.throw(
+					_("Online Quiz credit verification needs a Credit Quiz attached."),
+					title=_("Credit quiz missing"),
+				)
+			if frappe.db.get_value("LMS Quiz", self.credit_quiz, "is_survey"):
+				frappe.throw(
+					_("Credit Quiz must be a graded quiz, not a survey."),
+					title=_("Invalid credit quiz"),
+				)
 
 	def validate_event_end_date(self):
 		if self.end_date < self.start_date:
@@ -798,6 +842,7 @@ CREDIT_EVENT_FIELDS = [
 	"credit_verification",
 	"credit_quiz",
 	"credit_passing_percentage",
+	"require_survey_for_credit",
 ]
 
 
@@ -817,6 +862,22 @@ def get_credit_verification(event_doc) -> str:
 def is_manual_credit(event_doc) -> bool:
 	"""Manual mode: no survey or quiz ever mints; an admin issues from the Dashboard."""
 	return get_credit_verification(event_doc) == CREDIT_VERIFICATION_MANUAL
+
+
+def is_survey_required(event_doc) -> bool:
+	"""True when the feedback survey gates the certificate.
+
+	Survey Only mode always requires it (the survey *is* the gate). In the
+	quiz modes the explicit "Require survey for course credit" setting
+	decides; an attached survey with the setting off is optional feedback."""
+	if not event_doc.get("certification") or not event_doc.get("survey_quiz"):
+		return False
+	mode = get_credit_verification(event_doc)
+	if mode == CREDIT_VERIFICATION_MANUAL:
+		return False
+	if mode == CREDIT_VERIFICATION_SURVEY:
+		return True
+	return bool(cint(event_doc.get("require_survey_for_credit")))
 
 
 def requires_credit_quiz(event_doc) -> bool:
@@ -912,14 +973,32 @@ def has_passed_credit_quiz(event_doc, member) -> bool:
 	)
 
 
-def has_submitted_event_survey(event_doc, member) -> bool:
+def has_survey_submission(event_doc, member) -> bool:
+	"""Raw fact: has `member` submitted this event's survey? (No gate semantics.)"""
 	if not event_doc.get("survey_quiz"):
-		return True
+		return False
 	return bool(
 		frappe.db.exists(
 			"LMS Quiz Submission",
 			{"event_name": event_doc.name, "member": member, "quiz": event_doc.survey_quiz},
 		)
+	)
+
+
+def has_submitted_event_survey(event_doc, member) -> bool:
+	"""Gate: True when the survey is not required, or it is and it is in."""
+	if not is_survey_required(event_doc):
+		return True
+	return has_survey_submission(event_doc, member)
+
+
+def get_existing_event_certificate(member, event, lock: bool = False):
+	"""Name of `member`'s certificate for `event`, or None. With `lock=True`
+	this is a locking read (SELECT ... FOR UPDATE), which under REPEATABLE
+	READ sees the latest committed row instead of the transaction's snapshot,
+	so a concurrent mint that just committed is visible."""
+	return frappe.db.get_value(
+		"LMS Certificate", {"member": member, "event_name": event}, "name", for_update=lock
 	)
 
 
@@ -941,7 +1020,15 @@ def maybe_auto_mint_event_certificate(member, event):
 	if is_manual_credit(event_doc):
 		return None
 
-	if frappe.db.exists("LMS Certificate", {"member": member, "event_name": event}):
+	# Serialise concurrent callers (survey submit racing a quiz submit) on
+	# the registration row, then check for an existing certificate with a
+	# locking read so the second caller sees the first one's commit rather
+	# than its own earlier snapshot.
+	frappe.db.get_value(
+		"LMS Event Registration", {"event": event, "member": member}, "name", for_update=True
+	)
+
+	if get_existing_event_certificate(member, event, lock=True):
 		return None
 
 	if not has_submitted_event_survey(event_doc, member):
@@ -961,9 +1048,7 @@ def issue_event_certificate(member, event):
 	Published so it lists on the certified participants page, like course
 	certificates do. The certificate email goes out from after_insert.
 	"""
-	existing = frappe.db.get_value(
-		"LMS Certificate", {"member": member, "event_name": event}, "name"
-	)
+	existing = get_existing_event_certificate(member, event, lock=True)
 	if existing:
 		return existing
 

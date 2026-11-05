@@ -103,7 +103,7 @@ class TestEventCreditVerification(UnitTestCase):
 		quiz.insert(ignore_permissions=True)
 		return quiz
 
-	def _make_event(self, mode, suffix, credit_quiz=None, passing=None):
+	def _make_event(self, mode, suffix, credit_quiz=None, passing=None, require_survey=True):
 		# Ended yesterday so the survey / quiz window is open.
 		day = add_days(today(), -1)
 		event = frappe.get_doc(
@@ -123,6 +123,7 @@ class TestEventCreditVerification(UnitTestCase):
 				"credit_verification": mode,
 				"credit_quiz": credit_quiz,
 				"credit_passing_percentage": passing if passing is not None else 80,
+				"require_survey_for_credit": 1 if require_survey else 0,
 				"credit_hours": 2,
 				"published": 0,
 			}
@@ -519,3 +520,284 @@ class TestEventCreditVerification(UnitTestCase):
 		self.assertEqual(announced, {survey_only})
 		self.assertEqual(frappe.db.get_value("LMS Event", manual, "survey_announcement_sent"), 0)
 		self.assertEqual(frappe.db.get_value("LMS Event", survey_only, "survey_announcement_sent"), 1)
+
+	# ------------------------------------------------------------------ require survey for course credit
+
+	def test_failed_quiz_with_survey_does_not_mint(self):
+		event = self._make_event("Online Quiz", "RS-Fail", credit_quiz=self.credit_quiz.name)
+		self._register(event, self.member)
+
+		self._submit_survey(event, self.member)
+		failed = self._submit_quiz(event, self.member, correct=False)
+
+		self.assertFalse(failed["pass"])
+		self.assertIsNone(self._cert(event, self.member))
+		self.assertEqual(frappe.db.count("LMS Certificate", {"event_name": event}), 0)
+
+	def test_passed_quiz_and_required_survey_mint_exactly_once(self):
+		event = self._make_event("Online Quiz", "RS-Once", credit_quiz=self.credit_quiz.name)
+		self._register(event, self.member)
+
+		passed = self._submit_quiz(event, self.member, correct=True)
+		self.assertIsNone(passed["certificate"], "required survey still missing")
+		survey = self._submit_survey(event, self.member)
+		self.assertTrue(survey["certificate"])
+
+		# Repeated issuance requests from every path never add a second award.
+		self.assertIsNone(maybe_auto_mint_event_certificate(self.member, event))
+		from lms.lms.ceu_event_admin import issue_event_certificates
+
+		result = issue_event_certificates(event, [self.member])
+		self.assertEqual(result["issued"], [])
+		self.assertEqual(len(result["skipped"]), 1)
+		self.assertEqual(
+			frappe.db.count("LMS Certificate", {"event_name": event, "member": self.member}), 1
+		)
+
+	def test_survey_before_quiz_certifies_only_after_pass(self):
+		event = self._make_event("Online Quiz", "RS-Order", credit_quiz=self.credit_quiz.name)
+		self._register(event, self.member)
+
+		survey = self._submit_survey(event, self.member)
+		self.assertIsNone(survey["certificate"])
+		self.assertIsNone(self._cert(event, self.member))
+
+		passed = self._submit_quiz(event, self.member, correct=True)
+		self.assertTrue(passed["certificate"])
+		self.assertEqual(self._cert(event, self.member), passed["certificate"])
+		# The survey response survived the quiz step.
+		self.assertTrue(
+			frappe.db.exists(
+				"LMS Quiz Submission",
+				{"event_name": event, "member": self.member, "quiz": self.survey_quiz.name},
+			)
+		)
+
+	def test_optional_survey_does_not_gate(self):
+		from lms.lms.doctype.lms_event.lms_event import is_survey_required
+
+		event = self._make_event(
+			"Online Quiz", "RS-Off", credit_quiz=self.credit_quiz.name, require_survey=False
+		)
+		self._register(event, self.member)
+		self.assertFalse(is_survey_required(get_credit_event_doc(event)))
+
+		passed = self._submit_quiz(event, self.member, correct=True)
+		self.assertTrue(passed["certificate"], "quiz pass alone certifies when the survey is optional")
+
+		# The optional survey is still accepted afterwards and never duplicates the award.
+		survey = self._submit_survey(event, self.member)
+		self.assertIsNone(survey["certificate"])
+		self.assertEqual(frappe.db.count("LMS Certificate", {"event_name": event}), 1)
+
+	def test_in_person_optional_survey_does_not_gate(self):
+		event = self._make_event("In-Person Quiz", "RS-IPOff", require_survey=False)
+		self._register(event, self.member)
+
+		result = record_event_quiz_results(event, [{"member": self.member, "percentage": 90}])
+		self.assertTrue(result["recorded"][0]["certificate"])
+
+	def test_survey_only_mode_always_requires_survey(self):
+		from lms.lms.doctype.lms_event.lms_event import is_survey_required
+
+		event = self._make_event("Survey Only", "RS-SO", require_survey=False)
+		self.assertTrue(is_survey_required(get_credit_event_doc(event)))
+		self._register(event, self.member)
+		self.assertIsNone(maybe_auto_mint_event_certificate(self.member, event))
+		self.assertTrue(self._submit_survey(event, self.member)["certificate"])
+
+	def test_require_survey_without_survey_rejected(self):
+		event = frappe.get_doc(
+			"LMS Event",
+			self._make_event("Online Quiz", "RS-NoSurvey", credit_quiz=self.credit_quiz.name),
+		)
+		event.survey_quiz = None
+		event.require_survey_for_credit = 1
+		with self.assertRaises(frappe.ValidationError):
+			event.save(ignore_permissions=True)
+
+		# Survey Only with nothing attached can never certify either.
+		event.reload()
+		event.credit_verification = "Survey Only"
+		event.require_survey_for_credit = 0
+		event.survey_quiz = None
+		with self.assertRaises(frappe.ValidationError):
+			event.save(ignore_permissions=True)
+
+		# Turning the requirement off (and leaving a quiz mode) is fine.
+		event.reload()
+		event.credit_verification = "Online Quiz"
+		event.require_survey_for_credit = 0
+		event.survey_quiz = None
+		event.save(ignore_permissions=True)
+
+	def test_manual_mode_ignores_stale_require_flag(self):
+		# Online Quiz + required survey, then the admin moves to Manual and
+		# drops the survey: the flag is hidden in the form and must not block.
+		event = frappe.get_doc(
+			"LMS Event",
+			self._make_event("Online Quiz", "RS-Manual", credit_quiz=self.credit_quiz.name),
+		)
+		event.credit_verification = "Manual"
+		event.survey_quiz = None
+		event.save(ignore_permissions=True)
+		self.assertEqual(event.require_survey_for_credit, 1)
+		from lms.lms.doctype.lms_event.lms_event import is_survey_required
+
+		self.assertFalse(is_survey_required(get_credit_event_doc(event.name)))
+
+	def test_legacy_null_mode_without_survey_stays_editable(self):
+		# Pre-#230 events store NULL (runtime: Survey Only). Editing the title
+		# must not demand a survey they never had.
+		# Legacy rows never had the flag (the backfill only sets it when a
+		# survey is attached), so the fixture must not carry it either.
+		event = self._make_event("Manual", "RS-Legacy", require_survey=False)
+		frappe.db.set_value(
+			"LMS Event",
+			event,
+			{"credit_verification": None, "survey_quiz": None},
+			update_modified=False,
+		)
+		doc = frappe.get_doc("LMS Event", event)
+		doc.title = f"{TITLE_PREFIX} RS-Legacy renamed"
+		doc.save(ignore_permissions=True)
+		self.assertIsNone(frappe.db.get_value("LMS Event", event, "credit_verification"))
+
+	def test_recorded_score_reports_raw_survey_fact(self):
+		event = self._make_event("In-Person Quiz", "RS-RawSurvey", require_survey=False)
+		self._register(event, self.member)
+
+		result = record_event_quiz_results(event, [{"member": self.member, "percentage": 95}])
+		row = result["recorded"][0]
+		self.assertTrue(row["certificate"], "optional survey never gates")
+		self.assertFalse(row["survey_submitted"], "survey_submitted reports the fact, not the gate")
+
+	def test_invalid_quiz_roles_rejected(self):
+		event = frappe.get_doc(
+			"LMS Event",
+			self._make_event("Online Quiz", "RS-Roles", credit_quiz=self.credit_quiz.name),
+		)
+
+		# A graded quiz cannot stand in as the survey.
+		event.survey_quiz = self.credit_quiz.name
+		with self.assertRaises(frappe.ValidationError):
+			event.save(ignore_permissions=True)
+
+		# A survey cannot be graded as the credit quiz.
+		event.reload()
+		event.credit_quiz = self.survey_quiz.name
+		with self.assertRaises(frappe.ValidationError):
+			event.save(ignore_permissions=True)
+
+		# Online Quiz mode with no quiz attached could never certify.
+		event.reload()
+		event.credit_quiz = None
+		with self.assertRaises(frappe.ValidationError):
+			event.save(ignore_permissions=True)
+
+	def test_backfill_patch_preserves_existing_behaviour(self):
+		from lms.patches.v2_0.backfill_require_survey_for_credit import execute
+
+		online = self._make_event("Online Quiz", "RS-Patch1", credit_quiz=self.credit_quiz.name)
+		manual = self._make_event("Manual", "RS-Patch2")
+		no_cert = self._make_event("Online Quiz", "RS-Patch3", credit_quiz=self.credit_quiz.name)
+		# Simulate rows that pre-date the field: the column exists but is 0.
+		for name in (online, manual, no_cert):
+			frappe.db.set_value("LMS Event", name, "require_survey_for_credit", 0, update_modified=False)
+		frappe.db.set_value("LMS Event", no_cert, "certification", 0, update_modified=False)
+
+		execute()
+		execute()  # idempotent
+
+		self.assertEqual(frappe.db.get_value("LMS Event", online, "require_survey_for_credit"), 1)
+		self.assertEqual(frappe.db.get_value("LMS Event", manual, "require_survey_for_credit"), 0)
+		self.assertEqual(frappe.db.get_value("LMS Event", no_cert, "require_survey_for_credit"), 0)
+
+	# ------------------------------------------------------------------ sample certificate preview
+
+	def _counts(self):
+		return {
+			"certificates": frappe.db.count("LMS Certificate"),
+			"submissions": frappe.db.count("LMS Quiz Submission"),
+			"registrations": frappe.db.count("LMS Event Registration"),
+			"emails": frappe.db.count("Email Queue"),
+		}
+
+	def test_preview_renders_sample_without_side_effects(self):
+		from lms.lms.ceu_event_admin import SAMPLE_PARTICIPANT_NAME, preview_event_certificate
+
+		event = self._make_event("Online Quiz", "RS-Preview", credit_quiz=self.credit_quiz.name)
+		frappe.db.set_value("User", "Administrator", "credentials", "PT, DPT (test)")
+		frappe.db.set_value("LMS Event", event, "show_signer_credentials", 1, update_modified=False)
+		self._register(event, self.member)
+		before = self._counts()
+
+		result = preview_event_certificate(event)
+
+		self.assertEqual(self._counts(), before)
+		html = result["html"]
+		self.assertIn("cert-sample-watermark", html)
+		self.assertIn(SAMPLE_PARTICIPANT_NAME, html)
+		self.assertIn("Live Course", html)
+		self.assertIn("PT, DPT (test)", html)
+		self.assertIn("2 CE Hours", html)
+		self.assertIsNone(self._cert(event, self.member))
+		self.assertFalse(frappe.db.exists("LMS Certificate", {"event_name": event}))
+
+	def test_preview_pdf_is_a_pdf_and_creates_nothing(self):
+		from lms.lms.ceu_event_admin import preview_event_certificate_pdf
+
+		event = self._make_event("Survey Only", "RS-PreviewPDF")
+		before = self._counts()
+
+		preview_event_certificate_pdf(event)
+
+		self.assertEqual(frappe.local.response.type, "pdf")
+		self.assertTrue(frappe.local.response.filecontent.startswith(b"%PDF-"))
+		self.assertEqual(self._counts(), before)
+
+	def test_preview_requires_moderator(self):
+		from lms.lms.ceu_event_admin import (
+			preview_event_certificate,
+			preview_event_certificate_pdf,
+		)
+
+		event = self._make_event("Survey Only", "RS-PreviewPerm")
+		self._register(event, self.member)
+		frappe.set_user(self.member)
+		try:
+			with self.assertRaises(frappe.PermissionError):
+				preview_event_certificate(event)
+			with self.assertRaises(frappe.PermissionError):
+				preview_event_certificate_pdf(event)
+		finally:
+			frappe.set_user("Administrator")
+
+	# ------------------------------------------------------------------ signer credentials
+
+	def test_signer_credentials_admin_edit(self):
+		from lms.lms.ceu_event_admin import get_signer_profiles, set_signer_credentials
+
+		set_signer_credentials(self.other, "  OTR/L  ")
+		self.assertEqual(frappe.db.get_value("User", self.other, "credentials"), "OTR/L")
+		profiles = get_signer_profiles([self.other])
+		self.assertEqual(profiles[0]["credentials"], "OTR/L")
+
+		set_signer_credentials(self.other, "")
+		self.assertEqual(frappe.db.get_value("User", self.other, "credentials"), "")
+
+		with self.assertRaises(frappe.ValidationError):
+			set_signer_credentials(self.other, "x" * 141)
+
+	def test_signer_credentials_require_moderator(self):
+		from lms.lms.ceu_event_admin import get_signer_profiles, set_signer_credentials
+
+		frappe.set_user(self.member)
+		try:
+			with self.assertRaises(frappe.PermissionError):
+				set_signer_credentials(self.other, "MD")
+			with self.assertRaises(frappe.PermissionError):
+				get_signer_profiles([self.other])
+		finally:
+			frappe.set_user("Administrator")
+		self.assertFalse(frappe.db.get_value("User", self.other, "credentials"))
