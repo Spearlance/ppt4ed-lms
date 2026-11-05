@@ -12,9 +12,7 @@ import frappe
 
 
 def execute():
-	if not frappe.db.has_column("LMS Event", "require_survey_for_credit"):
-		frappe.reload_doc("lms", "doctype", "lms_event")
-
+	# Registered under [post_model_sync]: the column already exists.
 	frappe.db.sql(
 		"""
 		UPDATE `tabLMS Event`

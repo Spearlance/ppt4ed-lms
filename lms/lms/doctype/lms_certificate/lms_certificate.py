@@ -33,30 +33,11 @@ class LMSCertificate(Document):
 
 	def populate_ceu_fields(self):
 		"""Copy CEU hours and disciplines from the course or event to the certificate."""
-		if self.course:
-			ceu_hours = frappe.db.get_value("LMS Course", self.course, "ceu_hours")
-			if not ceu_hours:
-				return
-			disciplines = frappe.get_all(
-				"CEU Discipline Link",
-				filters={"parent": self.course, "parenttype": "LMS Course"},
-				fields=["discipline"],
-			)
-		elif self.event_name:
-			ceu_hours = frappe.db.get_value("LMS Event", self.event_name, "credit_hours")
-			if not ceu_hours:
-				return
-			disciplines = frappe.get_all(
-				"CEU Discipline Link",
-				filters={"parent": self.event_name, "parenttype": "LMS Event"},
-				fields=["discipline"],
-			)
-		else:
+		ceu = compute_ceu_fields(course=self.course, event_name=self.event_name)
+		if not ceu:
 			return
-
-		discipline_names = ", ".join(d.discipline for d in disciplines) if disciplines else ""
-		self.db_set("ceu_hours", ceu_hours, update_modified=False)
-		self.db_set("ceu_disciplines", discipline_names, update_modified=False)
+		self.db_set("ceu_hours", ceu["ceu_hours"], update_modified=False)
+		self.db_set("ceu_disciplines", ceu["ceu_disciplines"], update_modified=False)
 
 	def populate_license_info(self):
 		"""Freeze the student's license info onto the certificate.
@@ -301,6 +282,29 @@ class LMSCertificate(Document):
 			share=1,
 			flags={"ignore_share_permission": True},
 		)
+
+
+def compute_ceu_fields(course: str | None = None, event_name: str | None = None):
+	"""CEU hours + comma-joined disciplines a certificate for this course or
+	event carries, or None when there are no hours to print. Shared by the
+	earned certificate (populate_ceu_fields) and the admin sample preview so
+	the two can never drift."""
+	if course:
+		parent, parenttype = course, "LMS Course"
+		ceu_hours = frappe.db.get_value("LMS Course", course, "ceu_hours")
+	elif event_name:
+		parent, parenttype = event_name, "LMS Event"
+		ceu_hours = frappe.db.get_value("LMS Event", event_name, "credit_hours")
+	else:
+		return None
+	if not ceu_hours:
+		return None
+	disciplines = frappe.get_all(
+		"CEU Discipline Link",
+		filters={"parent": parent, "parenttype": parenttype},
+		pluck="discipline",
+	)
+	return {"ceu_hours": ceu_hours, "ceu_disciplines": ", ".join(disciplines)}
 
 
 def parse_license_answer(answer):
