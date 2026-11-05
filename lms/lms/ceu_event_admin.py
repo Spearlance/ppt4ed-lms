@@ -492,20 +492,26 @@ SAMPLE_PARTICIPANT_NAME = "Sample Participant"
 SAMPLE_LICENSE_INFO = "License No. 000000 (sample)"
 
 
-def _build_sample_certificate(event: str):
-	"""An unsaved LMS Certificate for `event`, filled the way the earned one
-	would be (CEU hours, disciplines, template) plus a sample participant.
-	Never inserted: no certificate, credit, completion or email results."""
+def _require_certificate_admin():
+	from lms.lms.utils import LMS_MODERATOR_ROLES
+
+	roles = frappe.get_roles()
+	if not any(role in roles for role in LMS_MODERATOR_ROLES):
+		frappe.throw(_("Only LMS admins can preview certificates."), frappe.PermissionError)
+
+
+def _build_sample_certificate(event: str | None = None, course: str | None = None):
+	"""An unsaved LMS Certificate for `event` or `course`, filled the way the
+	earned one would be (CEU hours, disciplines, template) plus a sample
+	participant. Never inserted: no certificate, credit, completion or email
+	results."""
 	from lms.lms.doctype.lms_certificate.lms_certificate import (
 		compute_ceu_fields,
 		get_default_certificate_template,
 	)
 
-	event_doc = frappe.db.get_value(
-		"LMS Event", event, ["name", "title", "credit_hours"], as_dict=True
-	)
-	if not event_doc:
-		frappe.throw(_("Event {0} not found.").format(event))
+	if bool(event) == bool(course):
+		frappe.throw(_("Pick one course or one event to preview."))
 
 	template = get_default_certificate_template()
 	doc = frappe.new_doc("LMS Certificate")
@@ -513,19 +519,31 @@ def _build_sample_certificate(event: str):
 		{
 			"member": frappe.session.user,
 			"member_name": SAMPLE_PARTICIPANT_NAME,
-			"event_name": event,
-			"event_title": event_doc.title,
 			"issue_date": nowdate(),
 			"template": template,
 			"published": 0,
 		}
 	)
+	if event:
+		title = frappe.db.get_value("LMS Event", event, "title")
+		if title is None:
+			frappe.throw(_("Event {0} not found.").format(event), frappe.DoesNotExistError)
+		doc.event_name = event
+		doc.event_title = title
+		ceu = compute_ceu_fields(event_name=event)
+	else:
+		title = frappe.db.get_value("LMS Course", course, "title")
+		if title is None:
+			frappe.throw(_("Course {0} not found.").format(course), frappe.DoesNotExistError)
+		doc.course = course
+		doc.course_title = title
+		ceu = compute_ceu_fields(course=course)
 	# printview reads doc.name for the page title and the permission check
 	# looks at doc.owner; neither is persisted because the doc is never saved.
-	doc.name = f"SAMPLE-{event}"
+	doc.name = f"SAMPLE-{event or course}"
 	doc.owner = frappe.session.user
 	# Same computation as LMSCertificate.populate_ceu_fields, without the db_set.
-	ceu = compute_ceu_fields(event_name=event) or {"ceu_hours": None, "ceu_disciplines": ""}
+	ceu = ceu or {"ceu_hours": None, "ceu_disciplines": ""}
 	doc.ceu_hours = ceu["ceu_hours"]
 	doc.ceu_disciplines = ceu["ceu_disciplines"]
 	doc.license_info = SAMPLE_LICENSE_INFO
@@ -536,44 +554,25 @@ def _build_sample_certificate(event: str):
 	return doc, template
 
 
-@frappe.whitelist()
-def preview_event_certificate(event: str) -> dict:
-	"""Render the event's certificate as a clearly marked sample, through the
-	same print format the earned certificate uses, so signers, credentials,
-	title, hours, date and format can be checked before anyone earns one.
-
-	Moderators / Global Admins only. Read-only: nothing is inserted, no
-	credit is awarded, no completion changes and no email is queued.
-	"""
+def _render_sample_html(doc, template: str) -> str:
+	"""Same renderer the printview page / PDF use, minus the page chrome
+	(toolbar, gutter) so it sits cleanly inside the admin preview frame."""
 	from frappe.www.printview import get_print_style, get_rendered_template
 
-	_require_event_admin()
-	doc, template = _build_sample_certificate(event)
-	# Same renderer the printview page / PDF use, minus the page chrome
-	# (toolbar, gutter) so it sits cleanly inside the admin preview frame.
 	print_format = frappe.get_doc("Print Format", template)
 	body = get_rendered_template(doc, print_format=print_format, no_letterhead=1)
 	style = get_print_style(print_format=print_format)
-	html = (
+	return (
 		'<!doctype html><html lang="en"><head><meta charset="utf-8">'
 		"<title>Sample certificate</title>"
 		f"<style>{style}</style></head>"
 		f'<body style="margin:0;background:#fff"><div class="print-format">{body}</div></body></html>'
 	)
-	return {
-		"html": html,
-		"template": template,
-		"sample_name": SAMPLE_PARTICIPANT_NAME,
-		"event_title": doc.event_title,
-	}
 
 
-@frappe.whitelist()
-def preview_event_certificate_pdf(event: str):
-	"""PDF twin of preview_event_certificate (same generator as earned
-	certificates). Served as a download named after the event."""
-	_require_event_admin()
-	doc, template = _build_sample_certificate(event)
+def _serve_sample_pdf(doc, template: str, filename: str):
+	"""PDF twin of the HTML preview (same generator as earned certificates),
+	served as a download."""
 	pdf_generator = frappe.db.get_value("Print Format", template, "pdf_generator") or "chrome"
 	pdf = frappe.get_print(
 		"LMS Certificate",
@@ -584,9 +583,53 @@ def preview_event_certificate_pdf(event: str):
 		as_pdf=True,
 		pdf_generator=pdf_generator,
 	)
-	frappe.local.response.filename = f"sample-certificate-{event}.pdf"
+	frappe.local.response.filename = filename
 	frappe.local.response.filecontent = pdf
 	frappe.local.response.type = "pdf"
+
+
+@frappe.whitelist()
+def preview_sample_certificate(course: str | None = None, event: str | None = None) -> dict:
+	"""Render a course's or event's certificate as a clearly marked sample,
+	through the same print format the earned certificate uses, so signers,
+	credentials, title, hours, date and format can be checked before anyone
+	earns one. Only the recipient differs.
+
+	Moderators / Global Admins only. Read-only: nothing is inserted, no
+	credit is awarded, no completion changes and no email is queued.
+	"""
+	_require_certificate_admin()
+	doc, template = _build_sample_certificate(event=event, course=course)
+	return {
+		"html": _render_sample_html(doc, template),
+		"template": template,
+		"sample_name": SAMPLE_PARTICIPANT_NAME,
+		"title": doc.event_title if event else doc.course_title,
+		"event_title": doc.event_title if event else None,
+		"course_title": doc.course_title if course else None,
+	}
+
+
+@frappe.whitelist()
+def preview_sample_certificate_pdf(course: str | None = None, event: str | None = None):
+	"""PDF twin of preview_sample_certificate, named after the course / event."""
+	_require_certificate_admin()
+	doc, template = _build_sample_certificate(event=event, course=course)
+	_serve_sample_pdf(doc, template, f"sample-certificate-{event or course}.pdf")
+
+
+@frappe.whitelist()
+def preview_event_certificate(event: str) -> dict:
+	"""Event-only entry point kept for existing callers; see
+	preview_sample_certificate."""
+	return preview_sample_certificate(event=event)
+
+
+@frappe.whitelist()
+def preview_event_certificate_pdf(event: str):
+	"""Event-only entry point kept for existing callers; see
+	preview_sample_certificate_pdf."""
+	return preview_sample_certificate_pdf(event=event)
 
 
 # --------------------------------------------------------------------------- #
