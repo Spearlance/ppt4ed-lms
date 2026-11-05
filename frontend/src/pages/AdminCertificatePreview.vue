@@ -44,6 +44,9 @@
 				<span v-if="samplePreview.data?.event_title">
 					{{ __('Event: {0}').format(samplePreview.data.event_title) }}
 				</span>
+				<span v-else-if="samplePreview.data?.course_title">
+					{{ __('Course: {0}').format(samplePreview.data.course_title) }}
+				</span>
 			</div>
 
 			<div v-if="samplePreview.error" class="text-ink-red-4 text-sm" data-testid="sample-preview-error">
@@ -83,6 +86,7 @@ import { Breadcrumbs, Button, createResource, usePageMeta } from 'frappe-ui'
 const props = defineProps({
 	certName: { type: String, default: '' },
 	eventName: { type: String, default: '' },
+	courseName: { type: String, default: '' },
 })
 
 const router = useRouter()
@@ -91,22 +95,39 @@ const printIframe = ref(null)
 
 usePageMeta({ title: 'Certificate Preview' })
 
-const isSampleMode = computed(() => Boolean(props.eventName))
+// Sample mode renders a course's or event's certificate for a placeholder
+// participant; the real-certificate mode below loads an issued LMS Certificate.
+const isSampleMode = computed(() => Boolean(props.eventName || props.courseName))
+
+const sampleParams = () => {
+	if (props.eventName) return { event: props.eventName }
+	return { course: props.courseName }
+}
 
 const samplePreview = createResource({
-	url: 'lms.lms.ceu_event_admin.preview_event_certificate',
+	url: 'lms.lms.ceu_event_admin.preview_sample_certificate',
 	makeParams() {
-		return { event: props.eventName }
+		return sampleParams()
 	},
 })
 
 const breadcrumbs = computed(() => {
-	if (isSampleMode.value) {
+	if (props.eventName) {
 		return [
 			{ label: __('Events'), route: { name: 'Events' } },
 			{
 				label: samplePreview.data?.event_title || props.eventName,
 				route: { name: 'EventDetail', params: { eventName: props.eventName } },
+			},
+			{ label: __('Sample certificate') },
+		]
+	}
+	if (props.courseName) {
+		return [
+			{ label: __('Courses'), route: { name: 'Courses' } },
+			{
+				label: samplePreview.data?.course_title || props.courseName,
+				route: { name: 'CourseDetail', params: { courseName: props.courseName } },
 			},
 			{ label: __('Sample certificate') },
 		]
@@ -142,9 +163,9 @@ const loadCertificate = () => {
 
 const downloadPdf = () => {
 	if (isSampleMode.value) {
-		const params = new URLSearchParams({ event: props.eventName })
+		const params = new URLSearchParams(sampleParams())
 		window.open(
-			`/api/method/lms.lms.ceu_event_admin.preview_event_certificate_pdf?${params.toString()}`,
+			`/api/method/lms.lms.ceu_event_admin.preview_sample_certificate_pdf?${params.toString()}`,
 			'_blank'
 		)
 		return
@@ -168,9 +189,9 @@ watch(
 )
 
 watch(
-	() => props.eventName,
-	(next) => {
-		if (next) samplePreview.reload()
+	() => [props.eventName, props.courseName],
+	([event, course]) => {
+		if (event || course) samplePreview.reload()
 	},
 	{ immediate: true }
 )

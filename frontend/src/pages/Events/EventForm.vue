@@ -224,6 +224,17 @@
 										}}
 									</div>
 									<SignerCredentials :signers="certificateSigners" />
+									<router-link
+										v-if="batchDetail.doc?.name"
+										:to="{
+											name: 'EventCertificatePreview',
+											params: { eventName: batchDetail.doc.name },
+										}"
+										target="_blank"
+										class="mt-2 inline-block text-xs text-ink-gray-7 underline"
+									>
+										{{ __('Preview sample certificate (reflects the last saved settings)') }}
+									</router-link>
 								</div>
 								<Switch
 									size="sm"
