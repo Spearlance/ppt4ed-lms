@@ -31,6 +31,20 @@
 							:placeholder="__('Search by name')"
 							type="text"
 						/>
+						<router-link
+							v-if="course.data?.enable_certification"
+							:to="{
+								name: 'CourseCertificatePreview',
+								params: { courseName: course.data?.name },
+							}"
+						>
+							<Button :label="__('Preview certificate')">
+								<template #prefix>
+									<Award class="size-4 stroke-1.5" />
+								</template>
+								{{ __('Preview certificate') }}
+							</Button>
+						</router-link>
 						<Button @click="showEnrollmentModal = true">
 							<template #prefix>
 								<Plus class="size-4 stroke-1.5" />
@@ -278,7 +292,7 @@ import {
 	Tooltip,
 } from 'frappe-ui'
 import { computed, ref, watch } from 'vue'
-import { Plus, Star } from 'lucide-vue-next'
+import { Award, Plus, Star } from 'lucide-vue-next'
 import { formatAmount } from '@/utils'
 import colors from '@/utils/frappe-ui-colors.json'
 import CourseEnrollmentModal from '@/pages/Courses/CourseEnrollmentModal.vue'

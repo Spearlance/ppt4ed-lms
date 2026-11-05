@@ -545,3 +545,64 @@ class TestCertificatePrintFormat(BaseTestUtils):
 		# An earned certificate from the same event is never watermarked.
 		cert_name = self._mint_event_cert(event)
 		self.assertNotIn("cert-sample-watermark", self._render(cert_name))
+
+	def test_course_sample_preview_matches_earned_layout_except_recipient(self):
+		from lms.lms.ceu_event_admin import SAMPLE_PARTICIPANT_NAME, _build_sample_certificate
+
+		self._set_signers(self.presenters[2].email, self.presenters[3].email)
+		frappe.db.set_value("User", self.presenters[2].email, "credentials", "PT, DPT")
+		frappe.db.set_value(
+			"LMS Course",
+			self.course.name,
+			{"show_signer_credentials": 1, "course_format": "On-Demand", "ceu_hours": 2.5},
+			update_modified=False,
+		)
+		doc, _template = _build_sample_certificate(course=self.course.name)
+		self.assertEqual(doc.course, self.course.name)
+		self.assertIsNone(doc.event_name)
+
+		html = self._render_doc(doc)
+		self.assertIn("cert-page--sample", html)
+		self.assertIn("cert-sample-watermark", html)
+		recipient = re.search(r'class="cert-recipient-name">(.*?)</div>', html).group(1)
+		self.assertEqual(recipient, SAMPLE_PARTICIPANT_NAME)
+		self.assertIn("2.5 CE Hours", html)
+		self.assertIn("On-Demand Course", html)
+		self.assertNotIn("Live Course", html)
+		self.assertEqual(self._signature_names(html), ["Presenter Number3, PT, DPT", "Presenter Number4"])
+		self.assertEqual(
+			self._additional_line(html),
+			"Additional presenters: Presenter Number1, Presenter Number2",
+		)
+		# The earned certificate renders the same signatures without the watermark.
+		earned = self._render(self.cert_name)
+		self.assertNotIn("cert-sample-watermark", earned)
+		self.assertEqual(self._signature_names(earned), self._signature_names(html))
+
+	def test_sample_preview_api_is_admin_only_and_issues_nothing(self):
+		from lms.lms.ceu_event_admin import (
+			preview_sample_certificate,
+			preview_sample_certificate_pdf,
+		)
+
+		before = frappe.db.count("LMS Certificate")
+		result = preview_sample_certificate(course=self.course.name)
+		self.assertIn("cert-sample-watermark", result["html"])
+		self.assertEqual(result["course_title"], "Cert Format Course")
+		self.assertEqual(result["title"], "Cert Format Course")
+		self.assertIsNone(result["event_title"])
+		self.assertEqual(frappe.db.count("LMS Certificate"), before)
+
+		with self.assertRaises(frappe.ValidationError):
+			preview_sample_certificate()
+		with self.assertRaises(frappe.DoesNotExistError):
+			preview_sample_certificate(course="no-such-course")
+
+		frappe.set_user(self.student.email)
+		try:
+			with self.assertRaises(frappe.PermissionError):
+				preview_sample_certificate(course=self.course.name)
+			with self.assertRaises(frappe.PermissionError):
+				preview_sample_certificate_pdf(course=self.course.name)
+		finally:
+			frappe.set_user("Administrator")

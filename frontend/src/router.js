@@ -258,6 +258,12 @@ const routes = [
 		props: true,
 	},
 	{
+		path: '/admin/certificate-preview/course/:courseName',
+		name: 'CourseCertificatePreview',
+		component: () => import('@/pages/AdminCertificatePreview.vue'),
+		props: true,
+	},
+	{
 		path: '/admin/certificate-preview/:certName',
 		name: 'CertificatePreview',
 		component: () => import('@/pages/AdminCertificatePreview.vue'),

@@ -361,6 +361,17 @@
 								}}
 							</div>
 							<SignerCredentials :signers="certificate_signers" />
+							<router-link
+								v-if="courseResource.doc?.name"
+								:to="{
+									name: 'CourseCertificatePreview',
+									params: { courseName: courseResource.doc.name },
+								}"
+								target="_blank"
+								class="mt-2 inline-block text-xs text-ink-gray-7 underline"
+							>
+								{{ __('Preview sample certificate (reflects the last saved settings)') }}
+							</router-link>
 						</div>
 					</div>
 
