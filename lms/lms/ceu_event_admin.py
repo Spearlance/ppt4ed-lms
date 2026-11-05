@@ -562,11 +562,20 @@ def _render_sample_html(doc, template: str) -> str:
 	print_format = frappe.get_doc("Print Format", template)
 	body = get_rendered_template(doc, print_format=print_format, no_letterhead=1)
 	style = get_print_style(print_format=print_format)
+	# Frappe's screen stylesheet shapes .print-format as a padded portrait
+	# Letter sheet (max-width 8.3in, min-height 11.69in, 0.75in padding). The
+	# certificate is a landscape 11in x 8.5in page, so pin the wrapper to it.
+	fit = (
+		"html,body{margin:0;padding:0;background:#fff;overflow:hidden}"
+		".print-format{width:11in!important;height:8.5in!important;max-width:none!important;"
+		"min-height:0!important;padding:0!important;margin:0!important;border-radius:0!important;"
+		"box-shadow:none!important;overflow:hidden}"
+	)
 	return (
 		'<!doctype html><html lang="en"><head><meta charset="utf-8">'
 		"<title>Sample certificate</title>"
-		f"<style>{style}</style></head>"
-		f'<body style="margin:0;background:#fff"><div class="print-format">{body}</div></body></html>'
+		f"<style>{style}</style><style>{fit}</style></head>"
+		f'<body><div class="print-format">{body}</div></body></html>'
 	)
 
 
