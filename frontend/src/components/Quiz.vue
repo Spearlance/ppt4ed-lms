@@ -906,7 +906,11 @@ const addToLocalStorage = () => {
 }
 
 const nextQuestion = () => {
-	if (questionDetails.data?.type == 'Open Ended') addToLocalStorage()
+	// Persist whatever was answered. Without immediate feedback (show_answers
+	// off) this is the only save point for Choices / User Input / Short Text
+	// answers; saving only Open Ended here dropped every other answer and the
+	// final submit carried just the last question.
+	if (getAnswers().length) addToLocalStorage()
 	markCurrentAttempted()
 	resetQuestion()
 }
@@ -921,7 +925,7 @@ const resetQuestion = () => {
 
 const submitQuiz = () => {
 	if (!quiz.data.show_answers) {
-		if (questionDetails.data.type == 'Open Ended') addToLocalStorage()
+		if (getAnswers().length) addToLocalStorage()
 		setTimeout(() => {
 			createSubmission()
 		}, 500)
