@@ -100,12 +100,26 @@ test.describe('Profile purchases', () => {
 		const receipts = panel.getByRole('link', { name: /View receipt/ })
 		await expect(receipts.first()).toBeVisible({ timeout: 15000 })
 
+		// "View receipt" is the LMS-native named receipt; Stripe's is secondary.
 		const href = await receipts.first().getAttribute('href')
-		expect(href).toMatch(/^https:..pay\.stripe\.com.receipts./)
+		expect(href).toMatch(/^\/purchase_receipt\?transaction=/)
 		expect(await receipts.first().getAttribute('target')).toBe('_blank')
 
-		// The Stripe-hosted receipt must actually resolve, not just be a link.
+		// The receipt must actually render, private and uncached, not just be a link.
 		const res = await page.request.get(href as string)
 		expect(res.status(), href as string).toBe(200)
+		expect(res.headers()['cache-control']).toContain('no-store')
+		const html = await res.text()
+		expect(html).toContain('Purchased by')
+		expect(html).toContain('Brooke')
+
+		const stripe = panel.getByRole('link', { name: 'Stripe receipt / invoice' })
+		expect(await stripe.first().getAttribute('href')).toMatch(/^https:..(pay|invoice)\.stripe\.com./)
+	})
+
+	test('a guest cannot open a receipt', async ({ page }) => {
+		const res = await page.request.get('/purchase_receipt?transaction=ch_does_not_exist')
+		expect(res.status()).toBe(403)
+		expect(res.headers()['cache-control']).toContain('no-store')
 	})
 })
