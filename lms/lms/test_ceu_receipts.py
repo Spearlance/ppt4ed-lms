@@ -66,7 +66,9 @@ class TestCEUReceipts(TestCase):
 		patch.object(frappe, "throw", side_effect=throw).start()
 		patch.object(receipts, "_", side_effect=lambda value, *args, **kwargs: value).start()
 		patch.object(transactions, "_", side_effect=lambda value, *args, **kwargs: value).start()
-		patch.object(receipts, "format_datetime", side_effect=lambda value: str(value)).start()
+		patch.object(
+			receipts, "format_datetime", side_effect=lambda value, format_string=None: str(value)
+		).start()
 		patch.object(
 			receipts, "fmt_money", side_effect=lambda value, currency=None: f"{currency} {value:,.2f}"
 		).start()
@@ -296,6 +298,8 @@ class TestCEUReceipts(TestCase):
 		self.assertIn("&lt;script&gt;", html)
 		self.assertIn("@media print", html)
 		self.assertIn("window.print()", html)
+		self.assertIn("Not itemized", html)
+		self.assertNotIn("—", html)
 		self.assertIn('<meta name="referrer" content="no-referrer">', html)
 
 	def test_response_headers_on_success_and_denial(self):

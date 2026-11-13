@@ -50,7 +50,7 @@
 		<tbody>
 		{% for line in receipt.lines %}
 			<tr><td>{{ line.title | e }}{% if line.is_upsell %} <span class="note">({{ _("Add-on") }})</span>{% endif %}</td>
-				<td>{{ (line.amount_display or "—") | e }}</td></tr>
+				<td>{{ (line.amount_display or _("Not itemized")) | e }}</td></tr>
 		{% endfor %}
 		</tbody>
 	</table>

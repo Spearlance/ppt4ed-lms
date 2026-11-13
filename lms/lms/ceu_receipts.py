@@ -103,7 +103,7 @@ def get_purchase_receipt(transaction):
 		"name_missing": not full_name,
 		"provider": "PPT4Ed",
 		"reference": row.name,
-		"purchase_date": format_datetime(row.transaction_date),
+		"purchase_date": format_datetime(row.transaction_date, "MMM d, yyyy h:mm a"),
 		"currency": currency,
 		"status": _("Refunded")
 		if refunded == gross and refunded > 0
