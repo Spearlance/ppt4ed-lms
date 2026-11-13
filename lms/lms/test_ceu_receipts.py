@@ -296,6 +296,7 @@ class TestCEUReceipts(TestCase):
 		self.assertIn("&lt;script&gt;", html)
 		self.assertIn("@media print", html)
 		self.assertIn("window.print()", html)
+		self.assertIn('<meta name="referrer" content="no-referrer">', html)
 
 	def test_response_headers_on_success_and_denial(self):
 		for code in (200, 403, 404, 500):
