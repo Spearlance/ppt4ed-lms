@@ -152,6 +152,7 @@ def _attach_order_lines(rows):
                 p.payment_for_document_type AS item_type,
                 p.payment_for_document AS item,
                 p.amount,
+                p.currency,
                 p.is_upsell,
                 p.upsell_type,
                 COALESCE(c.title, e.title, p.payment_for_document) AS title
@@ -208,6 +209,7 @@ def _attach_order_lines(rows):
                 "item_type": p.item_type,
                 "item": p.item,
                 "amount": flt(p.amount),
+                "currency": p.currency,
                 "is_upsell": cint(p.is_upsell),
                 "upsell_type": p.upsell_type,
             }

@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta name="robots" content="noindex, nofollow, noarchive">
+	<meta name="referrer" content="no-referrer">
+	<title>{{ _("Purchase receipt") }} · PPT4Ed</title>
+	<style>
+		@font-face { font-family: Montserrat; src: url('/assets/lms/fonts/montserrat.woff2') format('woff2'); font-weight: 100 900; font-display: swap; }
+		/* PPT brand tokens: ppt-nav-teal, ppt-text, ppt-body-text, ppt-body. */
+		body { font-family: Montserrat, sans-serif; line-height: 1.5; color: #222222; margin: 0; }
+		main { max-width: 48rem; margin: 2rem auto; padding: 2rem; }
+		h1, h2 { color: #0a6685; }
+		h1 { margin-bottom: 0; }
+		.meta, .note { color: #545454; }
+		dl { display: grid; grid-template-columns: 10rem minmax(0, 1fr); gap: .5rem 1rem; }
+		dd { margin: 0; overflow-wrap: anywhere; }
+		table { width: 100%; border-collapse: collapse; margin: 2rem 0; }
+		th, td { text-align: left; padding: .75rem 0; border-bottom: 1px solid #d9f2f7; }
+		th:last-child, td:last-child { text-align: right; }
+		.totals { margin-left: auto; max-width: 28rem; }
+		.totals p { display: flex; justify-content: space-between; gap: 1rem; }
+		button { font: inherit; cursor: pointer; border: 1px solid #0a6685; color: #0a6685; background: white; padding: .5rem 1rem; }
+		@media (max-width: 540px) { main { margin: 0; padding: 1rem; } dl { grid-template-columns: 1fr; } }
+		@media print {
+			@page { margin: 15mm; }
+			main { margin: 0; padding: 0; max-width: none; }
+			.no-print { display: none; }
+			thead { display: table-header-group; }
+			tr, .totals, dl { break-inside: avoid; }
+		}
+	</style>
+</head>
+<body>
+<main>
+	<div class="no-print"><button type="button" onclick="window.print()">{{ _("Print / Save PDF") }}</button></div>
+	<header><h1>PPT4Ed</h1><p class="meta">{{ _("Purchase receipt") }}</p></header>
+	<h2>{{ receipt.status | e }}</h2>
+	<dl>
+		<dt>{{ _("Provider") }}</dt><dd>{{ receipt.provider | e }}</dd>
+		<dt>{{ _("Purchased by") }}</dt><dd>{{ receipt.buyer_name | e }}</dd>
+		<dt>{{ _("Purchase date") }}</dt><dd>{{ receipt.purchase_date | e }}</dd>
+		<dt>{{ _("Reference") }}</dt><dd>{{ receipt.reference | e }}</dd>
+		<dt>{{ _("Currency") }}</dt><dd>{{ receipt.currency | e }}</dd>
+	</dl>
+	{% if receipt.name_missing %}<p class="note">{{ _("A full name was not recorded. Please update your profile or contact PPT4Ed for help.") }}</p>{% endif %}
+	<table>
+		<thead><tr><th scope="col">{{ _("Purchased item") }}</th><th scope="col">{{ _("Amount paid") }}</th></tr></thead>
+		<tbody>
+		{% for line in receipt.lines %}
+			<tr><td>{{ line.title | e }}{% if line.is_upsell %} <span class="note">({{ _("Add-on") }})</span>{% endif %}</td>
+				<td>{{ (line.amount_display or _("Not itemized")) | e }}</td></tr>
+		{% endfor %}
+		</tbody>
+	</table>
+	{% if receipt.allocation_unavailable %}<p class="note">{{ _("Item-level paid amounts are unavailable for this purchase. The total below is the recorded payment; no per-item allocation has been estimated.") }}</p>{% endif %}
+	<div class="totals">
+		<p><strong>{{ _("Original amount paid") }}</strong><strong>{{ receipt.paid_display | e }} {{ receipt.currency | e }}</strong></p>
+		{% if receipt.has_refund %}
+		<p><span>{{ _("Refunded") }}</span><span>{{ receipt.refunded_display | e }} {{ receipt.currency | e }}</span></p>
+		<p><strong>{{ _("Amount after refunds") }}</strong><strong>{{ receipt.remaining_display | e }} {{ receipt.currency | e }}</strong></p>
+		{% endif %}
+	</div>
+	<p class="note">{{ _("Payment and refunds reflect the latest synced payment record. This is not a request for payment.") }}</p>
+</main>
+</body>
+</html>

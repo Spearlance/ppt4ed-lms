@@ -563,9 +563,9 @@ def get_member_purchases(member: str | None = None) -> list[dict]:
     """Purchase history for the Profile > Purchases tab.
 
     A member only ever sees their own rows; admins may pass another member.
-    Rows are read with get_all because learners have no read permission on
-    CEU Transaction (the admin money report must stay admin-only), and the
-    member filter is what scopes the data.
+    Learners have no DocType read permission on CEU Transaction (the money
+    report stays admin-only). The explicit buyer filter scopes this read,
+    including legacy email-only rows, without exposing a different payer.
     """
     user = frappe.session.user
     if not user or user == "Guest":
@@ -575,13 +575,18 @@ def get_member_purchases(member: str | None = None) -> list[dict]:
     if member != user:
         _require_admin()
 
-    rows = frappe.get_all(
-        "CEU Transaction",
-        filters={"status": ["!=", "Failed"]},
-        or_filters=[["member", "=", member], ["customer_email", "=", member]],
-        fields=PURCHASE_FIELDS,
-        order_by="transaction_date desc",
-        limit=200,
+    # Linked buyer wins over billing email. Only unlinked historical rows may
+    # fall back to customer_email; otherwise a different payer could see the
+    # linked buyer's purchases. Keep this aligned with ceu_receipts ownership.
+    fields = ", ".join(f"t.`{field}`" for field in PURCHASE_FIELDS)
+    rows = frappe.db.sql(
+        f"""SELECT {fields} FROM `tabCEU Transaction` t
+        WHERE t.status IN ('Succeeded', 'Partially Refunded', 'Refunded')
+          AND (t.member = %(member)s OR
+               (COALESCE(t.member, '') = '' AND t.customer_email = %(member)s))
+        ORDER BY t.transaction_date DESC""",
+        {"member": member},
+        as_dict=True,
     )
 
     # Rows synced before receipt_url existed get resolved on first view, a

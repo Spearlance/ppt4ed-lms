@@ -33,8 +33,10 @@ export default defineConfig(async ({ mode }) => {
 					globPatterns: ['**/*.{js,ts,css,html,svg}'],
 					runtimeCaching: [
 						{
-							urlPattern: ({ request }) =>
-								request.destination === 'document',
+							urlPattern: ({ request, url }) =>
+								request.destination === 'document' &&
+								url.pathname.replace(/\/$/, '') !==
+									'/purchase_receipt',
 							handler: 'NetworkFirst',
 							options: {
 								cacheName: 'html-cache',
