@@ -293,7 +293,9 @@ class TestCEUReceipts(TestCase):
 
 	def test_service_worker_excludes_private_receipt_documents(self):
 		config = Path(__file__).parents[2] / "frontend" / "vite.config.js"
-		self.assertIn("url.pathname.replace(/\\/$/, '') !== '/purchase_receipt'", " ".join(config.read_text().split()))
+		self.assertIn(
+			"url.pathname.replace(/\\/$/, '') !== '/purchase_receipt'", " ".join(config.read_text().split())
+		)
 
 	def test_controller_disables_website_cache_and_sitemap(self):
 		with patch.object(frappe, "form_dict", {"transaction": self.row.name}):
