@@ -21,6 +21,8 @@ def get_lms_path():
 	return path.strip("/")
 
 
+after_request = ["lms.lms.ceu_receipts.receipt_response_headers"]
+
 # Includes in <head>
 # ------------------
 

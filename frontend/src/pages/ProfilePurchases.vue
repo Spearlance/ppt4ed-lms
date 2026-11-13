@@ -55,19 +55,26 @@
 						</td>
 						<td class="py-2.5 text-right whitespace-nowrap">
 							<a
-								v-if="row.receipt_url"
-								:href="row.receipt_url"
+								:href="`/purchase_receipt?transaction=${encodeURIComponent(
+									row.name
+								)}`"
 								target="_blank"
-								rel="noopener"
+								rel="noopener noreferrer"
 								:aria-label="`${__('View receipt')} ${row.title}`"
 								class="inline-flex items-center gap-1 text-ink-gray-7 hover:text-ink-gray-9 hover:underline"
 							>
 								<FileText class="size-4 stroke-1.5" />
 								{{ __('View receipt') }}
 							</a>
-							<span v-else class="text-xs text-ink-gray-5">
-								{{ __('Not available') }}
-							</span>
+							<a
+								v-if="row.receipt_url"
+								:href="row.receipt_url"
+								target="_blank"
+								rel="noopener noreferrer"
+								class="block text-xs text-ink-gray-5 hover:underline"
+							>
+								{{ __('Stripe receipt / invoice') }}
+							</a>
 						</td>
 					</tr>
 				</tbody>
@@ -75,7 +82,7 @@
 			<p class="mt-3 text-xs text-ink-gray-5">
 				{{
 					__(
-						'Receipts open on Stripe, our payment processor. Use the print or download option on that page to save a copy.'
+						'Receipts include your profile name and purchased items. Use Print / Save PDF on the receipt to save a copy.'
 					)
 				}}
 			</p>
