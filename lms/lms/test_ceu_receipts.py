@@ -53,8 +53,18 @@ class TestCEUReceipts(TestCase):
 		self.user = patch.object(frappe, "session", SimpleNamespace(user=BUYER))
 		self.user.start()
 		self.addCleanup(self.user.stop)
-		self.db = patch.object(frappe.db, "get_value", side_effect=self.get_value).start()
+		# Locale/number formatting is not this unit's dependency. Frappe 16
+		# lazily reads Language/DocType/System Settings while translating or
+		# formatting; isolate those helpers before installing strict DB mocks.
 		self.addCleanup(patch.stopall)
+		patch.object(frappe, "_", side_effect=lambda value, *args, **kwargs: value).start()
+		patch.object(receipts, "_", side_effect=lambda value, *args, **kwargs: value).start()
+		patch.object(transactions, "_", side_effect=lambda value, *args, **kwargs: value).start()
+		patch.object(receipts, "format_datetime", side_effect=lambda value: str(value)).start()
+		patch.object(
+			receipts, "fmt_money", side_effect=lambda value, currency=None: f"{currency} {value:,.2f}"
+		).start()
+		self.db = patch.object(frappe.db, "get_value", side_effect=self.get_value).start()
 		self.admin = patch.object(receipts, "_require_admin", side_effect=frappe.PermissionError).start()
 		self.lookup = patch.object(receipts, "_member_for_email", return_value=BUYER).start()
 		self.title = patch.object(
