@@ -57,7 +57,13 @@ class TestCEUReceipts(TestCase):
 		# lazily reads Language/DocType/System Settings while translating or
 		# formatting; isolate those helpers before installing strict DB mocks.
 		self.addCleanup(patch.stopall)
-		patch.object(frappe, "_", side_effect=lambda value, *args, **kwargs: value).start()
+
+		def throw(message, exc=frappe.ValidationError, *args, **kwargs):
+			raise exc(message)
+
+		# Message-dialog rendering imports its own translation alias on v16.
+		# Test permission/validation outcomes, not msgprint's locale/UI plumbing.
+		patch.object(frappe, "throw", side_effect=throw).start()
 		patch.object(receipts, "_", side_effect=lambda value, *args, **kwargs: value).start()
 		patch.object(transactions, "_", side_effect=lambda value, *args, **kwargs: value).start()
 		patch.object(receipts, "format_datetime", side_effect=lambda value: str(value)).start()
