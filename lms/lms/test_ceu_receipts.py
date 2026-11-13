@@ -226,8 +226,28 @@ class TestCEUReceipts(TestCase):
 		self.assertIn("120", result["paid_display"])
 
 	def test_mixed_currency_amounts_never_reconcile(self):
-		self.lines = [line(amount=120, currency="EUR")]
+		self.lines = [line(amount=100, currency="EUR"), line("Garrett Test Add-on", 20)]
 		self.assertTrue(self.receipt()["allocation_unavailable"])
+
+	def test_single_item_shows_recorded_charge_not_list_price(self):
+		# Coupon purchase: LMS Payment holds 129, Stripe charged 120.
+		self.lines = [line(amount=129)]
+		result = self.receipt()
+		self.assertFalse(result["allocation_unavailable"])
+		self.assertIn("120", result["lines"][0]["amount_display"])
+		self.assertNotIn("129", result["lines"][0]["amount_display"])
+
+	def test_owner_match_ignores_email_case(self):
+		self.db.side_effect = lambda doctype, *args, **kwargs: (
+			deepcopy(self.row) if doctype == "CEU Transaction" else self.profile
+		)
+		self.row.member ="Garrett-Test-Receipt@Example.com"
+		self.assertEqual(self.receipt()["buyer_name"], "Garrett Receipt Test")
+		self.admin.assert_not_called()
+		self.row.member = None
+		self.row.customer_email = "GARRETT-TEST-RECEIPT@EXAMPLE.COM"
+		self.assertEqual(self.receipt()["buyer_name"], "Garrett Receipt Test")
+		self.admin.assert_not_called()
 
 	def test_decimal_sums_are_not_float_comparisons(self):
 		self.row.gross_amount = 0.3
@@ -239,7 +259,7 @@ class TestCEUReceipts(TestCase):
 		self.row.item_type = "LMS Event"
 		result = self.receipt()
 		self.assertEqual(result["lines"][0]["title"], "Garrett Test Historical Event")
-		self.assertIsNone(result["lines"][0]["amount_display"])
+		self.assertIn("120", result["lines"][0]["amount_display"])
 
 	def test_historical_invoice_receipt_does_not_require_charge_or_stripe_url(self):
 		self.row.name = "in_garrett_test_legacy"
@@ -284,8 +304,8 @@ class TestCEUReceipts(TestCase):
 
 	def test_escaped_names_items_references_in_printable_template(self):
 		self.profile.first_name = '<script>alert("buyer")</script>'
-		self.row.item_title = '<img src=x onerror="alert(1)">'
-		self.row.name = '<script>alert("reference")</script>'
+		self.lines = [line('<img src=x onerror="alert(1)">', 129), line("Garrett Test Add-on", 20)]
+		self.row.name ='<script>alert("reference")</script>'
 		result = self.receipt()
 		template = Path(__file__).parents[1] / "www" / "purchase_receipt.html"
 		html = (

@@ -21,7 +21,11 @@ def _require_login():
 
 def _owns_transaction(row, user):
 	# A linked buyer takes precedence over a different payer/billing email.
-	return row.get("member") == user if row.get("member") else row.get("customer_email") == user
+	# Compare case-insensitively: the Purchases list matches in SQL (ci collation)
+	# and Stripe-cased emails are stored as synced, so an exact match here would
+	# list a row and then deny its own receipt.
+	owner = str(row.get("member") or row.get("customer_email") or "").strip().lower()
+	return bool(owner) and owner == str(user or "").strip().lower()
 
 
 def _money(value):
@@ -98,6 +102,15 @@ def get_purchase_receipt(transaction):
 		]
 		# A legacy row describes the purchase but cannot prove item-level allocation.
 
+	# One item on one charge needs no allocation: the recorded charge is what
+	# was paid for it (after any coupon). Only multi-item orders stay unitemized.
+	single = len(lines) == 1
+
+	def line_amount(line):
+		if reconciled:
+			return display(_money(line["amount"]))
+		return display(gross) if single else None
+
 	return {
 		"buyer_name": full_name or _("Name not recorded"),
 		"name_missing": not full_name,
@@ -112,11 +125,11 @@ def get_purchase_receipt(transaction):
 			{
 				"title": line["title"],
 				"is_upsell": bool(line.get("is_upsell")),
-				"amount_display": display(_money(line["amount"])) if reconciled else None,
+				"amount_display": line_amount(line),
 			}
 			for line in lines
 		],
-		"allocation_unavailable": not reconciled,
+		"allocation_unavailable": not reconciled and not single,
 		"paid_display": display(gross),
 		"refunded_display": display(refunded),
 		"remaining_display": display(gross - refunded),
