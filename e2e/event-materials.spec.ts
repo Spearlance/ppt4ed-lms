@@ -22,9 +22,9 @@ const STUDENT_EMAIL = 'pro@test.com'
 const STAMP = Date.now().toString(36)
 const TITLE = `E2E Materials ${STAMP}`
 const PDF_FILE =
-	process.env.MATERIALS_PDF || path.join(__dirname, 'fixtures', 'event-material.pdf')
+	process.env.MATERIALS_PDF || path.resolve('e2e', 'fixtures', 'event-material.pdf')
 const IMAGE_FILE =
-	process.env.MATERIALS_IMAGE || path.join(__dirname, 'fixtures', 'event-material.png')
+	process.env.MATERIALS_IMAGE || path.resolve('e2e', 'fixtures', 'event-material.png')
 const SHOTS = process.env.MATERIALS_SHOTS || ''
 const VIEW = '/api/method/lms.lms.event_materials.view_event_material'
 
