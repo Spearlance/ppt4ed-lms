@@ -4,11 +4,13 @@ Covers the access gate (registrants + admins only), the admin add / rename /
 reorder / delete endpoints, inline vs attachment serving, and file cleanup.
 """
 
+from io import BytesIO
 from unittest.mock import patch
 
 import frappe
 from frappe.tests import UnitTestCase
 from frappe.utils import add_days, today
+from pypdf import PdfWriter
 
 from lms.lms.event_materials import (
 	add_event_material,
@@ -25,7 +27,19 @@ REG_MODULE = "lms.lms.doctype.lms_event_registration.lms_event_registration"
 TITLE_PREFIX = "Garrett Test Event Materials"
 ATTENDEE = "garrett.test.materials1@example.com"
 OUTSIDER = "garrett.test.materials2@example.com"
-PDF_BYTES = b"%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF\n"
+
+
+def _blank_pdf():
+	# Frappe parses every uploaded PDF (to reject embedded JavaScript), so the
+	# fixture has to be a real document.
+	writer = PdfWriter()
+	writer.add_blank_page(width=200, height=200)
+	buffer = BytesIO()
+	writer.write(buffer)
+	return buffer.getvalue()
+
+
+PDF_BYTES = _blank_pdf()
 
 
 class TestEventMaterials(UnitTestCase):
