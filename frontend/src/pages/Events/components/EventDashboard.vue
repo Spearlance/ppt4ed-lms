@@ -106,6 +106,28 @@
 					</router-link>
 				</div>
 				<div
+					v-if="batch.data?.materials_count > 0"
+					class="mb-8 flex items-center justify-between gap-4 rounded-lg border border-outline-gray-2 bg-surface-gray-1 p-4"
+					data-testid="materials-banner"
+				>
+					<div>
+						<div class="text-base font-semibold text-ink-gray-9">
+							{{ __('Event materials') }}
+						</div>
+						<div class="text-sm text-ink-gray-7">
+							{{ __('Slides, handouts and forms from this event.') }}
+						</div>
+					</div>
+					<router-link :to="{ hash: '#materials' }" replace>
+						<Button>
+							<template #prefix>
+								<FileText class="size-4 stroke-1.5" />
+							</template>
+							{{ __('View materials') }}
+						</Button>
+					</router-link>
+				</div>
+				<div
 					v-if="showCreditProgress"
 					class="mb-8 rounded-lg border border-outline-gray-2 p-4"
 					data-testid="credit-progress"
@@ -239,7 +261,13 @@ import {
 	ListRow,
 	ListRowItem,
 } from 'frappe-ui'
-import { ClipboardCheck, ClipboardList, Clock, Video } from 'lucide-vue-next'
+import {
+	ClipboardCheck,
+	ClipboardList,
+	Clock,
+	FileText,
+	Video,
+} from 'lucide-vue-next'
 import { formatTime } from '@/utils'
 
 const user = inject('$user')

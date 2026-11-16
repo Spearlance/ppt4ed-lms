@@ -1629,6 +1629,15 @@ def get_event_details(batch: str):
 	elif is_student_enrolled:
 		event_details.students = [frappe.session.user]
 
+	# Handouts are for admins and registered attendees only; the count lets
+	# the frontend decide whether to show the Materials tab.
+	if is_batch_admin or is_student_enrolled:
+		from lms.lms.event_materials import count_event_materials
+
+		event_details.materials_count = count_event_materials(batch)
+	else:
+		event_details.materials_count = 0
+
 	if event_details.paid_event and event_details.start_date >= getdate():
 		event_details.amount, event_details.currency = check_multicurrency(
 			event_details.amount, event_details.currency, None, event_details.amount_usd

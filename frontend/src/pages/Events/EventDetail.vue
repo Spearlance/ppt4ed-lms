@@ -90,6 +90,7 @@ import {
 	ClipboardList,
 	ClipboardPen,
 	EllipsisVertical,
+	FileText,
 	Link2,
 	List,
 	Mail,
@@ -118,6 +119,7 @@ import Announcements from '@/pages/Events/components/Announcements.vue'
 import AnnouncementModal from '@/pages/Events/components/AnnouncementModal.vue'
 import EventSurvey from '@/pages/Events/components/EventSurvey.vue'
 import EventQuiz from '@/pages/Events/components/EventQuiz.vue'
+import EventMaterials from '@/pages/Events/components/EventMaterials.vue'
 import EventSurveyQRModal from '@/pages/Events/components/EventSurveyQRModal.vue'
 import EventForm from '@/pages/Events/EventForm.vue'
 
@@ -212,6 +214,15 @@ const updateTabs = () => {
 		addToTabs('Dashboard', markRaw(StudentEventDashboard), ClipboardPen)
 	}
 	addToTabs('Announcements', markRaw(Announcements), Mail)
+	// Handouts: admins always get the tab (it is where they upload);
+	// attendees get it once there is something to open.
+	if (
+		isAdmin.value ||
+		canMakeAnnouncement() ||
+		(isStudent.value && batch.data?.materials_count > 0)
+	) {
+		addToTabs('Materials', markRaw(EventMaterials), FileText)
+	}
 	if (
 		batch.data?.survey_quiz &&
 		(isAdmin.value || (isStudent.value && batch.data?.survey_open))
