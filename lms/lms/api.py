@@ -1516,21 +1516,72 @@ def delete_course(course: str):
 	frappe.delete_doc("LMS Course", course)
 
 
-@frappe.whitelist()
-def delete_batch(batch: str):
-	if not can_modify_event(batch):
+# Records that mean real people or money are attached to an event. An event
+# with any of these can never be deleted; it has to be unpublished instead.
+EVENT_DELETE_BLOCKERS = (
+	("LMS Event Registration", {"event": "{event}"}, "registered attendee(s)"),
+	(
+		"LMS Payment",
+		{"payment_for_document_type": "LMS Event", "payment_for_document": "{event}"},
+		"payment record(s)",
+	),
+	("LMS Certificate", {"event_name": "{event}"}, "issued certificate(s)"),
+	("LMS Certificate Request", {"event_name": "{event}"}, "certificate request(s)"),
+	("LMS Quiz Submission", {"event_name": "{event}"}, "quiz or survey submission(s)"),
+	("LMS Enrollment", {"enrollment_from_event": "{event}"}, "course enrollment(s)"),
+	("LMS Live Class", {"event_name": "{event}"}, "live class(es)"),
+	("LMS Upsell Offer", {"original_event": "{event}"}, "upsell offer(s)"),
+)
+
+
+def get_event_delete_blockers(event: str) -> list[str]:
+	"""Human-readable reasons this event must not be deleted (empty = safe)."""
+	blockers = []
+	for doctype, filters, label in EVENT_DELETE_BLOCKERS:
+		if not frappe.db.table_exists(doctype):
+			continue
+		resolved = {key: (event if value == "{event}" else value) for key, value in filters.items()}
+		count = frappe.db.count(doctype, resolved)
+		if count:
+			blockers.append(f"{count} {label}")
+	return blockers
+
+
+@frappe.whitelist(methods=["POST"])
+def delete_event(event: str):
+	"""Delete an event that nobody has registered for, paid for or earned
+	anything from. Anything with attendee data is refused outright, so a
+	stray click can never wipe a real event's roster."""
+	if frappe.session.user == "Guest" or not can_modify_event(event):
 		frappe.throw(_("You do not have permission to delete this event."), frappe.PermissionError)
 
-	frappe.db.delete("LMS Event Registration", {"event": batch})
-	frappe.db.delete("Batch Course", {"parent": batch, "parenttype": "LMS Event"})
-	frappe.db.delete("LMS Assessment", {"parent": batch, "parenttype": "LMS Event"})
-	frappe.db.delete("LMS Batch Timetable", {"parent": batch, "parenttype": "LMS Event"})
-	frappe.db.delete("LMS Batch Feedback", {"batch": batch})
+	# Lock the row so a registration cannot land between the check and the delete.
+	if not frappe.db.get_value("LMS Event", event, "name", for_update=True):
+		frappe.throw(_("Event not found."), frappe.DoesNotExistError)
+
+	blockers = get_event_delete_blockers(event)
+	if blockers:
+		frappe.throw(
+			_("This event cannot be deleted because it has {0}. Unpublish it instead to hide it.").format(
+				", ".join(blockers)
+			),
+			title=_("Event has attendee data"),
+		)
+
 	from lms.lms.event_materials import delete_materials_for_event
 
-	delete_materials_for_event(batch)
-	delete_batch_discussions(batch)
-	frappe.db.delete("LMS Event", batch)
+	delete_materials_for_event(event)
+	delete_batch_discussions(event)
+	# delete_doc (not a raw SQL delete) removes the child tables and re-checks
+	# every remaining link, so an unanticipated reference also stops the delete.
+	frappe.delete_doc("LMS Event", event, ignore_permissions=True)
+	return event
+
+
+@frappe.whitelist(methods=["POST"])
+def delete_batch(batch: str):
+	"""Legacy name; same guarded behaviour as delete_event."""
+	return delete_event(batch)
 
 
 def delete_batch_discussions(batch: str):
