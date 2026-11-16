@@ -778,9 +778,9 @@ const updateEvent = () => {
 
 const deleteEvent = () => {
 	$dialog({
-		title: __('Confirm your action to delete'),
+		title: __('Delete this event?'),
 		message: __(
-			'Deleting this event will also delete all its data including enrolled students, linked courses, assessments, feedback and discussions. Are you sure you want to continue?'
+			'This permanently deletes the event, its materials and its discussions. Events that have registrations, payments or certificates cannot be deleted. Unpublish those instead.'
 		),
 		actions: [
 			{
@@ -788,8 +788,7 @@ const deleteEvent = () => {
 				theme: 'red',
 				variant: 'solid',
 				onClick({ close }) {
-					trashEvent(close)
-					close()
+					return trashEvent(close)
 				},
 			},
 		],
@@ -797,15 +796,23 @@ const deleteEvent = () => {
 }
 
 const trashEvent = (close) => {
-	call('lms.lms.api.delete_event', {
+	return call('lms.lms.api.delete_event', {
 		event: props.batch.data.name,
-	}).then(() => {
-		toast.success(__('Event deleted successfully'))
-		close()
-		router.push({
-			name: 'Events',
-		})
 	})
+		.then(() => {
+			toast.success(__('Event deleted successfully'))
+			close()
+			router.push({
+				name: 'Events',
+			})
+		})
+		.catch((error) => {
+			close()
+			toast.error(
+				error?.messages?.[0] ||
+					__('This event could not be deleted. Nothing was changed.')
+			)
+		})
 }
 
 const conferencingOptions = computed(() => {
