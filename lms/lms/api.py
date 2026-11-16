@@ -1526,6 +1526,9 @@ def delete_batch(batch: str):
 	frappe.db.delete("LMS Assessment", {"parent": batch, "parenttype": "LMS Event"})
 	frappe.db.delete("LMS Batch Timetable", {"parent": batch, "parenttype": "LMS Event"})
 	frappe.db.delete("LMS Batch Feedback", {"batch": batch})
+	from lms.lms.event_materials import delete_materials_for_event
+
+	delete_materials_for_event(batch)
 	delete_batch_discussions(batch)
 	frappe.db.delete("LMS Event", batch)
 
