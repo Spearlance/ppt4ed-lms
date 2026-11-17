@@ -24,6 +24,17 @@
 		</template>
 		<template #body-content>
 			<div class="text-base">
+				<div
+					v-if="!isOwnProfile"
+					data-testid="editing-other-profile"
+					class="mb-5 rounded-md bg-surface-amber-1 px-3 py-2 text-sm text-ink-amber-3"
+				>
+					{{
+						__(
+							'You are editing the profile of {0}. Changes are saved to their account.'
+						).format(props.profile.data?.full_name || '')
+					}}
+				</div>
 				<div class="grid grid-cols-2 gap-10">
 					<div class="space-y-4">
 						<div class="space-y-4">
@@ -150,14 +161,16 @@ import {
 	TextEditor,
 	toast,
 } from 'frappe-ui'
-import { ref, reactive, watch } from 'vue'
+import { computed, ref, reactive, watch } from 'vue'
 import { sanitizeHTML } from '@/utils'
+import { usersStore } from '@/stores/user'
 import Link from '@/components/Controls/Link.vue'
 
 const show = defineModel()
 const reloadProfile = defineModel('reloadProfile')
 const hasLanguageChanged = ref(false)
 const isDirty = ref(false)
+const { userResource } = usersStore()
 
 const props = defineProps({
 	profile: {
@@ -165,6 +178,13 @@ const props = defineProps({
 		required: true,
 	},
 })
+
+// Admins can open this dialog on someone else's profile.
+const isOwnProfile = computed(
+	() =>
+		!props.profile.data?.name ||
+		userResource.data?.email === props.profile.data.name
+)
 
 const profile = reactive({
 	first_name: '',
@@ -203,19 +223,13 @@ const notificationAudienceOptions = [
 ]
 
 const updateProfile = createResource({
-	url: 'frappe.client.set_value',
-	makeParams(values) {
+	url: 'lms.lms.profile.update_profile',
+	makeParams() {
+		const { image, ...fields } = profile
 		return {
-			doctype: 'User',
-			name: props.profile.data.name,
-			fieldname: {
-				user_image: profile.image || null,
-				...profile,
-			},
+			user: props.profile.data.name,
+			fields: { ...fields, user_image: image || '' },
 		}
-	},
-	onSuccess(data) {
-		props.profile.data = data
 	},
 })
 
@@ -244,10 +258,11 @@ const saveProfile = () => {
 			onSuccess() {
 				show.value = false
 				reloadProfile.value.reload()
-				if (hasLanguageChanged.value) {
-					hasLanguageChanged.value = false
-					window.location.reload()
-				}
+				toast.success(__('Profile saved'))
+				// A language change only affects the page for the person it belongs to.
+				const reloadPage = hasLanguageChanged.value && isOwnProfile.value
+				hasLanguageChanged.value = false
+				if (reloadPage) window.location.reload()
 			},
 			onError(err) {
 				toast.error(err.messages?.[0] || err)
