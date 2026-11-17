@@ -271,6 +271,15 @@ const saveProfile = () => {
 	)
 }
 
+// An empty field is null on the server and '' in the form, and the editor
+// turns an empty bio into an empty paragraph. None of those is an edit.
+const normalize = (key, value) => {
+	const text = value == null ? '' : String(value)
+	if (key === 'bio' && !text.replace(/<[^>]*>/g, '').trim()) return ''
+	return text
+}
+const sameValue = (key, a, b) => normalize(key, a) === normalize(key, b)
+
 watch(
 	() => profile,
 	(newVal) => {
@@ -278,12 +287,12 @@ watch(
 		let keys = Object.keys(newVal)
 		keys.splice(keys.indexOf('image'), 1)
 		for (let key of keys) {
-			if (newVal[key] !== props.profile.data[key]) {
+			if (!sameValue(key, newVal[key], props.profile.data[key])) {
 				isDirty.value = true
 				return
 			}
 		}
-		if (profile.image !== props.profile.data.user_image) {
+		if (!sameValue('image', profile.image, props.profile.data.user_image)) {
 			isDirty.value = true
 			return
 		}
