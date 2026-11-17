@@ -103,8 +103,12 @@ test.describe('Admin edits another profile', () => {
 
 		const dialog = page.getByRole('dialog')
 		await expect(dialog.getByTestId('editing-other-profile')).toBeVisible()
+		// Nothing has been changed yet, so nothing is pending.
+		await page.waitForTimeout(1500)
+		await expect(dialog.getByText('Not Saved')).toHaveCount(0)
 		const headline = dialog.getByLabel('Headline')
 		await headline.fill(HEADLINE)
+		await expect(dialog.getByText('Not Saved')).toBeVisible()
 		await dialog.getByRole('button', { name: 'Save', exact: true }).click()
 
 		await expect(dialog).toBeHidden({ timeout: 15000 })
