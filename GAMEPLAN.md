@@ -7,8 +7,16 @@ and using the writeup below as the briefing.
 
 ## Queued — Event quiz + survey certification (Teresa, 2026-11-04 meeting)
 
-**Status:** PR #240 MERGED to `develop` (70360faf) and deployed to dev on 2026-11-04. Not on prod.
-Dev bind-mount is back on `develop`. Next: `/deploy-prod` once Teresa signs off on the dev walkthrough.
+**Status:** LIVE ON PROD 2026-11-05. PR #240 + follow-ups PR #241 merged to `develop`
+(680930c3), released to `main` via PR #242 (efc557ae). Prod backup before migrate:
+`20261105_090006`. Backfill patch ran; dev bind-mount on `develop`.
+
+**Still open (not code):** Turtlebrace event on prod has NO survey attached, so
+`require_survey_for_credit` stayed 0 after the backfill and a quiz pass alone mints
+the certificate. Also no Certificate Signers chosen (1 instructor: Mary), credentials
+toggle already ON. Event date configured as Sat 2026-11-07, 8:00–15:30, 6.0 CEU,
+quiz passing 80%, unlimited attempts, 28 registrations, 0 certs. Teresa decisions:
+attach final survey + flip the flag, pick signers, confirm date, confirm answer key.
 
 **Full plan:** `docs/plans/2026-11-04-event-quiz-survey-certification.md`
 
@@ -17,6 +25,35 @@ credentials toggle, idempotent mint). New code = explicit "Require survey for
 course credit" flag + backfill patch, sample certificate preview endpoint/UI,
 signer-credentials admin edit, Live-format/event-date lines on the cert, tests.
 Turtlebrace event lives on prod (not dev); read-only verification checklist in §5.
+
+---
+
+## Queued — Small admin asks (Garrett, 2026-11-05)
+
+**Receipts: include the buyer's first and last name.** DONE. PRs #248-#249, live on
+prod 2026-11-13 via #250.
+
+**Admins can edit other people's profiles (instructors first).** Built 2026-11-17 on
+`feat/admin-edit-profiles`: Edit Profile shows for LMS admins on any profile and saves
+through `lms.lms.profile.update_profile` (self or admin; only the dialog's fields are
+writable, never email, roles, password or account status). Cover image is still
+self-only. See the PR for deploy status.
+
+---
+
+## Queued — Event follow-ups (Garrett, 2026-11-16)
+
+**Cancel an event that has registrants.** Events with attendee data can no longer be
+deleted (guarded delete, PRs #254-#255, live on prod 2026-11-17); the only alternative
+today is unpublishing, which tells attendees nothing. Garrett's idea: a "cancelled"
+state. Needs decisions before building: does the event stay visible marked cancelled,
+do registrants get an email (content needs sign-off), how are refunds handled for
+paid events. Not started.
+
+**Materials viewer: keep or remove the Download button.** Event Materials tab is live
+on prod (PRs #251-#253). Files show in-page; a Download link is also offered. Open
+question for Garrett. The six Turtle Brace files are uploaded; attendees have not
+been notified, by Garrett's choice.
 
 ---
 

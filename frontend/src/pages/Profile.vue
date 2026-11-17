@@ -111,7 +111,7 @@
 					</div>
 				</div>
 				<Button
-					v-if="isSessionUser() && !readOnlyMode"
+					v-if="(isSessionUser() || currentUserHasHigherAccess()) && !readOnlyMode"
 					class="mt-3 sm:mt-0 md:ml-auto"
 					@click="editProfile()"
 				>
