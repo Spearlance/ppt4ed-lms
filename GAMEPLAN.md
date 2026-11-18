@@ -11,12 +11,12 @@ and using the writeup below as the briefing.
 (680930c3), released to `main` via PR #242 (efc557ae). Prod backup before migrate:
 `20261105_090006`. Backfill patch ran; dev bind-mount on `develop`.
 
-**Still open (not code):** Turtlebrace event on prod has NO survey attached, so
-`require_survey_for_credit` stayed 0 after the backfill and a quiz pass alone mints
-the certificate. Also no Certificate Signers chosen (1 instructor: Mary), credentials
-toggle already ON. Event date configured as Sat 2026-11-07, 8:00–15:30, 6.0 CEU,
-quiz passing 80%, unlimited attempts, 28 registrations, 0 certs. Teresa decisions:
-attach final survey + flip the flag, pick signers, confirm date, confirm answer key.
+**Turtlebrace event: done (checked on prod 2026-11-18).** Ran Sat 2026-11-07. Final
+survey attached and `require_survey_for_credit` on; Online Quiz at 80%. 28 registered,
+22 took the quiz, 21 passed and all 21 hold a published certificate; 23 survey
+responses. Open only if PPT cares: 1 person has a single 10% attempt and no
+certificate, 5 registrants never attempted the quiz, and no Certificate Signers were
+picked (certificates fall back to the instructor, Mary).
 
 **Full plan:** `docs/plans/2026-11-04-event-quiz-survey-certification.md`
 
@@ -43,46 +43,30 @@ self-only. See the PR for deploy status.
 
 ## Queued — Event follow-ups (Garrett, 2026-11-16)
 
-**Cancel an event that has registrants.** Events with attendee data can no longer be
-deleted (guarded delete, PRs #254-#255, live on prod 2026-11-17); the only alternative
-today is unpublishing, which tells attendees nothing. Garrett's idea: a "cancelled"
-state. Needs decisions before building: does the event stay visible marked cancelled,
-do registrants get an email (content needs sign-off), how are refunds handled for
-paid events. Not started.
+**Cancel an event that has registrants.** Built 2026-11-18 on `feat/cancel-event`
+(`lms/lms/event_cancel.py`, Settings tab > Cancel event). Cancelling unpublishes the
+event (off listings, registration closed, reminders stop), keeps it visible to
+registrants with a cancelled notice, and emails registrants only if the admin ticks
+the box. Restore undoes it and leaves the event unpublished. Refunds are out of scope:
+PPT issues them in Stripe. See the PR for deploy status; the email wording
+(`lms/templates/emails/event_cancelled.html`) needs Garrett's sign-off before prod.
 
-**Materials viewer: keep or remove the Download button.** Event Materials tab is live
-on prod (PRs #251-#253). Files show in-page; a Download link is also offered. Open
-question for Garrett. The six Turtle Brace files are uploaded; attendees have not
-been notified, by Garrett's choice.
+**Materials viewer Download button: keep (Garrett, 2026-11-17).** Covered by
+`e2e/event-materials.spec.ts`. The six Turtle Brace files are uploaded; attendees
+have not been notified, by Garrett's choice.
 
 ---
 
-## Parked — Certificate render redesign (Chromium + vector frame)
+## Closed — Certificate render redesign (Chromium + vector frame)
 
-**Status:** designed, awaiting go-ahead from user. Not started.
+Already shipped piecemeal: the Certificate print format runs on `pdf_generator:
+"chrome"` with self-hosted fonts and an SVG frame, there is an admin preview page
+(`AdminCertificatePreview.vue`), and `e2e/certificate-render.spec.ts` asserts one
+page. Nothing left to build from `docs/plans/2026-05-19-certificate-render-redesign.md`.
 
-**Why parked:** dev will briefly go down for the Docker image rebuild, so we
-launch this when the user explicitly says go.
-
-**Full plan:** `.claude/docs/plans/2026-05-19-certificate-render-redesign.md`
-
-**One-line summary:** switch the Certificate print format off wkhtmltopdf
-(third attempt at a layout fix still spilled onto page 2 — see
-`~/Downloads/26i261rhbl.pdf`) to Frappe's `pdf_generator: "chromium"`,
-self-host the three fonts, replace `cert-frame.png` with inline SVG, add an
-admin preview page, gate CI with a Playwright e2e that asserts
-`pageCount === 1` across 3 worst-case variants.
-
-**Open decisions:** all 5 sign-off questions in the plan doc are answered.
-Only remaining gate is "user says go."
-
-**Effort:** ~3 days work + ~30min image rebuild per environment.
-
-**Entry sequence when picking this up:**
-1. Branch `feat/certificate-chromium-render` from `develop`.
-2. Open a doc-only commit/PR with the plan first so the design is
-   reviewable + linked from implementation commits.
-3. Walk Tasks 1–7 from the plan doc.
+**Open question (Garrett, 2026-11-17):** a client asked for something to display
+horizontally rather than vertically inside the app. Which screen is not yet pinned
+down; not started.
 
 ---
 

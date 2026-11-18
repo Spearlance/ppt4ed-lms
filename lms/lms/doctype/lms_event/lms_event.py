@@ -57,6 +57,7 @@ class LMSEvent(WebsiteGenerator):
 		# so force-fill on every save (mirrors community_event.py).
 		if not self.route:
 			self.route = self.make_route()
+		self.validate_cancellation()
 		self.derive_schedule_from_event_days()
 		self.validate_seats_left()
 		self.validate_event_end_date()
@@ -71,6 +72,19 @@ class LMSEvent(WebsiteGenerator):
 		self.validate_certificate_signers()
 		self.validate_credit_settings()
 		ensure_instructors_have_moderator_role([row.instructor for row in self.instructors or []])
+
+	def validate_cancellation(self):
+		"""Cancelling and restoring only happen through lms.lms.event_cancel.
+		An ordinary save (for example a settings form left open in another tab)
+		can never flip the cancelled state, and a cancelled event cannot be
+		published."""
+		if not self.flags.cancellation_change and not self.is_new():
+			before = self.get_doc_before_save()
+			if before:
+				for field in ("cancelled", "cancelled_on", "cancellation_message"):
+					self.set(field, before.get(field))
+		if self.cancelled and self.published:
+			frappe.throw(_("This event is cancelled. Restore it before publishing it."))
 
 	def on_update(self):
 		if self.has_value_changed("published") and self.published:
