@@ -241,6 +241,14 @@ test.describe('Event materials', () => {
 		expect(res.headers()['content-type']).toContain('application/pdf')
 		expect(res.headers()['content-disposition']).toMatch(/^inline/)
 		expect(downloads).toBe(0)
+
+		// The Download button is the one deliberate way to save a copy.
+		const [download] = await Promise.all([
+			page.waitForEvent('download'),
+			page.getByTestId('material-viewer').getByRole('link', { name: 'Download' }).click(),
+		])
+		expect(download.suggestedFilename()).toMatch(/^Measurement-table\.(png|jpe?g|gif)$/)
+		expect(await download.failure()).toBeNull()
 	})
 
 	test('phone layout: list first, then the document, with a way back', async ({ page }) => {
