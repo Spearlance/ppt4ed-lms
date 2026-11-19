@@ -57,29 +57,34 @@
 				{{ __('Enter an LMS Certificate document name to preview it.') }}
 			</div>
 
-			<div v-else class="cert-stage">
-				<iframe
-					v-if="isSampleMode"
-					ref="printIframe"
-					:srcdoc="samplePreview.data?.html || ''"
-					class="cert-iframe"
-					:title="__('Sample certificate preview')"
-					data-testid="sample-preview-frame"
-				></iframe>
-				<iframe
-					v-else
-					ref="printIframe"
-					:src="printViewUrl"
-					class="cert-iframe"
-					:title="__('Certificate preview')"
-				></iframe>
+			<div v-else ref="certStage" class="cert-stage">
+				<!-- Landscape 11in x 8.5in page, scaled down to fit the stage width. -->
+				<div class="cert-scaler" :style="scalerStyle">
+					<iframe
+						v-if="isSampleMode"
+						ref="printIframe"
+						:srcdoc="samplePreview.data?.html || ''"
+						class="cert-iframe"
+						:style="iframeStyle"
+						:title="__('Sample certificate preview')"
+						data-testid="sample-preview-frame"
+					></iframe>
+					<iframe
+						v-else
+						ref="printIframe"
+						:src="printViewUrl"
+						class="cert-iframe"
+						:style="iframeStyle"
+						:title="__('Certificate preview')"
+					></iframe>
+				</div>
 			</div>
 		</div>
 	</div>
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { Breadcrumbs, Button, createResource, usePageMeta } from 'frappe-ui'
 
@@ -92,6 +97,44 @@ const props = defineProps({
 const router = useRouter()
 const certNameInput = ref(props.certName || '')
 const printIframe = ref(null)
+
+// The certificate is a landscape 11in x 8.5in page (1056 x 816 CSS px). Render it
+// at full size inside the iframe and scale the whole frame down to the stage width
+// so narrow windows see the entire page instead of a clipped corner.
+const CERT_WIDTH = 1056
+const CERT_HEIGHT = 816
+const STAGE_PADDING = 32
+const certStage = ref(null)
+const scale = ref(1)
+let stageObserver = null
+
+const fitStage = () => {
+	const width = certStage.value?.clientWidth
+	if (!width) return
+	scale.value = Math.min(1, (width - STAGE_PADDING) / CERT_WIDTH)
+}
+
+watch(certStage, (el) => {
+	stageObserver?.disconnect()
+	stageObserver = null
+	if (!el) return
+	fitStage()
+	if (typeof ResizeObserver !== 'undefined') {
+		stageObserver = new ResizeObserver(fitStage)
+		stageObserver.observe(el)
+	}
+})
+
+onBeforeUnmount(() => stageObserver?.disconnect())
+
+const scalerStyle = computed(() => ({
+	width: `${Math.round(CERT_WIDTH * scale.value)}px`,
+	height: `${Math.round(CERT_HEIGHT * scale.value)}px`,
+}))
+
+const iframeStyle = computed(() => ({
+	transform: `scale(${scale.value})`,
+}))
 
 usePageMeta({ title: 'Certificate Preview' })
 
@@ -206,28 +249,20 @@ watch(
 	border-radius: 0.5rem;
 }
 
+.cert-scaler {
+	position: relative;
+	overflow: hidden;
+}
+
 .cert-iframe {
-	width: 11in;
-	height: 8.5in;
-	max-width: 100%;
-	background: white;
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 1056px;
+	height: 816px;
 	border: 1px solid #d1d5db;
+	background: white;
 	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-	/* Scale the 11in iframe to fit narrow viewports. */
-	transform-origin: top center;
-}
-
-@media (max-width: 1200px) {
-	.cert-iframe {
-		transform: scale(0.75);
-		margin-bottom: -2.125in;
-	}
-}
-
-@media (max-width: 900px) {
-	.cert-iframe {
-		transform: scale(0.55);
-		margin-bottom: -3.825in;
-	}
+	transform-origin: top left;
 }
 </style>
