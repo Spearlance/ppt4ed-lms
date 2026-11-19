@@ -48,8 +48,8 @@ self-only. See the PR for deploy status.
 event (off listings, registration closed, reminders stop), keeps it visible to
 registrants with a cancelled notice, and emails registrants only if the admin ticks
 the box. Restore undoes it and leaves the event unpublished. Refunds are out of scope:
-PPT issues them in Stripe. See the PR for deploy status; the email wording
-(`lms/templates/emails/event_cancelled.html`) needs Garrett's sign-off before prod.
+PPT issues them in Stripe. Email wording (`lms/templates/emails/event_cancelled.html`) approved by Garrett
+2026-11-18. Live on prod 2026-11-18 via #261.
 
 **Materials viewer Download button: keep (Garrett, 2026-11-17).** Covered by
 `e2e/event-materials.spec.ts`. The six Turtle Brace files are uploaded; attendees
@@ -64,9 +64,11 @@ Already shipped piecemeal: the Certificate print format runs on `pdf_generator:
 (`AdminCertificatePreview.vue`), and `e2e/certificate-render.spec.ts` asserts one
 page. Nothing left to build from `docs/plans/2026-05-19-certificate-render-redesign.md`.
 
-**Open question (Garrett, 2026-11-17):** a client asked for something to display
-horizontally rather than vertically inside the app. Which screen is not yet pinned
-down; not started.
+**Certificate shows horizontally in the app (Garrett, 2026-11-18).** The in-app
+certificate preview drew the landscape certificate inside a portrait frame and
+cropped it on narrower screens. Fixed by PR #245 (opened 2026-11-05, merged
+2026-11-18): the preview scales the whole 11in x 8.5in page to fit. See the PR for
+deploy status.
 
 ---
 
