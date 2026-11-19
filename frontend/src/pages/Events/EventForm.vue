@@ -3,8 +3,36 @@
 		<div class="grid grid-cols-1 lg:grid-cols-[3fr,2fr]">
 			<div v-if="batchDetail.doc" class="py-5 lg:h-[88vh] lg:overflow-y-auto">
 				<div class="px-5 pb-5 space-y-5 border-b mb-5">
-					<div class="text-lg text-ink-gray-9 font-semibold mb-4">
-						{{ __('Details') }}
+					<div
+						v-if="batchDetail.doc.cancelled"
+						data-testid="event-cancelled-settings"
+						class="flex flex-col gap-3 rounded-md bg-surface-red-1 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+					>
+						<div>
+							<div class="font-medium text-ink-red-4">
+								{{ __('This event is cancelled') }}
+							</div>
+							<div class="text-sm text-ink-gray-7">
+								{{
+									__(
+										'It is unpublished, registration is closed and no reminders are sent. Registered attendees see a cancelled notice.'
+									)
+								}}
+							</div>
+						</div>
+						<Button class="shrink-0" :label="__('Restore event')" @click="restoreEvent()" />
+					</div>
+					<div class="flex items-center justify-between mb-4">
+						<div class="text-lg text-ink-gray-9 font-semibold">
+							{{ __('Details') }}
+						</div>
+						<Button
+							v-if="!batchDetail.doc.cancelled"
+							theme="red"
+							variant="subtle"
+							:label="__('Cancel event')"
+							@click="showCancelModal = true"
+						/>
 					</div>
 
 					<div class="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -13,7 +41,12 @@
 								size="sm"
 								v-model="batchDetail.doc.published"
 								:label="__('Published')"
-								:description="__('Make the event visible to all users.')"
+								:disabled="!!batchDetail.doc.cancelled"
+								:description="
+									batchDetail.doc.cancelled
+										? __('Restore the event before publishing it again.')
+										: __('Make the event visible to all users.')
+								"
 							/>
 							<FormControl
 								v-model="batchDetail.doc.title"
@@ -500,6 +533,12 @@
 		templateID="new"
 		@created="onEmailTemplateCreated"
 	/>
+	<CancelEventModal
+		v-if="props.batch.data?.name"
+		v-model="showCancelModal"
+		:event="props.batch.data.name"
+		@cancelled="reloadAfterCancellationChange"
+	/>
 </template>
 <script setup>
 import {
@@ -539,6 +578,7 @@ import Link from '@/components/Controls/Link.vue'
 import NewMemberModal from '@/components/Modals/NewMemberModal.vue'
 import EmailTemplateModal from '@/components/Modals/EmailTemplateModal.vue'
 import SignerCredentials from '@/components/SignerCredentials.vue'
+import CancelEventModal from '@/pages/Events/components/CancelEventModal.vue'
 
 const router = useRouter()
 const user = inject('$user')
@@ -776,11 +816,49 @@ const updateEvent = () => {
 	)
 }
 
+const showCancelModal = ref(false)
+
+const reloadAfterCancellationChange = () => {
+	batchDetail.reload()
+	props.batch.reload()
+}
+
+const restoreEvent = () => {
+	$dialog({
+		title: __('Restore this event?'),
+		message: __(
+			'The cancelled notice is removed. The event stays unpublished until you publish it again, and nobody is emailed.'
+		),
+		actions: [
+			{
+				label: __('Restore event'),
+				variant: 'solid',
+				onClick({ close }) {
+					return call('lms.lms.event_cancel.restore_event', {
+						event: props.batch.data.name,
+					})
+						.then(() => {
+							close()
+							toast.success(__('Event restored. It is still unpublished.'))
+							reloadAfterCancellationChange()
+						})
+						.catch((error) => {
+							close()
+							toast.error(
+								error?.messages?.[0] || __('This event could not be restored.')
+							)
+						})
+				},
+			},
+		],
+	})
+}
+
 const deleteEvent = () => {
 	$dialog({
 		title: __('Delete this event?'),
 		message: __(
-			'This permanently deletes the event, its materials and its discussions. Events that have registrations, payments or certificates cannot be deleted. Unpublish those instead.'
+			'This permanently deletes the event, its materials and its discussions. Events that have registrations, payments or certificates cannot be deleted. Cancel those instead.'
 		),
 		actions: [
 			{

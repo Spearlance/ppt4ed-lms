@@ -1,0 +1,30 @@
+<p>
+    {{ _("Hi") }} {{ first_name }},
+</p>
+<br>
+<p>
+    {{ _("We're sorry to let you know that the event below has been cancelled.") }}
+</p>
+<br>
+<p>
+    <b>{{ _("Event:") }}</b> {{ title }}
+</p>
+{% if date %}
+<p>
+    <b>{{ _("Was scheduled for:") }}</b> {{ date }}
+</p>
+{% endif %}
+{% if message %}
+<br>
+<p style="white-space: pre-line;">{{ message }}</p>
+{% endif %}
+{% if paid_event %}
+<br>
+<p>
+    {{ _("If you paid for this event, PPT4ed will follow up with you directly about your refund.") }}
+</p>
+{% endif %}
+<br>
+<p>
+    {{ _("We apologize for the inconvenience and hope to see you at a future event.") }}
+</p>

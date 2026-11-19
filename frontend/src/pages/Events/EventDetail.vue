@@ -46,6 +46,21 @@
 				</Dropdown>
 			</div>
 		</header>
+		<div
+			v-if="batch.data.cancelled"
+			data-testid="event-cancelled-banner"
+			class="mx-3 mt-4 rounded-md bg-surface-red-1 px-4 py-3 sm:mx-5"
+		>
+			<div class="font-medium text-ink-red-4">
+				{{ __('This event has been cancelled') }}
+			</div>
+			<div
+				v-if="batch.data.cancellation_message"
+				class="mt-1 whitespace-pre-line text-sm text-ink-gray-8"
+			>
+				{{ batch.data.cancellation_message }}
+			</div>
+		</div>
 		<div>
 			<EventOverview v-if="!isAdmin && !isStudent" :batch="batch" />
 			<div v-else>

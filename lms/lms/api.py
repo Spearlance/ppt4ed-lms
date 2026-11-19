@@ -1562,7 +1562,7 @@ def delete_event(event: str):
 	blockers = get_event_delete_blockers(event)
 	if blockers:
 		frappe.throw(
-			_("This event cannot be deleted because it has {0}. Unpublish it instead to hide it.").format(
+			_("This event cannot be deleted because it has {0}. Cancel it instead.").format(
 				", ".join(blockers)
 			),
 			title=_("Event has attendee data"),
