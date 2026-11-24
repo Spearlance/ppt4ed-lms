@@ -69,6 +69,15 @@
 								{{ __('Preview certificate') }}
 							</Button>
 						</router-link>
+						<Button
+							:label="__('Private link')"
+							@click="showPrivateLinkModal = true"
+						>
+							<template #prefix>
+								<Link2 class="size-4 stroke-1.5" />
+							</template>
+							{{ __('Private link') }}
+						</Button>
 						<Button @click="showEnrollmentModal = true">
 							<template #prefix>
 								<Plus class="size-4 stroke-1.5" />
@@ -288,8 +297,13 @@
 	<StudentModal
 		v-if="showEnrollmentModal"
 		v-model="showEnrollmentModal"
-		:event="event"
+		:batch="batch"
 		:students="students"
+	/>
+	<PrivateLinkModal
+		v-if="showPrivateLinkModal && batch?.data?.name"
+		v-model="showPrivateLinkModal"
+		:event="batch.data.name"
 	/>
 	<Dialog
 		v-model="scoreDialog.open"
@@ -384,17 +398,20 @@ import {
 	Award,
 	ClipboardCheck,
 	Download,
+	Link2,
 	PencilLine,
 	Plus,
 	UserMinus,
 } from 'lucide-vue-next'
 import NumberChartGraph from '@/components/NumberChartGraph.vue'
 import StudentModal from '@/components/Modals/StudentModal.vue'
+import PrivateLinkModal from '@/pages/Events/components/PrivateLinkModal.vue'
 
 const app = getCurrentInstance()
 const $dialog = app?.appContext.config.globalProperties.$dialog
 const searchFilter = ref<string | null>(null)
 const showEnrollmentModal = ref<boolean>(false)
+const showPrivateLinkModal = ref<boolean>(false)
 
 const props = defineProps<{
 	batch: { [key: string]: any } | null

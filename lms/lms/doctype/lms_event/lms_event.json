@@ -19,6 +19,8 @@
   "end_date",
   "column_break_4",
   "allow_self_enrollment",
+  "private_registration_enabled",
+  "private_registration_version",
   "start_time",
   "end_time",
   "timezone",
@@ -636,6 +638,26 @@
    "fieldtype": "Data",
    "label": "Webinar Join Link",
    "options": "URL"
+  },
+  {
+   "default": "0",
+   "description": "Lets anyone holding this event's private link register for free, even while the event is unpublished. Managed from the event Dashboard in the LMS.",
+   "fieldname": "private_registration_enabled",
+   "fieldtype": "Check",
+   "label": "Private Registration Link",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "description": "Bumped each time the private link is reset; the old link stops working.",
+   "fieldname": "private_registration_version",
+   "fieldtype": "Int",
+   "hidden": 1,
+   "label": "Private Registration Link Version",
+   "no_copy": 1,
+   "non_negative": 1,
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
@@ -656,7 +678,7 @@
    "link_fieldname": "payment_for_document"
   }
  ],
- "modified": "2026-11-18 09:00:00.000000",
+ "modified": "2026-11-24 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "LMS",
  "name": "LMS Event",

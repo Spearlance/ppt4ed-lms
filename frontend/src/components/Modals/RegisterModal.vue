@@ -262,6 +262,10 @@ const props = defineProps({
 	prefillEmail: { type: String, default: '' },
 	contextLabel: { type: String, default: '' },
 	redirectUrl: { type: String, default: '/lms' },
+	// Land on redirectUrl after signup even when the server suggests its own
+	// destination (a bare signup answers '/lms'). The private event join page
+	// needs the visitor back on its own URL to finish registering.
+	keepRedirectUrl: { type: Boolean, default: false },
 	// True when the target is CEU-bearing (every event, paid or CEU-hour
 	// course, membership purchase). Mirrors lms.lms.license on the server,
 	// which rejects the signup without the three fields either way.
@@ -380,7 +384,9 @@ async function submitSignup() {
 			return
 		}
 		if (result?.status === 'logged_in') {
-			window.location.href = result.redirect_to || props.redirectUrl
+			window.location.href = props.keepRedirectUrl
+				? props.redirectUrl
+				: result.redirect_to || props.redirectUrl
 			return
 		}
 		if (result?.status === 'exists') {
