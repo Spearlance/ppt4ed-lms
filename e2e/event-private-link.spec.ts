@@ -167,6 +167,38 @@ test('a logged-in learner registers through the link', async ({ browser }) => {
 	await context.close()
 })
 
+test('a brand-new person creates an account through the link and lands registered', async ({
+	browser,
+}) => {
+	// The prepaid-group case: no account yet, only the link. Uses a throwaway
+	// signup-test+<stamp>@example.com account like e2e/signup-flow.spec.ts.
+	const stamp = Date.now().toString(36) + Math.random().toString(36).slice(2, 6)
+	const email = `signup-test+${stamp}@example.com`
+	const context = await browser.newContext()
+	const page = await context.newPage()
+	await page.goto(linkUrl)
+	await page.getByRole('button', { name: 'Create an account or log in to register' }).click()
+
+	const dialog = page.getByRole('dialog')
+	await dialog.getByLabel('Full name').fill('Signup Test Private Link')
+	await dialog.getByLabel('Email').fill(email)
+	await dialog.getByLabel('Password').fill(PASSWORD)
+	const license = dialog.getByTestId('register-license-fields')
+	await license.locator('select').selectOption('PT')
+	await license.getByLabel('State').fill('FL')
+	await license.getByLabel('License number').fill('PT-E2E-0002')
+	await dialog.locator('button[type="submit"]').click()
+
+	// Signup returns to the link with ?register=1, which registers them and
+	// forwards to the event page without another click.
+	await page.waitForURL(`**/lms/events/${eventName}`, { timeout: 30000 })
+	await expect(page.getByText(TITLE).first()).toBeVisible()
+
+	await page.goto(linkUrl)
+	await expect(page.getByTestId('private-join-registered')).toBeVisible()
+	await context.close()
+})
+
 test('admin enrolls a member from the Dashboard dialog', async ({ page }) => {
 	await login(page, ADMIN_EMAIL)
 	const result = await api(page, 'lms.lms.event_private_link.register_member', {
