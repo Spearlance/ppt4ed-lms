@@ -66,6 +66,12 @@ const routes = [
 		redirect: (to) => `/events/${to.params.eventName}`,
 	},
 	{
+		path: '/events/:eventName/join/:code',
+		name: 'PrivateEventJoin',
+		component: () => import('@/pages/Events/PrivateEventJoin.vue'),
+		props: true,
+	},
+	{
 		path: '/events/:eventName',
 		name: 'EventDetail',
 		component: () => import('@/pages/Events/EventDetail.vue'),
@@ -340,6 +346,7 @@ router.beforeEach(async (to, from, next) => {
 			'Signup',
 			'AcceptInvite',
 			'MembershipPlans',
+			'PrivateEventJoin',
 		]
 		if (!settings.data.allow_guest_access && !guestAllowedRoutes.includes(to.name)) {
 			window.location.href = '/login'

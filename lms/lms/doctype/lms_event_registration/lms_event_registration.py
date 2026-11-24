@@ -101,6 +101,10 @@ class LMSEventRegistration(Document):
 		)
 		if event_details.paid_event:
 			return
+		# A valid private registration link (lms.lms.event_private_link) stands
+		# in for self-enrollment on an otherwise closed, unpublished event.
+		if self.flags.private_registration_link:
+			return
 		if not event_details.allow_self_enrollment and not self.is_admin():
 			frappe.throw(_("Enrollment for this event is restricted. Please contact the Administrator."))
 
