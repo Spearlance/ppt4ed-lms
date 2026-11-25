@@ -68,28 +68,30 @@ const props = defineProps({
 	},
 })
 
-const addStudent = (close) => {
-	props.students.insert.submit(
-		{
+// Goes through a server method rather than a client-side insert: the old
+// insert sent the event under its pre-rename field name (`batch`), so the
+// registration was rejected, and Global Admins are not covered by the
+// doctype's permission rows.
+const addStudent = async (close) => {
+	if (!student.value) {
+		toast.error(__('Please choose a student.'))
+		return
+	}
+	try {
+		await call('lms.lms.event_private_link.register_member', {
+			event: props.batch.data?.name,
 			member: student.value,
 			payment: payment.value,
-			batch: props.batch.data?.name,
-		},
-		{
-			onSuccess() {
-				if (user.data?.is_system_manager)
-					updateOnboardingStep('add_batch_student')
-
-				student.value = null
-				payment.value = null
-				props.batch.reload()
-				close()
-			},
-			onError(err) {
-				toast.error(err.messages?.[0] || err)
-				console.error(err)
-			},
-		}
-	)
+		})
+		if (user.data?.is_system_manager) updateOnboardingStep('add_batch_student')
+		student.value = null
+		payment.value = null
+		props.students?.reload()
+		props.batch.reload()
+		close()
+	} catch (err) {
+		toast.error(String(err.messages?.[0] || err.message || err).replace(/<[^>]+>/g, ''))
+		console.error(err)
+	}
 }
 </script>
